@@ -101,7 +101,11 @@ int timers_run(struct timeval *next)
 
 		// calculate new timeout & next
 		if (timerisset(&pos->repeat)) {
-			timeradd(&pos->timeout, &pos->repeat, &pos->timeout);
+			do {
+				timeradd(&pos->timeout, &pos->repeat,
+				         &pos->timeout);
+			} while (timercmp(&pos->timeout, &now, <));
+
 			if (next) {
 				struct timeval __next;
 				timersub(&pos->timeout, &now, &__next);
