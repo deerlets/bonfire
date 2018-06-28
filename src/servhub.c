@@ -190,6 +190,7 @@ int servhub_register_service(struct servhub *hub, const char *name,
 {
 	struct spdnet_node *snode = spdnet_nodepool_get(hub->serv_snodepool);
 	spdnet_setid(snode, name, strlen(name));
+	spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
 	spdnet_connect(snode, hub->router_addr);
 	spdnet_register(snode);
 	if (__snode) *__snode = snode;

@@ -149,6 +149,13 @@ int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	}
 	mutex_unlock(&pool->snodes_lock);
 
+	list_for_each_entry(pos, &pool->pollins, pollin_node) {
+		if (pos->alive_timeout && pos->alive_timeout <= time(NULL)) {
+			assert(spdnet_alive(pos) == 0);
+			spdnet_setalive(pos, pos->alive_interval);
+		}
+	}
+
 	if (!item_index)
 		goto finally;
 
@@ -161,11 +168,10 @@ int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	}
 
 	int i = 0;
-	struct spdnet_node *cur, *m;
-	list_for_each_entry_safe(cur, m, &pool->pollins, pollin_node) {
+	list_for_each_entry_safe(pos, n, &pool->pollins, pollin_node) {
 		assert(i < item_index);
 		if ((items[i].revents & ZMQ_POLLIN) == 0)
-			list_del(&cur->pollin_node);
+			list_del(&pos->pollin_node);
 		i++;
 	}
 

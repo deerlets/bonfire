@@ -12,6 +12,8 @@ int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 
 	memset(snode->name, 0, sizeof(snode->name));
 	snode->type = type;
+	snode->alive_interval = 0;
+	snode->alive_timeout = 0;
 
 	memset(snode->addr, 0, sizeof(snode->addr));
 	snode->socket = zmq_socket(ctx, type);
@@ -43,6 +45,8 @@ int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket)
 
 	memset(snode->name, 0, sizeof(snode->name));
 	snode->type = type;
+	snode->alive_interval = 0;
+	snode->alive_timeout = 0;
 
 	memset(snode->addr, 0, sizeof(snode->addr));
 	snode->socket = socket;
@@ -94,6 +98,18 @@ void spdnet_setname(struct spdnet_node *snode, const char *name)
 	strcpy(snode->name, name);
 }
 
+void spdnet_setalive(struct spdnet_node *snode, time_t alive)
+{
+	assert(snode->type == SPDNET_NODE);
+
+	if (alive < SPDNET_MIN_ALIVE_INTERVAL)
+		snode->alive_interval = SPDNET_MIN_ALIVE_INTERVAL;
+	else
+		snode->alive_interval = alive;
+
+	snode->alive_timeout = time(NULL) + snode->alive_interval;
+}
+
 const char *spdnet_getname(struct spdnet_node *snode)
 {
 	return snode->name;
@@ -124,11 +140,25 @@ int spdnet_register(struct spdnet_node *snode)
 	int rc;
 	struct spdnet_msg msg;
 
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE,
-	                     SPDNET_SOCKID_NONE_LEN,
-	                     SPDNET_REGISTER_MSG,
-	                     SPDNET_REGISTER_MSG_LEN,
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
+	                     SPDNET_REGISTER_MSG, SPDNET_REGISTER_MSG_LEN,
 	                     NULL, 0);
+	rc = spdnet_sendmsg(snode, &msg);
+	spdnet_msg_close(&msg);
+
+	if (rc == -1) return -1;
+	return 0;
+}
+
+int spdnet_alive(struct spdnet_node *snode)
+{
+	assert(snode->type == SPDNET_NODE);
+	assert(snode->id_len);
+	int rc;
+	struct spdnet_msg msg;
+
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
+	                     SPDNET_ALIVE_MSG, SPDNET_ALIVE_MSG_LEN, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 

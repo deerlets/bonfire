@@ -281,9 +281,11 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 		list_add(&src_routing->node, &router->routing_table);
 	}
 
-	// filter register msg, after src routing, before dst routing
+	// filter register & alive msg, after src routing, before dst routing
 	if (memcmp(zmq_msg_data(&header), SPDNET_REGISTER_MSG,
-	           SPDNET_REGISTER_MSG_LEN) == 0) {
+	           SPDNET_REGISTER_MSG_LEN) == 0 ||
+	    memcmp(zmq_msg_data(&header), SPDNET_ALIVE_MSG,
+	           SPDNET_ALIVE_MSG_LEN) == 0) {
 		rc = 0;
 		goto finally;
 	}

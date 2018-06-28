@@ -58,11 +58,12 @@ extern "C" {
  *     frame 8: meta
  */
 
-#define SPDNET_REGISTER_MSG "sockid-register"
-#define SPDNET_REGISTER_MSG_LEN (sizeof(SPDNET_REGISTER_MSG)-1)
-
 #define SPDNET_SOCKID_NONE "--none--"
 #define SPDNET_SOCKID_NONE_LEN (sizeof(SPDNET_SOCKID_NONE)-1)
+#define SPDNET_REGISTER_MSG "snode-register"
+#define SPDNET_REGISTER_MSG_LEN (sizeof(SPDNET_REGISTER_MSG)-1)
+#define SPDNET_ALIVE_MSG "snode-alive"
+#define SPDNET_ALIVE_MSG_LEN (sizeof(SPDNET_ALIVE_MSG)-1)
 
 #if defined(WIN32) || defined(DEBUG_SPDNET) || defined(WITH_TESTS)
 #define SPDNET_ROUTER_INNER_ADDRESS "tcp://127.0.0.1:8338"
@@ -75,6 +76,8 @@ extern "C" {
 #define SPDNET_ROUTER_DEFAULT_GATEWAY "default_gateway"
 
 #define SPDNET_ROUTING_ITEM_STALL 3600
+#define SPDNET_ALIVE_INTERVAL 600
+#define SPDNET_MIN_ALIVE_INTERVAL 10
 
 #define SPDNET_MULTICAST_DEFAULT_IP "239.255.12.24"
 #define SPDNET_MULTICAST_DEFAULT_PORT 5964
@@ -170,6 +173,8 @@ struct spdnet_node {
 
 	char name[SPDNET_NAME_SIZE];
 	int type;
+	time_t alive_interval;
+	time_t alive_timeout;
 
 	char addr[SPDNET_ADDRESS_SIZE];
 	void *socket;
@@ -194,11 +199,13 @@ int spdnet_node_close(struct spdnet_node *snode);
 void *spdnet_node_get_socket(struct spdnet_node *snode);
 int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len);
 void spdnet_setname(struct spdnet_node *snode, const char *name);
+void spdnet_setalive(struct spdnet_node *snode, time_t alive);
 const char *spdnet_getname(struct spdnet_node *snode);
 int spdnet_bind(struct spdnet_node *snode, const char *addr);
 int spdnet_connect(struct spdnet_node *snode, const char *addr);
 int spdnet_disconnect(struct spdnet_node *snode);
 int spdnet_register(struct spdnet_node *snode);
+int spdnet_alive(struct spdnet_node *snode);
 int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags);
 int spdnet_send(struct spdnet_node *snode, const void *buf,
                 size_t size, int flags);
