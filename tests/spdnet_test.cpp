@@ -5,31 +5,19 @@
 #include "spdnet.h"
 #include "task.h"
 
-static void *ctx;
-static struct spdnet_router router;
-static struct task router_task;
-
-static void basic_init(void)
-{
-	ctx = spdnet_ctx_create();
-	spdnet_router_init(&router, "router_inner", ctx);
-	spdnet_router_bind(&router, SPDNET_ROUTER_DEFAULT_ADDRESS);
-	task_init(&router_task, "router_task",
-	          (task_run_func_t)spdnet_router_run, &router);
-	task_start(&router_task);
-}
-
-static void basic_exit(void)
-{
-	task_stop(&router_task);
-	task_close(&router_task);
-	spdnet_router_close(&router);
-	spdnet_ctx_destroy(ctx);
-}
+#define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:8339"
 
 TEST(spdnet, basic)
 {
-	basic_init();
+	void *ctx = spdnet_ctx_create();
+	struct spdnet_router router;
+	struct task router_task;
+	spdnet_router_init(&router, "router_inner", ctx);
+	spdnet_router_bind(&router, INNER_ROUTER_ADDRESS);
+	task_init(&router_task, "router_task",
+	          (task_run_func_t)spdnet_router_run, &router);
+	task_start(&router_task);
 
 	int rc;
 	struct spdnet_node service, requester;
@@ -37,13 +25,13 @@ TEST(spdnet, basic)
 
 	spdnet_node_init(&service, SPDNET_NODE, ctx);
 	spdnet_setid(&service, "service", strlen("service"));
-	rc = spdnet_connect(&service, SPDNET_ROUTER_DEFAULT_ADDRESS);
+	rc = spdnet_connect(&service, INNER_ROUTER_ADDRESS);
 	ASSERT_NE(rc, -1);
 	rc = spdnet_register(&service);
 	ASSERT_NE(rc, -1);
 
 	spdnet_node_init(&requester, SPDNET_NODE, ctx);
-	rc = spdnet_connect(&requester, SPDNET_ROUTER_DEFAULT_ADDRESS);
+	rc = spdnet_connect(&requester, INNER_ROUTER_ADDRESS);
 	ASSERT_NE(rc, -1);
 	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "I'm xiedd.");
 	rc = spdnet_sendmsg(&requester, &msg);
@@ -87,7 +75,10 @@ TEST(spdnet, basic)
 	spdnet_node_close(&requester);
 	spdnet_node_close(&service);
 
-	basic_exit();
+	task_stop(&router_task);
+	task_close(&router_task);
+	spdnet_router_close(&router);
+	spdnet_ctx_destroy(ctx);
 }
 
 /*
@@ -107,7 +98,7 @@ TEST(spdnet, nodepoll)
 	spdnet_nodepool_init(&snodepool, 1, ctx);
 
 	struct spdnet_msg msg;
-	SPDNET_MSG_INIT_DATA(&msg, "gene", "module_info", NULL);
+	SPDNET_MSG_INIT_DATA(&msg, "gene", "info", NULL);
 	struct spdnet_node *p = spdnet_nodepool_get(&snodepool);
 	p->user_data = &snodepool;
 	rc = spdnet_connect(p, "tcp://192.168.31.12:1234");
@@ -137,7 +128,7 @@ TEST(spdnet, router)
 	// router inner
 	rc = spdnet_router_init(&inner, "router-inner", ctx);
 	assert(rc == 0);
-	rc = spdnet_router_bind(&inner, SPDNET_ROUTER_INNER_ADDRESS);
+	rc = spdnet_router_bind(&inner, INNER_ROUTER_ADDRESS);
 	assert(rc == 0);
 	struct task inner_task;
 	task_init(&inner_task, "router-inner-task",
@@ -150,9 +141,9 @@ TEST(spdnet, router)
 	size_t inner_len;
 	rc = spdnet_router_init(&outer, NULL, ctx);
 	assert(rc == 0);
-	rc = spdnet_router_bind(&outer, SPDNET_ROUTER_OUTER_ADDRESS);
+	rc = spdnet_router_bind(&outer, OUTER_ROUTER_ADDRESS);
 	assert(rc == 0);
-	rc = spdnet_router_associate(&outer, SPDNET_ROUTER_INNER_ADDRESS,
+	rc = spdnet_router_associate(&outer, INNER_ROUTER_ADDRESS,
 	                             inner_id, &inner_len);
 	assert(rc == 0);
 	spdnet_router_set_gateway(&outer, inner_id, inner_len, SPDNET_ROUTER);
@@ -170,9 +161,9 @@ TEST(spdnet, router)
 	spdnet_node_init(&service, SPDNET_NODE, ctx);
 	spdnet_setid(&service, "service", strlen("service"));
 
-	rc = spdnet_connect(&requester, SPDNET_ROUTER_OUTER_ADDRESS);
+	rc = spdnet_connect(&requester, OUTER_ROUTER_ADDRESS);
 	assert(rc == 0);
-	rc = spdnet_connect(&service, SPDNET_ROUTER_INNER_ADDRESS);
+	rc = spdnet_connect(&service, INNER_ROUTER_ADDRESS);
 	assert(rc == 0);
 	rc = spdnet_register(&service);
 	assert(rc == 0);
@@ -234,6 +225,7 @@ TEST(spdnet, pgm)
 {
 	// always fails
 	return;
+	void *ctx = spdnet_ctx_create();
 	void *pub = zmq_socket(ctx, ZMQ_PUB);
 	void *sub = zmq_socket(ctx, ZMQ_SUB);
 
@@ -253,4 +245,8 @@ TEST(spdnet, pgm)
 	zmq_msg_send(&msg, pub, 0);
 	zmq_msg_close(&msg);
 	pthread_join(tid, NULL);
+
+	zmq_close(pub);
+	zmq_close(sub);
+	spdnet_ctx_destroy(ctx);
 }

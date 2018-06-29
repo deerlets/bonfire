@@ -4,6 +4,11 @@
 #include "task.h"
 #include "utils.h"
 
+#define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define SERVHUB_PUBLISH_ADDRESS "inproc://servhub-publish"
+#define SERVHUB_MULTICAST_IP "239.255.12.24"
+#define SERVHUB_MULTICAST_PORT 5964
+
 static int on_hello(struct servmsg *sm)
 {
 	return 0;
@@ -59,7 +64,7 @@ TEST(service, servhub)
 	void *ctx = spdnet_ctx_create();
 	struct spdnet_router router;
 	spdnet_router_init(&router, "router_inner", ctx);
-	spdnet_router_bind(&router, SPDNET_ROUTER_DEFAULT_ADDRESS);
+	spdnet_router_bind(&router, ROUTER_ADDRESS);
 	struct task router_task;
 	task_init(&router_task, "router_task",
 	          (task_run_func_t)spdnet_router_run, &router);
@@ -68,17 +73,18 @@ TEST(service, servhub)
 	// init servhub
 	char pgm_addr[SPDNET_ADDRESS_SIZE];
 	snprintf(pgm_addr, sizeof(pgm_addr), "epgm://%s;%s:%d",
-	         get_ifaddr(), SPDNET_MULTICAST_DEFAULT_IP,
-	         SPDNET_MULTICAST_DEFAULT_PORT);
+	         get_ifaddr(), SERVHUB_MULTICAST_IP, SERVHUB_MULTICAST_PORT);
 	struct spdnet_nodepool serv_snodepool;
 	struct spdnet_nodepool req_snodepool;
+	struct spdnet_node spublish;
 	struct spdnet_multicast smulticast;
 	spdnet_nodepool_init(&serv_snodepool, 20, ctx);
 	spdnet_nodepool_init(&req_snodepool, 20, ctx);
+	spdnet_publish_init(&spublish, SERVHUB_PUBLISH_ADDRESS, ctx);
 	spdnet_multicast_init(&smulticast, pgm_addr, 1, ctx);
 	struct servhub servhub;
-	servhub_init(&servhub, "servhub", SPDNET_ROUTER_INNER_ADDRESS,
-	             &serv_snodepool, &req_snodepool, &smulticast);
+	servhub_init(&servhub, "servhub", ROUTER_ADDRESS,
+	             &serv_snodepool, &req_snodepool, &spublish, &smulticast);
 	struct task servhub_task;
 	task_init(&servhub_task, "servhub_task",
 	          (task_run_func_t)servhub_run, &servhub);
@@ -93,7 +99,7 @@ TEST(service, servhub)
 	// start testing
 	struct spdnet_node client;
 	spdnet_node_init(&client, SPDNET_NODE, ctx);
-	spdnet_connect(&client, SPDNET_ROUTER_DEFAULT_ADDRESS);
+	spdnet_connect(&client, ROUTER_ADDRESS);
 	struct spdnet_msg msg;
 	SPDNET_MSG_INIT_DATA(&msg, "testing", "zerox", "I'm xiedd.");
 	spdnet_sendmsg(&client, &msg);
