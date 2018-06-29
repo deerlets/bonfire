@@ -145,8 +145,8 @@ int z_recv_not_more(void *s, zmq_msg_t *msg, int flags);
  * spdnet_node
  */
 
-#define SPDNET_NODE ZMQ_DEALER
 #define SPDNET_ROUTER ZMQ_ROUTER
+#define SPDNET_NODE ZMQ_DEALER
 #define SPDNET_SUB ZMQ_SUB
 #define SPDNET_PUB ZMQ_PUB
 #define SPDNET_OTHER -1
@@ -224,6 +224,33 @@ static inline int
 spdnet_publish_close(struct spdnet_node *pub)
 {
 	return spdnet_node_close(pub);
+}
+
+static inline int
+spdnet_subscribe_init(struct spdnet_node *sub, const char *addr, void *ctx)
+{
+	if (spdnet_node_init(sub, SPDNET_SUB, ctx))
+		return -1;
+
+	if (spdnet_connect(sub, addr)) {
+		spdnet_node_close(sub);
+		return -1;
+	}
+
+	return 0;
+}
+
+static inline int
+spdnet_subscribe_close(struct spdnet_node *sub)
+{
+	return spdnet_node_close(sub);
+}
+
+static inline int
+spdnet_subscribe_set_filter(struct spdnet_node *sub,
+                            const void *prefix, size_t len)
+{
+	return zmq_setsockopt(sub->socket, ZMQ_SUBSCRIBE, prefix, len);
 }
 
 /*

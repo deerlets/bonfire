@@ -182,8 +182,10 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	int rc = 0;
 
 	// sockid
-	rc = z_recv_more(snode->socket, MSG_SOCKID(msg), flags);
-	if (rc == -1) return -1;
+	if (snode->type == SPDNET_NODE) {
+		rc = z_recv_more(snode->socket, MSG_SOCKID(msg), flags);
+		if (rc == -1) return -1;
+	}
 	rc = z_recv_more(snode->socket, MSG_SOCKID(msg), flags);
 	if (rc == -1) return -1;
 
@@ -255,8 +257,10 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 	int rc = 0;
 
 	// sockid
-	rc = zmq_send(snode->socket, &snode->type, 1, ZMQ_SNDMORE);
-	if (rc == -1) return -1;
+	if (snode->type == SPDNET_NODE) {
+		rc = zmq_send(snode->socket, &snode->type, 1, ZMQ_SNDMORE);
+		if (rc == -1) return -1;
+	}
 	rc = zmq_msg_send(MSG_SOCKID(msg), snode->socket, ZMQ_SNDMORE);
 	if (rc == -1) return -1;
 
