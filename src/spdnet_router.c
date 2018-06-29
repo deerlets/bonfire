@@ -26,7 +26,7 @@ spdnet_peer_remote_id(void *ctx, const char *addr, void *id, size_t *len)
 	zmq_sleep(1);
 #endif
 
-#if defined(WIN32) || defined(DEBUG_SPDNET) || defined(WITH_TESTS)
+#if defined(WIN32) || defined(DEBUG_SPDNET)
 	rc = spdnet_recvmsg(&snode, &msg, ZMQ_DONTWAIT);
 	if (rc == -1) goto finally;
 	const char *value = zmq_msg_gets(MSG_SOCKID(&msg), "Identity");
@@ -332,7 +332,7 @@ static int on_pollin(struct spdnet_router *router)
 	rc = z_recv_more(socket, &delimiter, 0);
 	if (rc == -1) goto finally;
 
-#if defined(WIN32) || defined(DEBUG_SPDNET) || defined(WITH_TESTS)
+#if defined(WIN32) || defined(DEBUG_SPDNET)
 	// zmq_msg_gets always fails with srcid
 	const char *socket_type = zmq_msg_gets(&delimiter, "Socket-Type");
 	assert(socket_type);

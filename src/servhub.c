@@ -145,6 +145,7 @@ multicast_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
                  struct spdnet_nodepool *serv_snodepool,
                  struct spdnet_nodepool *req_snodepool,
+                 struct spdnet_node *spublish,
                  struct spdnet_multicast *smulticast)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
@@ -154,6 +155,7 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 
 	hub->serv_snodepool = serv_snodepool;
 	hub->req_snodepool = req_snodepool;
+	hub->spublish = spublish;
 	hub->smulticast = smulticast;
 
 	hub->smulticast->sub.user_data = hub;
@@ -246,7 +248,7 @@ int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg)
 	int rc;
 	struct spdnet_node *p = spdnet_nodepool_get(hub->req_snodepool);
 
-	rc = spdnet_connect(p, SPDNET_ROUTER_INNER_ADDRESS);
+	rc = spdnet_connect(p, hub->router_addr);
 	assert(rc == 0);
 	rc = spdnet_sendmsg(p, msg);
 	assert(rc == 0);

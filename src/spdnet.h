@@ -65,22 +65,10 @@ extern "C" {
 #define SPDNET_ALIVE_MSG "snode-alive"
 #define SPDNET_ALIVE_MSG_LEN (sizeof(SPDNET_ALIVE_MSG)-1)
 
-#if defined(WIN32) || defined(DEBUG_SPDNET) || defined(WITH_TESTS)
-#define SPDNET_ROUTER_INNER_ADDRESS "tcp://127.0.0.1:8338"
-#else
-#define SPDNET_ROUTER_INNER_ADDRESS "inproc://router-inner"
-#endif
-#define SPDNET_ROUTER_OUTER_PORT 8339
-#define SPDNET_ROUTER_OUTER_ADDRESS "tcp://0.0.0.0:8339"
-#define SPDNET_ROUTER_DEFAULT_ADDRESS SPDNET_ROUTER_INNER_ADDRESS
 #define SPDNET_ROUTER_DEFAULT_GATEWAY "default_gateway"
-
 #define SPDNET_ROUTING_ITEM_STALL 3600
 #define SPDNET_ALIVE_INTERVAL 600
 #define SPDNET_MIN_ALIVE_INTERVAL 10
-
-#define SPDNET_MULTICAST_DEFAULT_IP "239.255.12.24"
-#define SPDNET_MULTICAST_DEFAULT_PORT 5964
 
 #define SPDNET_ZMTP_SOCKID_LEN 5
 #define SPDNET_SOCKID_SIZE 16
@@ -213,6 +201,30 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 void spdnet_recvmsg_async(struct spdnet_node *snode,
                           spdnet_recvmsg_cb recvmsg_cb, long timeout);
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
+
+/*
+ * spdnet publish & subscribe
+ */
+
+static inline int
+spdnet_publish_init(struct spdnet_node *pub, const char *addr, void *ctx)
+{
+	if (spdnet_node_init(pub, SPDNET_PUB, ctx))
+		return -1;
+
+	if (spdnet_bind(pub, addr)) {
+		spdnet_node_close(pub);
+		return -1;
+	}
+
+	return 0;
+}
+
+static inline int
+spdnet_publish_close(struct spdnet_node *pub)
+{
+	return spdnet_node_close(pub);
+}
 
 /*
  * spdnet_multicast
