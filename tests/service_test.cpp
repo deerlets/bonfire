@@ -38,7 +38,7 @@ TEST(service, servarea)
 {
 	struct servarea sa;
 	servarea_init(&sa, "testing");
-	servarea_register_service_batch(&sa, services);
+	servarea_register_services(&sa, services);
 
 	struct service *serv;
 	serv = __servarea_find_service(&sa, "hello");
@@ -91,7 +91,7 @@ TEST(service, servhub)
 	task_start(&servhub_task);
 
 	// init service
-	servhub_register_service(&servhub, "testing", services, NULL);
+	servhub_register_services(&servhub, "testing", services, NULL);
 
 	// wait for tasks
 	sleep(1);

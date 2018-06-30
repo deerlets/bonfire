@@ -165,7 +165,7 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
 
-	servhub_register_service(hub, hub->name, services, NULL);
+	servhub_register_services(hub, hub->name, services, NULL);
 	return 0;
 }
 
@@ -186,9 +186,9 @@ int servhub_close(struct servhub *hub)
 	return 0;
 }
 
-int servhub_register_service(struct servhub *hub, const char *name,
-                             struct service *services,
-                             struct spdnet_node **__snode)
+int servhub_register_services(struct servhub *hub, const char *name,
+                              struct service *services,
+                              struct spdnet_node **__snode)
 {
 	struct spdnet_node *snode = spdnet_nodepool_get(hub->serv_snodepool);
 	spdnet_setid(snode, name, strlen(name));
@@ -199,7 +199,7 @@ int servhub_register_service(struct servhub *hub, const char *name,
 
 	struct servarea *sa = malloc(sizeof(*sa));
 	servarea_init(sa, name);
-	servarea_register_service_batch(sa, services);
+	servarea_register_services(sa, services);
 	mutex_lock(&hub->servareas_lock);
 	list_add(&sa->node, &hub->servareas);
 	mutex_unlock(&hub->servareas_lock);

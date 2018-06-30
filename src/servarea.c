@@ -85,7 +85,7 @@ void servarea_unregister_service(struct servarea *sa, struct service *service)
 	list_del(&service->node);
 }
 
-void servarea_register_service_batch(struct servarea *sa, struct service *services)
+void servarea_register_services(struct servarea *sa, struct service *services)
 {
 	while (services && services->name != NULL) {
 		servarea_register_service(sa, services);

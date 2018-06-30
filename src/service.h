@@ -126,7 +126,7 @@ int servarea_init(struct servarea *sa, const char *name);
 int servarea_close(struct servarea *sa);
 void servarea_register_service(struct servarea *sa, struct service *service);
 void servarea_unregister_service(struct servarea *sa, struct service *service);
-void servarea_register_service_batch(struct servarea *sa, struct service *services);
+void servarea_register_services(struct servarea *sa, struct service *services);
 struct service *
 __servarea_find_service(struct servarea *sa, const char *name);
 struct service *
@@ -161,7 +161,7 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
                  struct spdnet_node *spublish,
                  struct spdnet_multicast *smulticast);
 int servhub_close(struct servhub *hub);
-int servhub_register_service(struct servhub *hub, const char *name,
+int servhub_register_services(struct servhub *hub, const char *name,
                              struct service *services,
                              struct spdnet_node **__snode);
 int servhub_unregister_service(struct servhub *hub, const char *name);
