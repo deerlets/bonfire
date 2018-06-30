@@ -84,9 +84,9 @@ struct service {
 	struct list_head node;
 };
 
-#define SERVICE_INIT(name, handler, desc) \
+#define INIT_SERVICE(name, handler, desc) \
 	{ name, handler, desc, 1, 0, NULL, NULL }
-#define SERVICE_INIT_PRIVATE(name, handler, desc) \
+#define INIT_SERVICE_PRIVATE(name, handler, desc) \
 	{ name, handler, desc, 0, 0, NULL, NULL }
 
 #define SERVICE_ERRNO_MAP(XX) \

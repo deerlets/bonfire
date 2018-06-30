@@ -25,8 +25,8 @@ static int on_blackhole(struct servmsg *sm)
 }
 
 static struct service services[] = {
-	SERVICE_INIT_PRIVATE("blackhole", on_blackhole, NULL),
-	SERVICE_INIT(NULL, NULL, NULL),
+	INIT_SERVICE_PRIVATE("blackhole", on_blackhole, NULL),
+	INIT_SERVICE(NULL, NULL, NULL),
 };
 
 static struct servarea *

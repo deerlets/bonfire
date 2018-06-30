@@ -28,10 +28,10 @@ static int on_zerox(struct servmsg *sm)
 }
 
 static struct service services[] = {
-	SERVICE_INIT("hello", on_hello, NULL),
-	SERVICE_INIT("world", on_world, NULL),
-	SERVICE_INIT("zerox", on_zerox, NULL),
-	SERVICE_INIT(NULL, NULL, NULL),
+	INIT_SERVICE("hello", on_hello, NULL),
+	INIT_SERVICE("world", on_world, NULL),
+	INIT_SERVICE("zerox", on_zerox, NULL),
+	INIT_SERVICE(NULL, NULL, NULL),
 };
 
 TEST(service, servarea)
