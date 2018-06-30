@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 static int
-spdnet_peer_remote_id(void *ctx, const char *addr, void *id, size_t *len)
+spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 {
 	int rc = 0;
 	char buf[32] = "peer";
@@ -408,20 +408,25 @@ int spdnet_router_bind(struct spdnet_router *router, const char *addr)
 int spdnet_router_associate(struct spdnet_router *router,
                             const char *addr, void *id, size_t *len)
 {
-	int rc;
+	char remote_id[SPDNET_SOCKID_SIZE];
+	size_t remote_len;
 
-	rc = spdnet_peer_remote_id(router->ctx, addr, id, len);
-	if (rc == -1) return -1;
+	if (spdnet_peer_remote(router->ctx, addr, remote_id, &remote_len) == -1)
+		return -1;
+	if (id && len) {
+		memcpy(id, remote_id, remote_len);
+		*len = remote_len;
+	}
 
-	rc = spdnet_connect(&router->snode, addr);
-	if (rc == -1) return -1;
+	if (spdnet_connect(&router->snode, addr) == -1)
+		return -1;
 
 #if HAVE_ZMQ_BUG
 	zmq_sleep(1);
 #endif
 
 	// rid
-	spdnet_send(&router->snode, id, *len, ZMQ_SNDMORE);
+	spdnet_send(&router->snode, remote_id, remote_len, ZMQ_SNDMORE);
 
 	// srcid
 	spdnet_send(&router->snode, &router->snode.type, 1, ZMQ_SNDMORE);
@@ -447,7 +452,8 @@ int spdnet_router_associate(struct spdnet_router *router,
 	spdnet_send(&router->snode, "", 0, 0);
 
 	struct spdnet_routing_item *item = malloc(sizeof(*item));
-	INIT_SPDNET_ROUTING_ITEM(item, id, *len, id, *len, SPDNET_ROUTER);
+	INIT_SPDNET_ROUTING_ITEM(item, remote_id, remote_len,
+	                         remote_id, remote_len, SPDNET_ROUTER);
 	list_add(&item->node, &router->routing_table);
 
 	return 0;
