@@ -93,13 +93,14 @@ void servarea_register_services(struct servarea *sa, struct service *services)
 	}
 }
 
-static struct service *
-__servarea_find_service_by_tag(struct servarea *sa, unsigned int tag)
+struct service *
+__servarea_find_service(struct servarea *sa, const char *name)
 {
-	struct service *p = sa->servtab[tag_hash_fn(tag)];
+	unsigned int tag = calc_tag(name, strlen(name));
 
+	struct service *p = sa->servtab[tag_hash_fn(tag)];
 	for (; p != NULL; p = p->hash_next) {
-		if (p->tag == tag)
+		if (strcmp(p->name, name) == 0)
 			return p;
 	}
 
@@ -107,17 +108,17 @@ __servarea_find_service_by_tag(struct servarea *sa, unsigned int tag)
 }
 
 struct service *
-__servarea_find_service(struct servarea *sa, const char *name)
-{
-	unsigned int tag = calc_tag(name, strlen(name));
-	return __servarea_find_service_by_tag(sa, tag);
-}
-
-struct service *
 servarea_find_service(struct servarea *sa, const char *name, size_t len)
 {
 	unsigned int tag = calc_tag(name, len);
-	return __servarea_find_service_by_tag(sa, tag);
+
+	struct service *p = sa->servtab[tag_hash_fn(tag)];
+	for (; p != NULL; p = p->hash_next) {
+		if (strlen(p->name) == len && memcmp(p->name, name, len) == 0)
+			return p;
+	}
+
+	return NULL;
 }
 
 service_handler_func_t
