@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef unix
 #include <sys/types.h>
@@ -66,4 +67,27 @@ const char *get_ifaddr()
 #endif
 
 	return retval;
+}
+
+void bytes_to_hexstr(uint8_t *bytes, int len, char *hexstr)
+{
+	const char hextab[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	                       'A', 'B', 'C', 'D', 'E', 'F'};
+
+	for (int i = 0; i < len; i++) {
+		hexstr[i * 2] = hextab[bytes[i] / 16];
+		hexstr[i * 2 + 1] = hextab[bytes[i] % 16];
+	}
+}
+
+void hexstr_to_bytes(const char *hexstr, uint8_t *bytes)
+{
+	char tmp[3] = {0};
+	char *endptr;
+	int len = strlen(hexstr) >> 1;
+	for (int i = 0; i < len; i++) {
+		tmp[0] = *(hexstr + (i << 1));
+		tmp[1] = *(hexstr + (i << 1) + 1);
+		bytes[i] = strtol(tmp, &endptr, 16);
+	}
 }
