@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <zmq.h>
-#include <libbson-1.0/bson.h>
 
 int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 {
@@ -202,41 +201,24 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	if (rc == -1) return -1;
 
 	// meta
-	zmq_msg_t meta;
-	zmq_msg_init(&meta);
-	rc = z_recv_more(snode->socket, &meta, flags);
+	zmq_msg_t meta_msg;
+	zmq_msg_init(&meta_msg);
+	rc = z_recv_more(snode->socket, &meta_msg, flags);
 	if (rc == -1) {
-		zmq_msg_close(&meta);
+		zmq_msg_close(&meta_msg);
 		return -1;
 	}
-	rc = z_recv_not_more(snode->socket, &meta, flags);
+	rc = z_recv_not_more(snode->socket, &meta_msg, flags);
 	if (rc == -1) {
-		zmq_msg_close(&meta);
+		zmq_msg_close(&meta_msg);
 		return -1;
 	}
 
-	bson_t *b;
-	bson_iter_t iter;
-	if ((b = bson_new_from_data(zmq_msg_data(&meta), zmq_msg_size(&meta))) &&
-	    bson_iter_init(&iter, b)) {
-		if (bson_iter_find(&iter, "name") &&
-		    BSON_ITER_HOLDS_UTF8(&iter)) {
-			snprintf(msg->__meta.name, SPDNET_NAME_SIZE, "%s",
-			         bson_iter_utf8(&iter, NULL));
-		}
+	rc = spdnet_meta_unserialize(&msg->__meta, zmq_msg_data(&meta_msg),
+	                             zmq_msg_size(&meta_msg));
+	assert(rc == 0);
+	zmq_msg_close(&meta_msg);
 
-		if (bson_iter_find(&iter, "node-type") &&
-		    BSON_ITER_HOLDS_INT32(&iter))
-			msg->__meta.node_type = bson_iter_int32(&iter);
-
-		if (bson_iter_find(&iter, "ttl") &&
-		    BSON_ITER_HOLDS_INT32(&iter))
-			msg->__meta.ttl = bson_iter_int32(&iter);
-
-		bson_destroy(b);
-	}
-
-	zmq_msg_close(&meta);
 	return 0;
 }
 
@@ -280,17 +262,18 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 	rc = zmq_send(snode->socket, "", 0, ZMQ_SNDMORE);
 	if (rc == -1) return -1;
 
-	bson_t *b = bson_new();
-	bson_append_utf8(b, "name", -1, snode->name, -1);
-	bson_append_int32(b, "node-type", -1, snode->type);
-	bson_append_int32(b, "ttl", -1, 10);
+	spdnet_meta_t meta;
+	meta.name = snode->name;
+	meta.node_type = snode->type;
+	meta.ttl = 10;
 
-	zmq_msg_t meta;
-	zmq_msg_init_size(&meta, b->len);
-	memcpy(zmq_msg_data(&meta), bson_get_data(b), b->len);
-	rc = zmq_msg_send(&meta, snode->socket, 0);
-	zmq_msg_close(&meta);
-	bson_destroy(b);
+	zmq_msg_t meta_msg;
+	size_t meta_len = sizeof(meta) + strlen(snode->name) + 1;
+	zmq_msg_init_size(&meta_msg, meta_len);
+	rc = spdnet_meta_serialize(&meta, zmq_msg_data(&meta_msg), meta_len);
+	assert(rc == meta_len);
+	rc = zmq_msg_send(&meta_msg, snode->socket, 0);
+	zmq_msg_close(&meta_msg);
 	if (rc == -1) return -1;
 
 	return 0;

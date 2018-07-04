@@ -1,6 +1,7 @@
 #include "spdnet.h"
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 #include <zmq.h>
 
 #define SPDNET_STRERROR_GEN(name, msg) case SPDNET_ ## name: return msg;
@@ -12,6 +13,32 @@ const char *spdnet_strerror(int err) {
 }
 #undef SPDNET_STRERROR_GEN
 
+int spdnet_meta_serialize(spdnet_meta_t *meta, void *buf, size_t len)
+{
+	int rc;
+	assert(len >= sizeof(*meta) + strlen(meta->name) + 1);
+
+	memcpy(buf, meta, sizeof(*meta));
+	rc = sizeof(*meta);
+	rc += sprintf(buf + rc, "%s", meta->name);
+	rc++;
+
+	return rc;
+}
+
+int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len)
+{
+	char *cur;
+	assert(*((char *)buf + len - 1) == '\0');
+
+	memcpy(meta, buf, sizeof(*meta));
+	cur = buf + sizeof(*meta);
+	meta->name = malloc(strlen(cur) + 1);
+	strcpy(meta->name, cur);
+
+	return 0;
+}
+
 int spdnet_msg_init(struct spdnet_msg *msg)
 {
 	memset(msg, 0, sizeof(*msg));
@@ -20,7 +47,10 @@ int spdnet_msg_init(struct spdnet_msg *msg)
 		return -1;
 	if (zmq_msg_init(&msg->__header) == -1)
 		return -1;
-	return zmq_msg_init(&msg->__content);
+	if (zmq_msg_init(&msg->__content) == -1)
+		return -1;
+
+	return 0;
 }
 
 int spdnet_msg_init_data(struct spdnet_msg *msg,
@@ -71,6 +101,10 @@ int spdnet_msg_close(struct spdnet_msg *msg)
 	assert(rc == 0);
 	rc = zmq_msg_close(&msg->__content);
 	assert(rc == 0);
+	if (msg->__meta.name) {
+		free(msg->__meta.name);
+		msg->__meta.name = NULL;
+	}
 	return 0;
 }
 
@@ -80,6 +114,7 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src)
 	zmq_msg_move(&dst->__header, &src->__header);
 	zmq_msg_move(&dst->__content, &src->__content);
 	memmove(&dst->__meta, &src->__meta, sizeof(src->__meta));
+	src->__meta.name = NULL;
 	return 0;
 }
 
@@ -89,6 +124,8 @@ int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 	zmq_msg_copy(&dst->__header, &src->__header);
 	zmq_msg_copy(&dst->__content, &src->__content);
 	memcpy(&dst->__meta, &src->__meta, sizeof(src->__meta));
+	dst->__meta.name = malloc(strlen(src->__meta.name) + 1);
+	strcpy(dst->__meta.name, src->__meta.name);
 	return 0;
 }
 

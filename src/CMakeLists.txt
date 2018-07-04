@@ -4,7 +4,7 @@ file(GLOB_RECURSE SRC *.c)
 file(GLOB_RECURSE INC *.h)
 
 add_library(zero SHARED ${SRC})
-target_link_libraries(zero pthread dl zmq pgm bson-1.0)
+target_link_libraries(zero pthread dl zmq pgm)
 set_target_properties(zero PROPERTIES VERSION 0.1.0 SOVERSION 0.1)
 
 if (WIN32)

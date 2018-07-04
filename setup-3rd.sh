@@ -95,26 +95,6 @@ libzmq()
 	fi
 }
 
-libbson()
-{
-	libbson_path=$PREFIX/thirdparty/libbson
-	if [ ! -e $libbson_path ]; then
-		if [ "$REPOS" = github ]; then
-			git clone https://github.com/mongodb/libbson.git $libbson_path
-		else
-			git clone $GIT_BASE/mirrors/libbson.git $libbson_path
-		fi
-		git -C $libbson_path checkout 1.9.4
-	fi
-
-	if [ ! "$(find $PREFIX/lib -maxdepth 1 -name ${FUNCNAME[0]}*)" ]; then
-		cd $libbson_path
-		./autogen.sh
-		./configure --prefix=$PREFIX
-		make && make install
-	fi
-}
-
 libgtest()
 {
 	libgtest_path=$PREFIX/thirdparty/libgtest
@@ -136,7 +116,6 @@ libgtest()
 
 do_build libpgm
 do_build libzmq
-do_build libbson
 do_build libgtest
 
 [ -e $PREFIX/lib64 ] && cp -a $PREFIX/lib64/* $PREFIX/lib/

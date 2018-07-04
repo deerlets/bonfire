@@ -96,10 +96,13 @@ const char *spdnet_strerror(int err);
  */
 
 typedef struct spdnet_meta {
-	char name[SPDNET_NAME_SIZE];
+	char *name;
 	int node_type;
 	int ttl;
 } spdnet_meta_t;
+
+int spdnet_meta_serialize(spdnet_meta_t *meta, void *buf, size_t len);
+int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len);
 
 struct spdnet_msg {
 	zmq_msg_t __sockid; // destid for sender, srcid for receiver
