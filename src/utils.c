@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,11 +81,14 @@ void bytes_to_hexstr(uint8_t *bytes, int len, char *hexstr)
 	}
 }
 
-void hexstr_to_bytes(const char *hexstr, uint8_t *bytes)
+void hexstr_to_bytes(const char *hexstr, uint8_t *bytes, size_t size)
 {
 	char tmp[3] = {0};
 	char *endptr;
 	int len = strlen(hexstr) >> 1;
+
+	assert(size >= len);
+
 	for (int i = 0; i < len; i++) {
 		tmp[0] = *(hexstr + (i << 1));
 		tmp[1] = *(hexstr + (i << 1) + 1);
