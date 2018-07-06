@@ -35,8 +35,8 @@
 static LIST_HEAD(timers);
 static pthread_mutex_t timers_lock;
 
-int set_timer(struct timer *timer, timer_handler_func_t handler,
-              void *arg, uint64_t timeout, uint64_t repeat)
+void set_timer(struct timer *timer, timer_handler_func_t handler,
+               void *arg, uint64_t timeout, uint64_t repeat)
 {
 	timer->handler = handler;
 	timer->arg = arg;
@@ -49,15 +49,18 @@ int set_timer(struct timer *timer, timer_handler_func_t handler,
 	pthread_mutex_lock(&timers_lock);
 	list_add(&timer->node, &timers);
 	pthread_mutex_unlock(&timers_lock);
-	return 0;
 }
 
-int kill_timer(struct timer *timer)
+void kill_timer(struct timer *timer)
 {
 	pthread_mutex_lock(&timers_lock);
 	list_del(&timer->node);
 	pthread_mutex_unlock(&timers_lock);
-	return 0;
+}
+
+void trigger_timer(struct timer *timer)
+{
+	gettimeofday(&timer->timeout, NULL);
 }
 
 int timers_init()

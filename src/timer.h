@@ -23,9 +23,10 @@ struct timer {
 };
 
 // timeout & repeat: millisecond
-int set_timer(struct timer *timer, timer_handler_func_t handler,
+void set_timer(struct timer *timer, timer_handler_func_t handler,
               void *arg, uint64_t timeout, uint64_t repeat);
-int kill_timer(struct timer *timer);
+void kill_timer(struct timer *timer);
+void trigger_timer(struct timer *timer);
 
 int timers_init();
 int timers_close();
