@@ -10,11 +10,26 @@ add_library(mock_module SHARED mock_module.c)
 set_target_properties(mock_module PROPERTIES PREFIX "")
 set_target_properties(mock_module PROPERTIES SUFFIX ".zo")
 
-add_executable(runZeroTests
-	spdnet_test.cpp
-	zbuf_test.cpp
-	service_test.cpp
-	task_test.cpp
-	module_test.cpp)
-target_link_libraries(runZeroTests gtest gtest_main zero)
-add_test(runZeroTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runZeroTests)
+add_executable(runSpdnetTests spdnet_test.cpp)
+target_link_libraries(runSpdnetTests gtest gtest_main zero)
+add_test(runSpdnetTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runSpdnetTests)
+
+add_executable(runServiceTests service_test.cpp)
+target_link_libraries(runServiceTests gtest gtest_main zero)
+add_test(runServiceTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runServiceTests)
+
+add_executable(runTaskTests task_test.cpp)
+target_link_libraries(runTaskTests gtest gtest_main zero)
+add_test(runTaskTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runTaskTests)
+
+add_executable(runModuleTests module_test.cpp)
+target_link_libraries(runModuleTests gtest gtest_main zero)
+add_test(runModuleTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runModuleTests)
+
+add_executable(runZbufTests zbuf_test.cpp)
+target_link_libraries(runZbufTests gtest gtest_main zero)
+add_test(runZbufTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runZbufTests)
+
+add_executable(runUtilsTests utils_test.cpp)
+target_link_libraries(runUtilsTests gtest gtest_main zero)
+add_test(runUtilsTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runUtilsTests)
