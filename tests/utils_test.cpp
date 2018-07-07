@@ -22,3 +22,24 @@ TEST(utils, timeval)
 	ASSERT_GE(tv.tv_usec, 123450);
 	ASSERT_LE(tv.tv_usec, 123460);
 }
+
+TEST(utils, gcd)
+{
+	int n1, n2;
+
+	n1 = 25;
+	n2 = 36;
+	ASSERT_EQ(gcd(n1, n2), 1);
+
+	n1 = 100;
+	n2 = 36;
+	ASSERT_EQ(gcd(n1, n2), 4);
+
+	n1 = 100;
+	n2 = 25;
+	ASSERT_EQ(gcd(n1, n2), 25);
+
+	n1 = 100;
+	n2 = -25;
+	ASSERT_EQ(gcd(n1, n2), 25);
+}
