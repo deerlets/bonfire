@@ -24,8 +24,49 @@ static int on_blackhole(struct servmsg *sm)
 	return SERVICE_ENOSERV;
 }
 
+static int on_services(struct servmsg *sm)
+{
+	struct servhub *hub = sm->snode->user_data;
+
+	size_t buflen = 1024;
+	char *buf = malloc(buflen);
+	int nr = sprintf(buf, "{\"services\": [");
+	const char *service_template =
+		"{\"service\":\"%s\",\"request\":\"%s\",\"describe\":\"%s\"}";
+
+	struct servarea *pos;
+	list_for_each_entry(pos, &hub->servareas, node) {
+		struct service *cur;
+		list_for_each_entry(cur, &pos->services, node) {
+			if (!cur->visible) continue;
+
+			if (buf[nr - 1] != '[')
+				buf[nr++] = ',';
+
+			size_t __len = nr + strlen(service_template)
+				+ strlen(pos->name) + strlen(cur->name)
+				+ (cur->desc ? strlen(cur->desc) : 0);
+
+			// 2 means strlen("]}")
+			if (__len + nr + 2 > buflen - 1) {
+				buflen += 1024;
+				buf = realloc(buf, buflen);
+			}
+
+			nr += sprintf(buf + nr, service_template, pos->name,
+			              cur->name, cur->desc ? cur->desc : "");
+		}
+	}
+
+	nr += sprintf(buf + nr, "]}");
+	servmsg_respcnt_reset_data(sm, buf, -1);
+	free(buf);
+	return 0;
+}
+
 static struct service services[] = {
 	INIT_SERVICE_PRIVATE("blackhole", on_blackhole, NULL),
+	INIT_SERVICE("services", on_services, NULL),
 	INIT_SERVICE(NULL, NULL, NULL),
 };
 
@@ -165,7 +206,9 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
 
-	servhub_register_services(hub, hub->name, services, NULL);
+	struct spdnet_node *snode;
+	servhub_register_services(hub, hub->name, services, &snode);
+	snode->user_data = hub;
 	return 0;
 }
 
