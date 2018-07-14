@@ -22,11 +22,15 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 	sm->snode = snode;
 
 	if (!snode || snode->type == SPDNET_SUB) {
-		sm->reqserv = zmq_msg_data(MSG_SOCKID(&sm->request));
-		sm->reqserv_len = zmq_msg_size(MSG_SOCKID(&sm->request));
+		sm->src = NULL;
+		sm->src_len = 0;
+		sm->dest = zmq_msg_data(MSG_SOCKID(&sm->request));
+		sm->dest_len = zmq_msg_size(MSG_SOCKID(&sm->request));
 	} else {
-		sm->reqserv = snode->id;
-		sm->reqserv_len = strlen(snode->id);
+		sm->src = zmq_msg_data(MSG_SOCKID(&sm->request));
+		sm->src_len = zmq_msg_size(MSG_SOCKID(&sm->request));
+		sm->dest = snode->id;
+		sm->dest_len = strlen(snode->id);
 	}
 
 	sm->rc = 0;

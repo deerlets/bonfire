@@ -21,8 +21,11 @@ struct servmsg {
 	struct spdnet_msg response;
 	struct spdnet_node *snode;
 
-	void *reqserv;
-	size_t reqserv_len;
+	void *src;
+	size_t src_len;
+	void *dest;
+	size_t dest_len;
+
 	int rc;
 };
 

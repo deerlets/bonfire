@@ -110,7 +110,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 {
 	mutex_lock(&hub->servareas_lock);
 	struct servarea *sa;
-	if (!(sa = find_servarea(hub, sm->reqserv, sm->reqserv_len))) {
+	if (!(sa = find_servarea(hub, sm->dest, sm->dest_len))) {
 		mutex_unlock(&hub->servareas_lock);
 		sm->rc = SERVICE_ENOSERV;
 		return;
@@ -141,7 +141,8 @@ static int filter_msg(struct servhub *hub, struct spdnet_msg *msg,
 		return 1;
 
 	// filter mesasage send by servhub-self
-	if (snode->type != SPDNET_SUB && strlen(hub->name) == snode->id_len &&
+	if (snode->type != SPDNET_SUB &&
+	    strlen(hub->name) == snode->id_len &&
 	    memcmp(hub->name, snode->id, snode->id_len) == 0 &&
 	    strlen(hub->name) == id_len &&
 	    memcmp(hub->name, sockid, id_len) == 0)
