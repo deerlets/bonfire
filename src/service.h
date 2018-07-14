@@ -26,6 +26,7 @@ struct servmsg {
 	void *dest;
 	size_t dest_len;
 
+	void *user_data;
 	int rc;
 };
 
@@ -151,7 +152,10 @@ struct servhub {
 	struct spdnet_nodepool *req_snodepool;
 	struct spdnet_node *spublish;
 	struct spdnet_multicast *smulticast;
-	service_handler_func_t user_filter;
+
+	service_handler_func_t user_prepare_cb;
+	service_handler_func_t user_finished_cb;
+	service_handler_func_t user_filter_cb;
 
 	struct list_head servareas;
 	mutex_t servareas_lock;
@@ -162,15 +166,18 @@ int servhub_init(struct servhub *hub, const char *name,
                  struct spdnet_nodepool *serv_snodepool,
                  struct spdnet_nodepool *req_snodepool,
                  struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast,
-                 service_handler_func_t filter);
+                 struct spdnet_multicast *smulticast);
 int servhub_close(struct servhub *hub);
 int servhub_register_services(struct servhub *hub, const char *name,
                              struct service *services,
                              struct spdnet_node **__snode);
 int servhub_unregister_service(struct servhub *hub, const char *name);
 service_handler_func_t
-service_set_filter(struct servhub *hub, service_handler_func_t filter);
+servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb);
+service_handler_func_t
+servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb);
+service_handler_func_t
+servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_run(struct servhub *hub);

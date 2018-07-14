@@ -84,8 +84,7 @@ TEST(service, servhub)
 	spdnet_multicast_init(&smulticast, pgm_addr, 1, ctx);
 	struct servhub servhub;
 	servhub_init(&servhub, "servhub", ROUTER_ADDRESS,
-	             &serv_snodepool, &req_snodepool,
-	             &spublish, &smulticast, NULL);
+	             &serv_snodepool, &req_snodepool, &spublish, &smulticast);
 	struct task servhub_task;
 	task_init(&servhub_task, "servhub_task",
 	          (task_run_func_t)servhub_run, &servhub);

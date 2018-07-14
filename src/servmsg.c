@@ -33,6 +33,7 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 		sm->dest_len = strlen(snode->id);
 	}
 
+	sm->user_data = NULL;
 	sm->rc = 0;
 }
 

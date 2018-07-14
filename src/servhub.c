@@ -160,13 +160,21 @@ static int on_pollin(struct servhub *hub, struct spdnet_node *snode)
 	if (filter_msg(hub, &msg, snode) == 0) {
 		struct servmsg sm;
 		servmsg_init(&sm, &msg, snode);
-		if (!hub->user_filter || hub->user_filter(&sm) == 0) {
+
+		if (hub->user_prepare_cb)
+			hub->user_prepare_cb(&sm);
+
+		if (!hub->user_filter_cb || hub->user_filter_cb(&sm) == 0) {
 			handle_msg(hub, &sm);
 			if (sm.rc != SERVICE_EASYNCREPLY) {
 				finish_msg(hub, &sm);
 				spdnet_sendmsg(snode, &sm.response);
 			}
 		}
+
+		if (hub->user_finished_cb)
+			hub->user_finished_cb(&sm);
+
 		servmsg_close(&sm);
 	}
 
@@ -177,10 +185,20 @@ static int on_pollin(struct servhub *hub, struct spdnet_node *snode)
 static void
 multicast_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
+	struct servhub *hub = snode->user_data;
+
 	if (filter_msg(snode->user_data, msg, snode) == 0) {
 		struct servmsg sm;
 		servmsg_init(&sm, msg, snode);
-		handle_msg(snode->user_data, &sm);
+
+		if (hub->user_prepare_cb)
+			hub->user_prepare_cb(&sm);
+
+		handle_msg(hub, &sm);
+
+		if (hub->user_finished_cb)
+			hub->user_finished_cb(&sm);
+
 		servmsg_close(&sm);
 	}
 	spdnet_recvmsg_async(snode, multicast_recvmsg_cb, 0);
@@ -191,8 +209,7 @@ int servhub_init(struct servhub *hub, const char *name,
                  struct spdnet_nodepool *serv_snodepool,
                  struct spdnet_nodepool *req_snodepool,
                  struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast,
-                 service_handler_func_t filter)
+                 struct spdnet_multicast *smulticast)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
 
@@ -208,7 +225,9 @@ int servhub_init(struct servhub *hub, const char *name,
 	spdnet_nodepool_add(hub->req_snodepool, &hub->smulticast->sub);
 	spdnet_recvmsg_async(&hub->smulticast->sub, multicast_recvmsg_cb, 0);
 
-	hub->user_filter = filter;
+	hub->user_prepare_cb = NULL;
+	hub->user_finished_cb = NULL;
+	hub->user_filter_cb = NULL;
 
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
@@ -279,10 +298,26 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 }
 
 service_handler_func_t
-service_set_filter(struct servhub *hub, service_handler_func_t filter)
+servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb)
 {
-	service_handler_func_t retval = hub->user_filter;
-	hub->user_filter = filter;
+	service_handler_func_t retval = hub->user_prepare_cb;
+	hub->user_prepare_cb = prepare_cb;
+	return retval;
+}
+
+service_handler_func_t
+servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb)
+{
+	service_handler_func_t retval = hub->user_finished_cb;
+	hub->user_finished_cb = finished_cb;
+	return retval;
+}
+
+service_handler_func_t
+servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb)
+{
+	service_handler_func_t retval = hub->user_filter_cb;
+	hub->user_filter_cb = filter_cb;
 	return retval;
 }
 
@@ -292,7 +327,15 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 
 	struct servmsg sm;
 	servmsg_init(&sm, msg, NULL);
+
+	if (hub->user_prepare_cb)
+		hub->user_prepare_cb(&sm);
+
 	handle_msg(hub, &sm);
+
+	if (hub->user_finished_cb)
+		hub->user_finished_cb(&sm);
+
 	rc = sm.rc;
 	assert(sm.rc != SERVICE_EASYNCREPLY);
 	spdnet_msg_move(msg, &sm.response);
