@@ -91,11 +91,11 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 		cnt_len = strlen(cnt);
 	}
 
-	// FIXME: if 64 is large enough
-	char *buf = malloc(64 + cnt_len);
-	int nr = snprintf(buf, 64 + cnt_len,
-	                  "{\"errno\": %d, \"errmsg\": \"%s\", \"result\": ",
-	                  -sm->rc, service_strerror(sm->rc));
+	// 64 is large enough
+	size_t buflen = 64 + strlen(service_strerror(sm->rc)) + cnt_len;
+	char *buf = malloc(buflen);
+	int nr = snprintf(buf, buflen, "{\"errno\":%d, \"errmsg\":\"%s\","
+	                  " \"result\":", -sm->rc, service_strerror(sm->rc));
 	memcpy(buf + nr, cnt, cnt_len);
 	buf[nr + cnt_len] = '}';
 	buf[nr + cnt_len + 1] = '\0';
@@ -159,10 +159,12 @@ static int on_pollin(struct servhub *hub, struct spdnet_node *snode)
 	if (filter_msg(hub, &msg, snode) == 0) {
 		struct servmsg sm;
 		servmsg_init(&sm, &msg, snode);
-		handle_msg(hub, &sm);
-		if (sm.rc != SERVICE_EASYNCREPLY) {
-			finish_msg(hub, &sm);
-			spdnet_sendmsg(snode, &sm.response);
+		if (!hub->user_filter || hub->user_filter(&sm) == 0) {
+			handle_msg(hub, &sm);
+			if (sm.rc != SERVICE_EASYNCREPLY) {
+				finish_msg(hub, &sm);
+				spdnet_sendmsg(snode, &sm.response);
+			}
 		}
 		servmsg_close(&sm);
 	}
@@ -183,11 +185,13 @@ multicast_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	spdnet_recvmsg_async(snode, multicast_recvmsg_cb, 0);
 }
 
-int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+int servhub_init(struct servhub *hub, const char *name,
+                 const char *router_addr,
                  struct spdnet_nodepool *serv_snodepool,
                  struct spdnet_nodepool *req_snodepool,
                  struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast)
+                 struct spdnet_multicast *smulticast,
+                 service_handler_func_t filter)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
 
@@ -202,6 +206,8 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 	hub->smulticast->sub.user_data = hub;
 	spdnet_nodepool_add(hub->req_snodepool, &hub->smulticast->sub);
 	spdnet_recvmsg_async(&hub->smulticast->sub, multicast_recvmsg_cb, 0);
+
+	hub->user_filter = filter;
 
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
@@ -269,6 +275,14 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 	spdnet_nodepool_put(hub->serv_snodepool, snode);
 
 	return 0;
+}
+
+service_handler_func_t
+service_set_filter(struct servhub *hub, service_handler_func_t filter)
+{
+	service_handler_func_t retval = hub->user_filter;
+	hub->user_filter = filter;
+	return retval;
 }
 
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)

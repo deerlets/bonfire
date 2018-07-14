@@ -140,8 +140,6 @@ servarea_find_handler(struct servarea *sa, const char *name, size_t len);
  * servhub
  */
 
-#define DEFAULT_SERVICE_CALL_TIMEOUT 1000
-
 struct servhub {
 	const char *name;
 	const char *router_addr;
@@ -150,21 +148,26 @@ struct servhub {
 	struct spdnet_nodepool *req_snodepool;
 	struct spdnet_node *spublish;
 	struct spdnet_multicast *smulticast;
+	service_handler_func_t user_filter;
 
 	struct list_head servareas;
 	mutex_t servareas_lock;
 };
 
-int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+int servhub_init(struct servhub *hub, const char *name,
+                 const char *router_addr,
                  struct spdnet_nodepool *serv_snodepool,
                  struct spdnet_nodepool *req_snodepool,
                  struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast);
+                 struct spdnet_multicast *smulticast,
+                 service_handler_func_t filter);
 int servhub_close(struct servhub *hub);
 int servhub_register_services(struct servhub *hub, const char *name,
                              struct service *services,
                              struct spdnet_node **__snode);
 int servhub_unregister_service(struct servhub *hub, const char *name);
+service_handler_func_t
+service_set_filter(struct servhub *hub, service_handler_func_t filter);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_run(struct servhub *hub);
