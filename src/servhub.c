@@ -282,7 +282,6 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 	struct servarea *sa = find_servarea(hub, name, strlen(name));
 	assert(sa);
 	list_del(&sa->node);
-	list_del(&sa->sb_node);
 	mutex_unlock(&hub->servareas_lock);
 	servarea_close(sa);
 	free(sa);

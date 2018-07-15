@@ -123,7 +123,6 @@ struct servarea {
 	struct service **servtab;
 	struct list_head services;
 	struct list_head node;
-	struct list_head sb_node;
 };
 
 int servarea_init(struct servarea *sa, const char *name);

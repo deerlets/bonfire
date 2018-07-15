@@ -28,7 +28,6 @@ int servarea_init(struct servarea *sa, const char *name)
 
 	INIT_LIST_HEAD(&sa->services);
 	INIT_LIST_HEAD(&sa->node);
-	INIT_LIST_HEAD(&sa->sb_node);
 	return 0;
 }
 
