@@ -120,9 +120,18 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src)
 
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 {
-	zmq_msg_copy(&dst->__sockid, &src->__sockid);
-	zmq_msg_copy(&dst->__header, &src->__header);
-	zmq_msg_copy(&dst->__content, &src->__content);
+	zmq_msg_init_size(MSG_SOCKID(dst), zmq_msg_size(MSG_SOCKID(src)));
+	memcpy(zmq_msg_data(MSG_SOCKID(dst)), zmq_msg_data(MSG_SOCKID(src)),
+	       zmq_msg_size(MSG_SOCKID(src)));
+
+	zmq_msg_init_size(MSG_HEADER(dst), zmq_msg_size(MSG_HEADER(src)));
+	memcpy(zmq_msg_data(MSG_HEADER(dst)), zmq_msg_data(MSG_HEADER(src)),
+	       zmq_msg_size(MSG_HEADER(src)));
+
+	zmq_msg_init_size(MSG_CONTENT(dst), zmq_msg_size(MSG_CONTENT(src)));
+	memcpy(zmq_msg_data(MSG_CONTENT(dst)), zmq_msg_data(MSG_CONTENT(src)),
+	       zmq_msg_size(MSG_CONTENT(src)));
+
 	memcpy(&dst->__meta, &src->__meta, sizeof(src->__meta));
 	dst->__meta.name = malloc(strlen(src->__meta.name) + 1);
 	strcpy(dst->__meta.name, src->__meta.name);
