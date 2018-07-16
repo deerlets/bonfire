@@ -41,22 +41,22 @@ static inline const char *servmsg_reqid(struct servmsg *sm)
 
 static inline void *servmsg_reqhdr_data(struct servmsg *sm)
 {
-	return zmq_msg_data(MSG_HEADER(&sm->request));
+	return MSG_HEADER_DATA(&sm->request);
 }
 
 static inline size_t servmsg_reqhdr_size(struct servmsg *sm)
 {
-	return zmq_msg_size(MSG_HEADER(&sm->request));
+	return MSG_HEADER_SIZE(&sm->request);
 }
 
 static inline void *servmsg_reqcnt_data(struct servmsg *sm)
 {
-	return zmq_msg_data(MSG_CONTENT(&sm->request));
+	return MSG_CONTENT_DATA(&sm->request);
 }
 
 static inline size_t servmsg_reqcnt_size(struct servmsg *sm)
 {
-	return zmq_msg_size(MSG_CONTENT(&sm->request));
+	return MSG_CONTENT_SIZE(&sm->request);
 }
 
 static inline int
@@ -67,7 +67,7 @@ servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size)
 
 	zmq_msg_close(MSG_CONTENT(&sm->response));
 	zmq_msg_init_size(MSG_CONTENT(&sm->response), size);
-	memcpy(zmq_msg_data(MSG_CONTENT(&sm->response)), data, size);
+	memcpy(MSG_CONTENT_DATA(&sm->response), data, size);
 	return 0;
 }
 

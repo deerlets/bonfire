@@ -105,10 +105,10 @@ TEST(service, servhub)
 	spdnet_sendmsg(&client, &msg);
 	sleep(1);
 	spdnet_recvmsg(&client, &msg, 0);
-	ASSERT_EQ(zmq_msg_size(MSG_SOCKID(&msg)), 7);
-	ASSERT_EQ(zmq_msg_size(MSG_HEADER(&msg)), 5+6);
-	ASSERT_EQ(memcmp(zmq_msg_data(MSG_HEADER(&msg)), "zerox_reply", 5+6), 0);
-	ASSERT_NE(strstr((char *)zmq_msg_data(MSG_CONTENT(&msg)),
+	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
+	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5+6);
+	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "zerox_reply", 5+6), 0);
+	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
 	                 "Welcome to zerox."), nullptr);
 	spdnet_msg_close(&msg);
 	spdnet_node_close(&client);

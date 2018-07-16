@@ -69,24 +69,24 @@ int spdnet_msg_init_data(struct spdnet_msg *msg,
 
 	// sockid
 	if (id_size && sockid) {
-		zmq_msg_init_size(&msg->__sockid, id_size);
-		memcpy(zmq_msg_data(&msg->__sockid), sockid, id_size);
+		zmq_msg_init_size(MSG_SOCKID(msg), id_size);
+		memcpy(MSG_SOCKID_DATA(msg), sockid, id_size);
 	} else
-		zmq_msg_init(&msg->__sockid);
+		zmq_msg_init(MSG_SOCKID(msg));
 
 	// header
 	if (hdr_size && header) {
-		zmq_msg_init_size(&msg->__header, hdr_size);
-		memcpy(zmq_msg_data(&msg->__header), header, hdr_size);
+		zmq_msg_init_size(MSG_HEADER(msg), hdr_size);
+		memcpy(MSG_HEADER_DATA(msg), header, hdr_size);
 	} else
-		zmq_msg_init(&msg->__header);
+		zmq_msg_init(MSG_HEADER(msg));
 
 	// content
 	if (cnt_size && content) {
-		zmq_msg_init_size(&msg->__content, cnt_size);
-		memcpy(zmq_msg_data(&msg->__content), content, cnt_size);
+		zmq_msg_init_size(MSG_CONTENT(msg), cnt_size);
+		memcpy(MSG_CONTENT_DATA(msg), content, cnt_size);
 	} else
-		zmq_msg_init(&msg->__content);
+		zmq_msg_init(MSG_CONTENT(msg));
 
 	return 0;
 }
@@ -120,17 +120,15 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src)
 
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 {
-	zmq_msg_init_size(MSG_SOCKID(dst), zmq_msg_size(MSG_SOCKID(src)));
-	memcpy(zmq_msg_data(MSG_SOCKID(dst)), zmq_msg_data(MSG_SOCKID(src)),
-	       zmq_msg_size(MSG_SOCKID(src)));
+	zmq_msg_init_size(MSG_SOCKID(dst), MSG_SOCKID_SIZE(src));
+	memcpy(MSG_SOCKID_DATA(dst), MSG_SOCKID_DATA(src), MSG_SOCKID_SIZE(src));
 
-	zmq_msg_init_size(MSG_HEADER(dst), zmq_msg_size(MSG_HEADER(src)));
-	memcpy(zmq_msg_data(MSG_HEADER(dst)), zmq_msg_data(MSG_HEADER(src)),
-	       zmq_msg_size(MSG_HEADER(src)));
+	zmq_msg_init_size(MSG_HEADER(dst), MSG_HEADER_SIZE(src));
+	memcpy(MSG_HEADER_DATA(dst), MSG_HEADER_DATA(src), MSG_HEADER_SIZE(src));
 
-	zmq_msg_init_size(MSG_CONTENT(dst), zmq_msg_size(MSG_CONTENT(src)));
-	memcpy(zmq_msg_data(MSG_CONTENT(dst)), zmq_msg_data(MSG_CONTENT(src)),
-	       zmq_msg_size(MSG_CONTENT(src)));
+	zmq_msg_init_size(MSG_CONTENT(dst), MSG_CONTENT_SIZE(src));
+	memcpy(MSG_CONTENT_DATA(dst), MSG_CONTENT_DATA(src),
+	       MSG_CONTENT_SIZE(src));
 
 	memcpy(&dst->__meta, &src->__meta, sizeof(src->__meta));
 	dst->__meta.name = malloc(strlen(src->__meta.name) + 1);

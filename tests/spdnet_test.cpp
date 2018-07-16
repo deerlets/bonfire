@@ -41,14 +41,14 @@ TEST(spdnet, basic)
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(&service, &msg, 0);
 	ASSERT_NE(rc, -1);
-	ASSERT_EQ(zmq_msg_size(MSG_SOCKID(&msg)), 5);
-	ASSERT_EQ(zmq_msg_size(MSG_HEADER(&msg)), 5);
-	ASSERT_EQ(zmq_msg_size(MSG_CONTENT(&msg)), 10);
-	ASSERT_EQ(memcmp(zmq_msg_data(MSG_HEADER(&msg)), "hello", 5), 0);
-	ASSERT_EQ(memcmp(zmq_msg_data(MSG_CONTENT(&msg)), "I'm xiedd.", 10), 0);
+	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 5);
+	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5);
+	ASSERT_EQ(MSG_CONTENT_SIZE(&msg), 10);
+	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "hello", 5), 0);
+	ASSERT_EQ(memcmp(MSG_CONTENT_DATA(&msg), "I'm xiedd.", 10), 0);
 	zmq_msg_close(MSG_CONTENT(&msg));
 	zmq_msg_init_size(MSG_CONTENT(&msg), 17);
-	memcpy(zmq_msg_data(MSG_CONTENT(&msg)), "Welcome to zerox.", 17);
+	memcpy(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17);
 	rc = spdnet_sendmsg(&service, &msg);
 	ASSERT_NE(rc, -1);
 	spdnet_msg_close(&msg);
@@ -57,11 +57,11 @@ TEST(spdnet, basic)
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(&requester, &msg, 0);
 	ASSERT_NE(rc, -1);
-	ASSERT_EQ(zmq_msg_size(MSG_SOCKID(&msg)), 7);
-	ASSERT_EQ(zmq_msg_size(MSG_HEADER(&msg)), 5);
-	ASSERT_EQ(zmq_msg_size(MSG_CONTENT(&msg)), 17);
-	ASSERT_EQ(memcmp(zmq_msg_data(MSG_HEADER(&msg)), "hello", 5), 0);
-	ASSERT_EQ(memcmp(zmq_msg_data(MSG_CONTENT(&msg)), "Welcome to zerox.", 17), 0);
+	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
+	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5);
+	ASSERT_EQ(MSG_CONTENT_SIZE(&msg), 17);
+	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "hello", 5), 0);
+	ASSERT_EQ(memcmp(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17), 0);
 	spdnet_msg_close(&msg);
 
 	ASSERT_EQ(spdnet_router_msg_routerd(&router), 3);
@@ -176,25 +176,25 @@ TEST(spdnet, router)
 	sleep(1);
 	rc = spdnet_recvmsg(&service, &msg, 0);
 	assert(rc == 0);
-	assert(zmq_msg_size(MSG_SOCKID(&msg)) == 9);
-	assert(zmq_msg_size(MSG_HEADER(&msg)) == 5);
-	assert(memcmp("requester", zmq_msg_data(MSG_SOCKID(&msg)), 9) == 0);
-	assert(memcmp("hello", zmq_msg_data(MSG_HEADER(&msg)), 5) == 0);
+	assert(MSG_SOCKID_SIZE(&msg) == 9);
+	assert(MSG_HEADER_SIZE(&msg) == 5);
+	assert(memcmp("requester", MSG_SOCKID_DATA(&msg), 9) == 0);
+	assert(memcmp("hello", MSG_HEADER_DATA(&msg), 5) == 0);
 	sleep(1);
 
 	// reply from service to requester
 	zmq_msg_close(MSG_HEADER(&msg));
 	zmq_msg_init_size(MSG_HEADER(&msg), 5+6);
-	memcpy(zmq_msg_data(MSG_HEADER(&msg)), "hello_reply", 5+6);
+	memcpy(MSG_HEADER_DATA(&msg), "hello_reply", 5+6);
 	rc = spdnet_sendmsg(&service, &msg);
 	assert(rc == 0);
 	sleep(1);
 	rc = spdnet_recvmsg(&requester, &msg, 0);
 	assert(rc == 0);
-	assert(zmq_msg_size(MSG_SOCKID(&msg)) == 7);
-	assert(zmq_msg_size(MSG_HEADER(&msg)) == 5+6);
-	assert(memcmp("service", zmq_msg_data(MSG_SOCKID(&msg)), 7) == 0);
-	assert(memcmp("hello_reply", zmq_msg_data(MSG_HEADER(&msg)), 5+6) == 0);
+	assert(MSG_SOCKID_SIZE(&msg) == 7);
+	assert(MSG_HEADER_SIZE(&msg) == 5+6);
+	assert(memcmp("service", MSG_SOCKID_DATA(&msg), 7) == 0);
+	assert(memcmp("hello_reply", MSG_HEADER_DATA(&msg), 5+6) == 0);
 	sleep(1);
 
 	task_stop(&inner_task);

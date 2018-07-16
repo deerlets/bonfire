@@ -126,9 +126,18 @@ int spdnet_msg_sets(struct spdnet_msg *msg, const char *property,
 
 #define SPDNET_MSG_INIT_DATA(msg, sockid, header, content) \
 	spdnet_msg_init_data(msg, sockid, -1, header, -1, content, -1)
+
 #define MSG_SOCKID(msg) spdnet_msg_get(msg, "sockid")
+#define MSG_SOCKID_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "sockid"))
+#define MSG_SOCKID_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "sockid"))
+
 #define MSG_HEADER(msg) spdnet_msg_get(msg, "header")
+#define MSG_HEADER_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "header"))
+#define MSG_HEADER_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "header"))
+
 #define MSG_CONTENT(msg) spdnet_msg_get(msg, "content")
+#define MSG_CONTENT_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "content"))
+#define MSG_CONTENT_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "content"))
 
 /*
  * spdnet_ctx

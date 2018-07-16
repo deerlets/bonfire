@@ -83,8 +83,8 @@ find_servarea(struct servhub *hub, const char *name, size_t len)
 
 static void finish_msg(struct servhub *hub, struct servmsg *sm)
 {
-	const char *cnt = zmq_msg_data(MSG_CONTENT(&sm->response));
-	int cnt_len = zmq_msg_size(MSG_CONTENT(&sm->response));
+	const char *cnt = MSG_CONTENT_DATA(&sm->response);
+	int cnt_len = MSG_CONTENT_SIZE(&sm->response);
 
 	if (!cnt || !cnt_len) {
 		cnt = "null";
@@ -102,7 +102,7 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 
 	zmq_msg_close(MSG_CONTENT(&sm->response));
 	zmq_msg_init_size(MSG_CONTENT(&sm->response), strlen(buf));
-	memcpy(zmq_msg_data(MSG_CONTENT(&sm->response)), buf, strlen(buf));
+	memcpy(MSG_CONTENT_DATA(&sm->response), buf, strlen(buf));
 	free(buf);
 }
 
@@ -131,21 +131,17 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 static int filter_msg(struct servhub *hub, struct spdnet_msg *msg,
                       struct spdnet_node *snode)
 {
-	void *sockid = zmq_msg_data(MSG_SOCKID(msg));
-	size_t id_len = zmq_msg_size(MSG_SOCKID(msg));
-	void *header = zmq_msg_data(MSG_HEADER(msg));
-	size_t hdr_len = zmq_msg_size(MSG_HEADER(msg));
-
 	// servhub never handle response message
-	if (memcmp(header + hdr_len - 6, "_reply", 6) == 0)
+	if (memcmp(MSG_HEADER_DATA(msg) + MSG_HEADER_SIZE(msg) - 6,
+	           "_reply", 6) == 0)
 		return 1;
 
 	// filter mesasage send by servhub-self
 	if (snode->type != SPDNET_SUB &&
 	    strlen(hub->name) == snode->id_len &&
 	    memcmp(hub->name, snode->id, snode->id_len) == 0 &&
-	    strlen(hub->name) == id_len &&
-	    memcmp(hub->name, sockid, id_len) == 0)
+	    strlen(hub->name) == MSG_SOCKID_SIZE(msg) &&
+	    memcmp(hub->name, MSG_SOCKID_DATA(msg), MSG_SOCKID_SIZE(msg)) == 0)
 		return 1;
 
 	return 0;

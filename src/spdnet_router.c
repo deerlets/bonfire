@@ -56,8 +56,8 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	// meta, use content to get meta
 	rc = z_recv_more(socket, MSG_CONTENT(&msg), 0);
 	if (rc == -1) goto finally;
-	*len = zmq_msg_size(MSG_CONTENT(&msg));
-	memcpy(id, zmq_msg_data(MSG_CONTENT(&msg)), *len);
+	*len = MSG_CONTENT_SIZE(&msg);
+	memcpy(id, MSG_CONTENT_DATA(&msg), *len);
 	rc = z_recv_not_more(socket, MSG_CONTENT(&msg), 0);
 	if (rc == -1) goto finally;
 #endif
