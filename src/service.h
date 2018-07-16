@@ -39,26 +39,6 @@ static inline const char *servmsg_reqid(struct servmsg *sm)
 	return spdnet_msg_gets(&sm->request, "name");
 }
 
-static inline void *servmsg_reqhdr_data(struct servmsg *sm)
-{
-	return MSG_HEADER_DATA(&sm->request);
-}
-
-static inline size_t servmsg_reqhdr_size(struct servmsg *sm)
-{
-	return MSG_HEADER_SIZE(&sm->request);
-}
-
-static inline void *servmsg_reqcnt_data(struct servmsg *sm)
-{
-	return MSG_CONTENT_DATA(&sm->request);
-}
-
-static inline size_t servmsg_reqcnt_size(struct servmsg *sm)
-{
-	return MSG_CONTENT_SIZE(&sm->request);
-}
-
 static inline int
 servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size)
 {

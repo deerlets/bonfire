@@ -117,8 +117,8 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	}
 
 	service_handler_func_t fn;
-	fn = servarea_find_handler(sa, servmsg_reqhdr_data(sm),
-	                           servmsg_reqhdr_size(sm));
+	fn = servarea_find_handler(sa, MSG_HEADER_DATA(&sm->request),
+	                           MSG_HEADER_SIZE(&sm->request));
 	mutex_unlock(&hub->servareas_lock);
 	if (!fn) {
 		sm->rc = SERVICE_ENOREQ;
