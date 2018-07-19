@@ -6,8 +6,6 @@
 #include <dlfcn.h>
 #include <dirent.h>
 
-#define MODULE_ERRMSG_SIZE 512
-
 static int __errno;
 static char __errmsg[MODULE_ERRMSG_SIZE];
 static LIST_HEAD(modules);
@@ -22,15 +20,17 @@ char *mod_error(void)
 	return __errmsg;
 }
 
-static void path_to_name(char *fpath, char *name, size_t size)
+static void path_to_name(const char *filepath, char *name, size_t size)
 {
+	char __filepath[strlen(filepath) + 1];
+	strcpy(__filepath, filepath);
+
 	// FIXME: windows may use '\\'
-	char *start = strrchr(fpath, '/');
-	if (!start) start = fpath;
+	char *start = strrchr(__filepath, '/');
+	if (!start) start = __filepath;
 	else start++;
 
-	char *end = strrchr(fpath, '.');
-	if (!end) end = fpath + strlen(fpath);
+	char *end = __filepath + strlen(__filepath);
 
 	size_t len = end - start;
 	if (len > size) len = size;
@@ -50,19 +50,17 @@ struct module *module_self(void *address)
 	return NULL;
 }
 
-struct module *load_module(const char *fpath, const char *param)
+struct module *load_module(const char *filepath, const char *param)
 {
-	char __name[MODULE_NAME_SIZE];
-	char __fpath[PATH_MAX];
-	strcpy(__fpath, fpath);
-	path_to_name(__fpath, __name, sizeof(__name));
+	char fullname[MODULE_NAME_SIZE];
+	path_to_name(filepath, fullname, sizeof(fullname));
 
-	if (find_module(__name)) {
+	if (find_module(fullname)) {
 		__errno = MOD_ERELOAD;
 		return NULL;
 	}
 
-	void *handle = dlopen(fpath, RTLD_LAZY);
+	void *handle = dlopen(filepath, RTLD_LAZY);
 	if (handle == NULL) {
 		__errno = MOD_EOPEN;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
@@ -78,9 +76,12 @@ struct module *load_module(const char *fpath, const char *param)
 	}
 
 	struct module *m = malloc(sizeof(struct module));
-	snprintf(m->fpath, sizeof(m->fpath), "%s", fpath);
-	snprintf(m->name, sizeof(m->name), "%s", __name);
+	memset(m, 0, sizeof(*m));
+	snprintf(m->filepath, sizeof(m->filepath), "%s", filepath);
+	snprintf(m->fullname, sizeof(m->fullname), "%s", fullname);
+	snprintf(m->name, sizeof(m->name), "%s", fullname);
 	snprintf(m->param, sizeof(m->param), "%s", param);
+	m->version = 0;
 	m->handle = handle;
 	m->init_fn = func;
 	INIT_LIST_HEAD(&m->node);
@@ -90,7 +91,7 @@ struct module *load_module(const char *fpath, const char *param)
 		dlclose(handle);
 		__errno = MOD_EINIT;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE,
-		         "module_init of %s failed!\n", fpath);
+		         "module_init of %s failed!\n", filepath);
 		list_del(&m->node);
 		free(m);
 		return NULL;
@@ -166,7 +167,7 @@ struct module *find_module(const char *name)
 {
 	struct module *pos;
 	list_for_each_entry(pos, &modules, node) {
-		if (strstr(pos->name, name) != NULL)
+		if (!strcmp(pos->name, name) || !strcmp(pos->fullname, name))
 			return pos;
 	}
 
@@ -176,6 +177,16 @@ struct module *find_module(const char *name)
 struct list_head *get_modules()
 {
 	return &modules;
+}
+
+void module_set_name(struct module *m, const char *name)
+{
+	snprintf(m->name, sizeof(m->name), "%s", name);
+}
+
+void module_set_version(struct module *m, int version)
+{
+	m->version = version;
 }
 
 int param_get_int(const char *name, int *value, const char *param)
