@@ -30,6 +30,10 @@ add_executable(runZbufTests zbuf_test.cpp)
 target_link_libraries(runZbufTests gtest gtest_main zero)
 add_test(runZbufTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runZbufTests)
 
+add_executable(runZsocketTests zsocket_test.cpp)
+target_link_libraries(runZsocketTests gtest gtest_main zero)
+add_test(runZsocketTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runZsocketTests)
+
 add_executable(runUtilsTests utils_test.cpp)
 target_link_libraries(runUtilsTests gtest gtest_main zero)
 add_test(runUtilsTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runUtilsTests)
