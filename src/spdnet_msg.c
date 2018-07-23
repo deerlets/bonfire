@@ -31,7 +31,10 @@ int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len)
 	char *cur;
 	assert(*((char *)buf + len - 1) == '\0');
 
+	// must free meta->name before memcpy
+	if (meta->name) free(meta->name);
 	memcpy(meta, buf, sizeof(*meta));
+
 	cur = buf + sizeof(*meta);
 	meta->name = malloc(strlen(cur) + 1);
 	strcpy(meta->name, cur);

@@ -130,3 +130,9 @@ TEST(service, servhub)
 	spdnet_router_close(&router);
 	spdnet_ctx_destroy(ctx);
 }
+
+TEST(service, wait)
+{
+	// wait for other thread to exit
+	sleep(1);
+}

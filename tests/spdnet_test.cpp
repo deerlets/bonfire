@@ -107,6 +107,7 @@ TEST(spdnet, nodepoll)
 	assert(rc == 0);
 	spdnet_recvmsg_async(p, recvmsg_cb, 3000);
 	assert(rc == 0);
+	spdnet_msg_close(&msg);
 
 	while (snodepool.nr_snode)
 		spdnet_nodepool_run(&snodepool);
@@ -249,4 +250,14 @@ TEST(spdnet, pgm)
 	zmq_close(pub);
 	zmq_close(sub);
 	spdnet_ctx_destroy(ctx);
+}
+
+/*
+ * spdnet wait
+ */
+
+TEST(spdnet, wait)
+{
+	// wait for other thread to exit
+	sleep(1);
 }

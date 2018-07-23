@@ -1,4 +1,5 @@
 #include "module.h"
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -106,11 +107,11 @@ int unload_module(struct module *m)
 	if (!func) {
 		__errno = MOD_ESYM;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
-		return -1;
+	} else {
+		(*func)();
 	}
-	(*func)();
 
-	dlclose(m->handle);
+	assert(dlclose(m->handle) == 0);
 	list_del(&m->node);
 	free(m);
 	return 0;
