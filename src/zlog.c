@@ -40,14 +40,20 @@ int zlog_set_level(int level)
 	return previous;
 }
 
-void zlog_set_before_log_cb(zlog_before_log_func_t cb)
+zlog_before_log_func_t
+zlog_set_before_log_cb(zlog_before_log_func_t cb)
 {
+	zlog_before_log_func_t last = before_log_cb;
 	before_log_cb = cb;
+	return  last;
 }
 
-void zlog_set_after_log_cb(zlog_after_log_func_t cb)
+zlog_after_log_func_t
+zlog_set_after_log_cb(zlog_after_log_func_t cb)
 {
+	zlog_after_log_func_t last = after_log_cb;
 	after_log_cb = cb;
+	return last;
 }
 
 static int
@@ -97,6 +103,7 @@ __zlog_message(enum zlog_level level, const char *string, va_list ap)
 
 	if (after_log_cb)
 		after_log_cb(string, ap);
+
 	return 0;
 }
 

@@ -1,6 +1,7 @@
 #ifndef __ZERO_ZLOG_H
 #define __ZERO_ZLOG_H
 
+#include "list.h"
 #include <stdarg.h>
 
 enum zlog_level {
@@ -21,8 +22,8 @@ typedef void (*zlog_before_log_func_t)(const char *string, va_list ap);
 typedef void (*zlog_after_log_func_t)(const char *string, va_list ap);
 
 int zlog_set_level(int level);
-void zlog_set_before_log_cb(zlog_before_log_func_t cb);
-void zlog_set_after_log_cb(zlog_after_log_func_t cb);
+zlog_before_log_func_t zlog_set_before_log_cb(zlog_before_log_func_t cb);
+zlog_after_log_func_t zlog_set_after_log_cb(zlog_after_log_func_t cb);
 
 int zlog_debug(const char *, ...);
 int zlog_info(const char *, ...);
