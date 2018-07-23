@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#ifdef _WIN32
+#ifdef __WIN32
 #define CL_RESET ""
 #define CL_NORMAL CL_RESET
 #define CL_NONE  CL_RESET

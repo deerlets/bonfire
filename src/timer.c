@@ -1,6 +1,6 @@
 #include "timer.h"
 
-#ifdef WIN32
+#ifdef __WIN32
 /* Convenience macros for operations on timevals.
    NOTE: `timercmp' does not work for >= or <=.  */
 # define timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)

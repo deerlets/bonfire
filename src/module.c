@@ -131,7 +131,7 @@ int load_modules_from_dir(const char *dirname)
 	struct dirent *entry;
 	char buf[512];
 	while ((entry = readdir(dir))) {
-#ifdef unix
+#ifdef __unix
 		if (strncmp(entry->d_name, ".", 2) == 0 ||
 		    strncmp(entry->d_name, "..", 3) == 0 ||
 		    (entry->d_type != DT_REG && entry->d_type != DT_LNK))

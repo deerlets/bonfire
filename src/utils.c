@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef unix
+#ifdef __unix
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -40,7 +40,7 @@ const char *get_ifaddr()
 {
 	char *retval = NULL;
 
-#ifdef unix
+#ifdef __unix
 	struct ifaddrs *ifaddrs = NULL;
 	if (getifaddrs(&ifaddrs) == -1)
 		return NULL;

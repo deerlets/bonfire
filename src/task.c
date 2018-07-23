@@ -4,14 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef unix
+#ifdef __unix
 #include <sys/prctl.h>
 #endif
 
 static void *task_routine(void *arg)
 {
 	struct task *t = (struct task *)arg;
-#ifdef unix
+#ifdef __unix
 	prctl(PR_SET_NAME, t->t_name, NULL, NULL, NULL);
 #endif
 	t->t_state = TASK_S_RUNNING;
