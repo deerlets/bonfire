@@ -128,9 +128,8 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 
 	// call service
 	sm->rc = fn(sm);
-	if (sm->rc == SERVICE_EPENDING)
-		sm->state = SM_PENDING;
-	else
+	if (sm->state == SM_RAW_INTERRUPTIBLE ||
+	    sm->state == SM_RAW_UNINTERRUPTIBLE)
 		sm->state = SM_HANDLED;
 }
 
@@ -210,7 +209,11 @@ static void do_servmsg(struct servhub *hub)
 		if (pos->state == SM_PENDING)
 			continue;
 
-		if (pos->state == SM_HANDLED && pos->src) {
+		if (pos->state == SM_TIMEOUT)
+			pos->rc = SERVICE_ETIMEOUT;
+
+		if ((pos->state == SM_HANDLED ||
+		     pos->state == SM_TIMEOUT) && pos->src) {
 			finish_msg(hub, pos);
 			spdnet_sendmsg(pos->snode, &pos->response);
 		}

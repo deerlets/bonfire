@@ -21,6 +21,7 @@ enum servmsg_state {
 	SM_RAW_UNINTERRUPTIBLE = 0,
 	SM_RAW_INTERRUPTIBLE,
 	SM_PENDING,
+	SM_TIMEOUT,
 	SM_FILTERD,
 	SM_HANDLED,
 };
@@ -37,10 +38,8 @@ struct servmsg {
 
 	void *user_data;
 	int rc;
-
 	int state;
 
-	struct list_head hop_node;
 	struct list_head node;
 };
 
@@ -63,15 +62,25 @@ static inline void servmsg_pending(struct servmsg *sm)
 	sm->state = SM_PENDING;
 }
 
+static inline void servmsg_timeout(struct servmsg *sm)
+{
+	assert(sm->state == SM_PENDING);
+	sm->state = SM_TIMEOUT;
+}
+
 static inline void servmsg_filterd(struct servmsg *sm)
 {
-	assert(sm->state != SM_FILTERD && sm->state != SM_HANDLED);
+	assert(sm->state != SM_TIMEOUT &&
+	       sm->state != SM_FILTERD &&
+	       sm->state != SM_HANDLED);
 	sm->state = SM_FILTERD;
 }
 
 static inline void servmsg_handled(struct servmsg *sm, int rc)
 {
-	assert(sm->state != SM_FILTERD && sm->state != SM_HANDLED);
+	assert(sm->state != SM_TIMEOUT &&
+	       sm->state != SM_FILTERD &&
+	       sm->state != SM_HANDLED);
 	sm->state = SM_HANDLED;
 	sm->rc = rc;
 }
@@ -117,13 +126,12 @@ struct service {
 
 #define SERVICE_ERRNO_MAP(XX) \
 	XX(EOK, "OK") \
-	XX(EPENDING, "pending") \
+	XX(ETIMEOUT, "request timeout") \
 	XX(ENOSERV, "service unknown") \
 	XX(ENOREQ, "request unknown") \
 	XX(EINVAL, "invalid argument") \
 	XX(ENORES, "resource not found") \
 	XX(ERES, "resource error") \
-	XX(ETIMEOUT, "request timeout") \
 	XX(ESERVICECALL, "service call error") \
 	XX(EIO, "io error")
 
