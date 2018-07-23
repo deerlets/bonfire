@@ -1,6 +1,7 @@
 #ifndef __ZERO_SERVICE_H
 #define __ZERO_SERVICE_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 #include <semaphore.h>
@@ -16,6 +17,14 @@ extern "C" {
  * servmsg
  */
 
+enum servmsg_state {
+	SM_RAW_UNINTERRUPTIBLE = 0,
+	SM_RAW_INTERRUPTIBLE,
+	SM_PENDING,
+	SM_FILTERD,
+	SM_HANDLED,
+};
+
 struct servmsg {
 	struct spdnet_msg request;
 	struct spdnet_msg response;
@@ -28,11 +37,44 @@ struct servmsg {
 
 	void *user_data;
 	int rc;
+
+	int state;
+
+	struct list_head hop_node;
+	struct list_head node;
 };
 
 void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
                   struct spdnet_node *snode);
+void servmsg_init_uninterruptible(struct servmsg *sm, struct spdnet_msg *msg,
+                                  struct spdnet_node *snode);
 void servmsg_close(struct servmsg *sm);
+
+static inline int servmsg_interruptible(struct servmsg *sm)
+{
+	if (sm->state == SM_RAW_INTERRUPTIBLE)
+		return 1;
+	return 0;
+}
+
+static inline void servmsg_pending(struct servmsg *sm)
+{
+	assert(sm->state == SM_RAW_INTERRUPTIBLE);
+	sm->state = SM_PENDING;
+}
+
+static inline void servmsg_filterd(struct servmsg *sm)
+{
+	assert(sm->state != SM_FILTERD && sm->state != SM_HANDLED);
+	sm->state = SM_FILTERD;
+}
+
+static inline void servmsg_handled(struct servmsg *sm, int rc)
+{
+	assert(sm->state != SM_FILTERD && sm->state != SM_HANDLED);
+	sm->state = SM_HANDLED;
+	sm->rc = rc;
+}
 
 static inline const char *servmsg_reqid(struct servmsg *sm)
 {
@@ -75,7 +117,7 @@ struct service {
 
 #define SERVICE_ERRNO_MAP(XX) \
 	XX(EOK, "OK") \
-	XX(EASYNCREPLY, "async reply") \
+	XX(EPENDING, "pending") \
 	XX(ENOSERV, "service unknown") \
 	XX(ENOREQ, "request unknown") \
 	XX(EINVAL, "invalid argument") \
@@ -138,6 +180,8 @@ struct servhub {
 
 	struct list_head servareas;
 	mutex_t servareas_lock;
+
+	struct list_head servmsgs;
 };
 
 int servhub_init(struct servhub *hub, const char *name,

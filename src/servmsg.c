@@ -34,6 +34,18 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 
 	sm->user_data = NULL;
 	sm->rc = 0;
+
+	sm->state = SM_RAW_INTERRUPTIBLE;
+
+	INIT_LIST_HEAD(&sm->hop_node);
+	INIT_LIST_HEAD(&sm->node);
+}
+
+void servmsg_init_uninterruptible(struct servmsg *sm, struct spdnet_msg *msg,
+                                  struct spdnet_node *snode)
+{
+	servmsg_init(sm, msg, snode);
+	sm->state = SM_RAW_UNINTERRUPTIBLE;
 }
 
 void servmsg_close(struct servmsg *sm)

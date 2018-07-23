@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "timer.h"
+#include "zsocket.h"
 
 struct servhub *default_servhub(void)
 {
@@ -81,6 +82,58 @@ find_servarea(struct servhub *hub, const char *name, size_t len)
 	return NULL;
 }
 
+static int filter_wrong_spdnet_msg(struct servhub *hub, struct spdnet_msg *msg,
+                                   struct spdnet_node *snode)
+{
+	// FIXME: this function is not necessary, remove it in future
+
+	// servhub never handle response message
+	if (memcmp(MSG_HEADER_DATA(msg) + MSG_HEADER_SIZE(msg) - 6,
+	           "_reply", 6) == 0)
+		return 1;
+
+	// filter mesasage send by servhub-self
+	else if (snode->type != SPDNET_SUB &&
+	    strlen(hub->name) == snode->id_len &&
+	    memcmp(hub->name, snode->id, snode->id_len) == 0 &&
+	    strlen(hub->name) == MSG_SOCKID_SIZE(msg) &&
+	    memcmp(hub->name, MSG_SOCKID_DATA(msg), MSG_SOCKID_SIZE(msg)) == 0)
+		return 1;
+
+	return 0;
+}
+
+static void handle_msg(struct servhub *hub, struct servmsg *sm)
+{
+	// find servarea
+	mutex_lock(&hub->servareas_lock);
+	struct servarea *sa;
+	if (!(sa = find_servarea(hub, sm->dest, sm->dest_len))) {
+		mutex_unlock(&hub->servareas_lock);
+		sm->rc = SERVICE_ENOSERV;
+		sm->state = SM_HANDLED;
+		return;
+	}
+
+	// find handler
+	service_handler_func_t fn;
+	fn = servarea_find_handler(sa, MSG_HEADER_DATA(&sm->request),
+	                           MSG_HEADER_SIZE(&sm->request));
+	mutex_unlock(&hub->servareas_lock);
+	if (!fn) {
+		sm->rc = SERVICE_ENOREQ;
+		sm->state = SM_HANDLED;
+		return;
+	}
+
+	// call service
+	sm->rc = fn(sm);
+	if (sm->rc == SERVICE_EPENDING)
+		sm->state = SM_PENDING;
+	else
+		sm->state = SM_HANDLED;
+}
+
 static void finish_msg(struct servhub *hub, struct servmsg *sm)
 {
 	const char *cnt = MSG_CONTENT_DATA(&sm->response);
@@ -106,72 +159,16 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 	free(buf);
 }
 
-static void handle_msg(struct servhub *hub, struct servmsg *sm)
-{
-	mutex_lock(&hub->servareas_lock);
-	struct servarea *sa;
-	if (!(sa = find_servarea(hub, sm->dest, sm->dest_len))) {
-		mutex_unlock(&hub->servareas_lock);
-		sm->rc = SERVICE_ENOSERV;
-		return;
-	}
-
-	service_handler_func_t fn;
-	fn = servarea_find_handler(sa, MSG_HEADER_DATA(&sm->request),
-	                           MSG_HEADER_SIZE(&sm->request));
-	mutex_unlock(&hub->servareas_lock);
-	if (!fn) {
-		sm->rc = SERVICE_ENOREQ;
-		return;
-	}
-
-	sm->rc = fn(sm);
-}
-
-static int filter_msg(struct servhub *hub, struct spdnet_msg *msg,
-                      struct spdnet_node *snode)
-{
-	// servhub never handle response message
-	if (memcmp(MSG_HEADER_DATA(msg) + MSG_HEADER_SIZE(msg) - 6,
-	           "_reply", 6) == 0)
-		return 1;
-
-	// filter mesasage send by servhub-self
-	if (snode->type != SPDNET_SUB &&
-	    strlen(hub->name) == snode->id_len &&
-	    memcmp(hub->name, snode->id, snode->id_len) == 0 &&
-	    strlen(hub->name) == MSG_SOCKID_SIZE(msg) &&
-	    memcmp(hub->name, MSG_SOCKID_DATA(msg), MSG_SOCKID_SIZE(msg)) == 0)
-		return 1;
-
-	return 0;
-}
-
 static int on_pollin(struct servhub *hub, struct spdnet_node *snode)
 {
 	struct spdnet_msg msg;
 	spdnet_msg_init(&msg);
 	spdnet_recvmsg(snode, &msg, 0);
 
-	if (filter_msg(hub, &msg, snode) == 0) {
-		struct servmsg sm;
-		servmsg_init(&sm, &msg, snode);
-
-		if (hub->user_prepare_cb)
-			hub->user_prepare_cb(&sm);
-
-		if (!hub->user_filter_cb || hub->user_filter_cb(&sm) == 0) {
-			handle_msg(hub, &sm);
-			if (sm.rc != SERVICE_EASYNCREPLY) {
-				finish_msg(hub, &sm);
-				spdnet_sendmsg(snode, &sm.response);
-			}
-		}
-
-		if (hub->user_finished_cb)
-			hub->user_finished_cb(&sm);
-
-		servmsg_close(&sm);
+	if (filter_wrong_spdnet_msg(hub, &msg, snode) == 0) {
+		struct servmsg *sm = malloc(sizeof(*sm));
+		servmsg_init(sm, &msg, snode);
+		list_add(&sm->node, &hub->servmsgs);
 	}
 
 	spdnet_msg_close(&msg);
@@ -183,21 +180,48 @@ multicast_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
 	struct servhub *hub = snode->user_data;
 
-	if (filter_msg(snode->user_data, msg, snode) == 0) {
-		struct servmsg sm;
-		servmsg_init(&sm, msg, snode);
-
-		if (hub->user_prepare_cb)
-			hub->user_prepare_cb(&sm);
-
-		handle_msg(hub, &sm);
-
-		if (hub->user_finished_cb)
-			hub->user_finished_cb(&sm);
-
-		servmsg_close(&sm);
+	if (filter_wrong_spdnet_msg(snode->user_data, msg, snode) == 0) {
+		struct servmsg *sm = malloc(sizeof(*sm));;
+		servmsg_init(sm, msg, snode);
+		list_add(&sm->node, &hub->servmsgs);
 	}
 	spdnet_recvmsg_async(snode, multicast_recvmsg_cb, 0);
+}
+
+static void do_servmsg(struct servhub *hub)
+{
+	struct servmsg *pos, *n;
+	list_for_each_entry_safe(pos, n, &hub->servmsgs, node) {
+		if (pos->state == SM_RAW_INTERRUPTIBLE ||
+		    pos->state == SM_RAW_UNINTERRUPTIBLE) {
+			if (hub->user_prepare_cb)
+				hub->user_prepare_cb(pos);
+
+			if (hub->user_filter_cb)
+				hub->user_filter_cb(pos);
+
+			if (pos->state != SM_FILTERD)
+				handle_msg(hub, pos);
+		}
+
+		assert(pos->state != SM_RAW_UNINTERRUPTIBLE &&
+		       pos->state != SM_RAW_INTERRUPTIBLE);
+
+		if (pos->state == SM_PENDING)
+			continue;
+
+		if (pos->state == SM_HANDLED && pos->src) {
+			finish_msg(hub, pos);
+			spdnet_sendmsg(pos->snode, &pos->response);
+		}
+
+		if (hub->user_finished_cb)
+			hub->user_finished_cb(pos);
+
+		list_del(&pos->node);
+		servmsg_close(pos);
+		free(pos);
+	}
 }
 
 int servhub_init(struct servhub *hub, const char *name,
@@ -227,6 +251,8 @@ int servhub_init(struct servhub *hub, const char *name,
 
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
+
+	INIT_LIST_HEAD(&hub->servmsgs);
 
 	struct spdnet_node *snode;
 	servhub_register_services(hub, hub->name, services, &snode);
@@ -321,18 +347,18 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 	int rc;
 
 	struct servmsg sm;
-	servmsg_init(&sm, msg, NULL);
+	servmsg_init_uninterruptible(&sm, msg, NULL);
 
 	if (hub->user_prepare_cb)
 		hub->user_prepare_cb(&sm);
 
 	handle_msg(hub, &sm);
+	assert(sm.state == SM_HANDLED);
 
 	if (hub->user_finished_cb)
 		hub->user_finished_cb(&sm);
 
 	rc = sm.rc;
-	assert(sm.rc != SERVICE_EASYNCREPLY);
 	spdnet_msg_move(msg, &sm.response);
 	servmsg_close(&sm);
 
@@ -377,9 +403,13 @@ int servhub_run(struct servhub *hub)
 	timeout = timeout == 0 ? 200 : timeout;
 	spdnet_nodepool_poll(hub->serv_snodepool, timeout);
 
+	zsocket_loop(0);
+
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &hub->serv_snodepool->pollins, pollin_node)
 		on_pollin(hub, pos);
+
+	do_servmsg(hub);
 
 	spdnet_nodepool_run(hub->req_snodepool);
 	return 0;
