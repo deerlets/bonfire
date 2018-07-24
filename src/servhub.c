@@ -174,11 +174,11 @@ static void do_servmsg(struct servhub *hub)
 	list_for_each_entry_safe(pos, n, &hub->servmsgs, node) {
 		if (pos->state == SM_RAW_INTERRUPTIBLE ||
 		    pos->state == SM_RAW_UNINTERRUPTIBLE) {
-			if (hub->user_prepare_cb)
-				hub->user_prepare_cb(pos);
+			if (hub->prepare_cb)
+				hub->prepare_cb(pos);
 
-			if (hub->user_filter_cb)
-				hub->user_filter_cb(pos);
+			if (hub->filter_cb)
+				hub->filter_cb(pos);
 
 			if (pos->state != SM_FILTERD)
 				handle_msg(hub, pos);
@@ -199,8 +199,8 @@ static void do_servmsg(struct servhub *hub)
 			spdnet_sendmsg(pos->snode, &pos->response);
 		}
 
-		if (hub->user_finished_cb)
-			hub->user_finished_cb(pos);
+		if (hub->finished_cb)
+			hub->finished_cb(pos);
 
 		list_del(&pos->node);
 		servmsg_close(pos);
@@ -227,9 +227,9 @@ int servhub_init(struct servhub *hub, const char *name,
 	spdnet_nodepool_add(hub->snodepool, &hub->smulticast->sub);
 	spdnet_recvmsg_async(&hub->smulticast->sub, service_recvmsg_cb, 0);
 
-	hub->user_prepare_cb = NULL;
-	hub->user_finished_cb = NULL;
-	hub->user_filter_cb = NULL;
+	hub->prepare_cb = NULL;
+	hub->finished_cb = NULL;
+	hub->filter_cb = NULL;
 
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
@@ -304,25 +304,25 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 service_handler_func_t
 servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb)
 {
-	service_handler_func_t retval = hub->user_prepare_cb;
-	hub->user_prepare_cb = prepare_cb;
-	return retval;
+	service_handler_func_t last = hub->prepare_cb;
+	hub->prepare_cb = prepare_cb;
+	return last;
 }
 
 service_handler_func_t
 servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb)
 {
-	service_handler_func_t retval = hub->user_finished_cb;
-	hub->user_finished_cb = finished_cb;
-	return retval;
+	service_handler_func_t last = hub->finished_cb;
+	hub->finished_cb = finished_cb;
+	return last;
 }
 
 service_handler_func_t
 servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb)
 {
-	service_handler_func_t retval = hub->user_filter_cb;
-	hub->user_filter_cb = filter_cb;
-	return retval;
+	service_handler_func_t last = hub->filter_cb;
+	hub->filter_cb = filter_cb;
+	return last;
 }
 
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
@@ -332,14 +332,14 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 	struct servmsg sm;
 	servmsg_init_uninterruptible(&sm, msg, NULL);
 
-	if (hub->user_prepare_cb)
-		hub->user_prepare_cb(&sm);
+	if (hub->prepare_cb)
+		hub->prepare_cb(&sm);
 
 	handle_msg(hub, &sm);
 	assert(sm.state == SM_HANDLED);
 
-	if (hub->user_finished_cb)
-		hub->user_finished_cb(&sm);
+	if (hub->finished_cb)
+		hub->finished_cb(&sm);
 
 	rc = sm.rc;
 	spdnet_msg_move(msg, &sm.response);

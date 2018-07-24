@@ -181,9 +181,9 @@ struct servhub {
 	struct spdnet_node *spublish;
 	struct spdnet_multicast *smulticast;
 
-	service_handler_func_t user_prepare_cb;
-	service_handler_func_t user_finished_cb;
-	service_handler_func_t user_filter_cb;
+	service_handler_func_t prepare_cb;
+	service_handler_func_t finished_cb;
+	service_handler_func_t filter_cb;
 
 	struct list_head servareas;
 	mutex_t servareas_lock;
