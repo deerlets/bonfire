@@ -311,7 +311,6 @@ void spdnet_nodepool_add(struct spdnet_nodepool *pool,
                          struct spdnet_node *snode);
 void spdnet_nodepool_del(struct spdnet_nodepool *pool,
                          struct spdnet_node *snode);
-int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout);
 int spdnet_nodepool_run(struct spdnet_nodepool *pool);
 
 /*

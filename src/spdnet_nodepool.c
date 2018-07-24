@@ -101,7 +101,7 @@ void spdnet_nodepool_del(struct spdnet_nodepool *pool, struct spdnet_node *snode
 	mutex_unlock(&pool->snodes_lock);
 }
 
-int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
+static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 {
 	// TODO: Implement pollout & pollerr
 	//       use SPDNET_POLLIN, SPDNET_POLLOUT, SPDNET_POLLERR
@@ -180,10 +180,8 @@ finally:
 	return rc;
 }
 
-int spdnet_nodepool_run(struct spdnet_nodepool *pool)
+static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
 {
-	spdnet_nodepool_poll(pool, 0);
-
 	struct spdnet_node *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &pool->recvmsg_timeouts,
@@ -214,6 +212,13 @@ int spdnet_nodepool_run(struct spdnet_nodepool *pool)
 
 		spdnet_msg_close(&msg);
 	}
+}
 
+int spdnet_nodepool_run(struct spdnet_nodepool *pool)
+{
+	if (spdnet_nodepool_poll(pool, 0) == -1)
+		return -1;
+
+	spdnet_nodepool_do_poll(pool);
 	return 0;
 }

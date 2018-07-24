@@ -177,8 +177,7 @@ struct servhub {
 	const char *name;
 	const char *router_addr;
 
-	struct spdnet_nodepool *serv_snodepool;
-	struct spdnet_nodepool *req_snodepool;
+	struct spdnet_nodepool *snodepool;
 	struct spdnet_node *spublish;
 	struct spdnet_multicast *smulticast;
 
@@ -194,8 +193,7 @@ struct servhub {
 
 int servhub_init(struct servhub *hub, const char *name,
                  const char *router_addr,
-                 struct spdnet_nodepool *serv_snodepool,
-                 struct spdnet_nodepool *req_snodepool,
+                 struct spdnet_nodepool *snodepool,
                  struct spdnet_node *spublish,
                  struct spdnet_multicast *smulticast);
 int servhub_close(struct servhub *hub);

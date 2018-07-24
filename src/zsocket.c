@@ -458,17 +458,11 @@ static void zsocket_do_close()
 
 int zsocket_loop(int timeout)
 {
-	int rc;
-
-	if (timeout < 100)
-		timeout = 100;
-
-	if ((rc = zsocket_poll(timeout)) == -1)
-		return rc;
+	if (zsocket_poll(timeout) == -1)
+		return -1;
 
 	zsocket_do_close();
-
-	return rc;
+	return 0;
 }
 
 struct zsocket_status *zsocket_status()

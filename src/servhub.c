@@ -158,33 +158,16 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 	free(buf);
 }
 
-static int on_pollin(struct servhub *hub, struct spdnet_node *snode)
-{
-	struct spdnet_msg msg;
-	spdnet_msg_init(&msg);
-	spdnet_recvmsg(snode, &msg, 0);
-
-	if (filter_wrong_spdnet_msg(hub, &msg, snode) == 0) {
-		struct servmsg *sm = malloc(sizeof(*sm));
-		servmsg_init(sm, &msg, snode);
-		list_add(&sm->node, &hub->servmsgs);
-	}
-
-	spdnet_msg_close(&msg);
-	return 0;
-}
-
-static void
-multicast_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
+static void service_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
 	struct servhub *hub = snode->user_data;
 
-	if (filter_wrong_spdnet_msg(snode->user_data, msg, snode) == 0) {
-		struct servmsg *sm = malloc(sizeof(*sm));;
+	if (filter_wrong_spdnet_msg(hub, msg, snode) == 0) {
+		struct servmsg *sm = malloc(sizeof(*sm));
 		servmsg_init(sm, msg, snode);
 		list_add(&sm->node, &hub->servmsgs);
 	}
-	spdnet_recvmsg_async(snode, multicast_recvmsg_cb, 0);
+	spdnet_recvmsg_async(snode, service_recvmsg_cb, 0);
 }
 
 static void do_servmsg(struct servhub *hub)
@@ -229,8 +212,7 @@ static void do_servmsg(struct servhub *hub)
 
 int servhub_init(struct servhub *hub, const char *name,
                  const char *router_addr,
-                 struct spdnet_nodepool *serv_snodepool,
-                 struct spdnet_nodepool *req_snodepool,
+                 struct spdnet_nodepool *snodepool,
                  struct spdnet_node *spublish,
                  struct spdnet_multicast *smulticast)
 {
@@ -239,14 +221,13 @@ int servhub_init(struct servhub *hub, const char *name,
 	hub->name = name;
 	hub->router_addr = router_addr;
 
-	hub->serv_snodepool = serv_snodepool;
-	hub->req_snodepool = req_snodepool;
+	hub->snodepool = snodepool;
 	hub->spublish = spublish;
 	hub->smulticast = smulticast;
 
 	hub->smulticast->sub.user_data = hub;
-	spdnet_nodepool_add(hub->req_snodepool, &hub->smulticast->sub);
-	spdnet_recvmsg_async(&hub->smulticast->sub, multicast_recvmsg_cb, 0);
+	spdnet_nodepool_add(hub->snodepool, &hub->smulticast->sub);
+	spdnet_recvmsg_async(&hub->smulticast->sub, service_recvmsg_cb, 0);
 
 	hub->user_prepare_cb = NULL;
 	hub->user_finished_cb = NULL;
@@ -259,7 +240,6 @@ int servhub_init(struct servhub *hub, const char *name,
 
 	struct spdnet_node *snode;
 	servhub_register_services(hub, hub->name, services, &snode);
-	snode->user_data = hub;
 	return 0;
 }
 
@@ -267,7 +247,7 @@ int servhub_close(struct servhub *hub)
 {
 	servhub_unregister_service(hub, hub->name);
 
-	spdnet_nodepool_del(hub->req_snodepool, &hub->smulticast->sub);
+	spdnet_nodepool_del(hub->snodepool, &hub->smulticast->sub);
 
 	struct servarea *pos, *n;
 	list_for_each_entry_safe(pos, n, &hub->servareas, node) {
@@ -284,11 +264,13 @@ int servhub_register_services(struct servhub *hub, const char *name,
                               struct service *services,
                               struct spdnet_node **__snode)
 {
-	struct spdnet_node *snode = spdnet_nodepool_get(hub->serv_snodepool);
+	struct spdnet_node *snode = spdnet_nodepool_get(hub->snodepool);
 	spdnet_setid(snode, name, strlen(name));
 	spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
 	spdnet_connect(snode, hub->router_addr);
 	spdnet_register(snode);
+	spdnet_recvmsg_async(snode, service_recvmsg_cb, 0);
+	snode->user_data = hub;
 	if (__snode) *__snode = snode;
 
 	struct servarea *sa = malloc(sizeof(*sa));
@@ -313,10 +295,10 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 
 	// find will increase snode's count, so put twice
 	struct spdnet_node *snode =
-		spdnet_nodepool_find(hub->serv_snodepool, name);
+		spdnet_nodepool_find(hub->snodepool, name);
 	assert(snode);
-	spdnet_nodepool_put(hub->serv_snodepool, snode);
-	spdnet_nodepool_put(hub->serv_snodepool, snode);
+	spdnet_nodepool_put(hub->snodepool, snode);
+	spdnet_nodepool_put(hub->snodepool, snode);
 
 	return 0;
 }
@@ -371,26 +353,27 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg)
 {
 	int rc;
-	struct spdnet_node *p = spdnet_nodepool_get(hub->req_snodepool);
+	struct spdnet_node snode;
+	spdnet_node_init(&snode, SPDNET_NODE, hub->snodepool->ctx);
 
-	rc = spdnet_connect(p, hub->router_addr);
+	rc = spdnet_connect(&snode, hub->router_addr);
 	assert(rc == 0);
-	rc = spdnet_sendmsg(p, msg);
+	rc = spdnet_sendmsg(&snode, msg);
 	assert(rc == 0);
 
 	zmq_pollitem_t item;
-	item.socket = spdnet_node_get_socket(p);
+	item.socket = spdnet_node_get_socket(&snode);
 	item.fd = 0;
 	item.events = ZMQ_POLLIN;
 	item.revents = 0;
 	if (zmq_poll(&item, 1, -1) != 1) {
 		rc = -1;
 	} else {
-		spdnet_recvmsg(p, msg, 0);
+		spdnet_recvmsg(&snode, msg, 0);
 		rc = 0;
 	}
 
-	spdnet_nodepool_put(hub->req_snodepool, p);
+	spdnet_node_close(&snode);
 	return rc;
 }
 
@@ -404,16 +387,9 @@ int servhub_run(struct servhub *hub)
 	long timeout = next.tv_sec * 1000 + next.tv_usec / 1000;
 	timeout = timeout < 1000 ? timeout : 1000;
 	timeout = timeout == 0 ? 200 : timeout;
-	spdnet_nodepool_poll(hub->serv_snodepool, timeout);
-
-	zsocket_loop(0);
-
-	struct spdnet_node *pos;
-	list_for_each_entry(pos, &hub->serv_snodepool->pollins, pollin_node)
-		on_pollin(hub, pos);
-
+	spdnet_nodepool_run(hub->snodepool);
 	do_servmsg(hub);
 
-	spdnet_nodepool_run(hub->req_snodepool);
+	zsocket_loop(0);
 	return 0;
 }

@@ -74,17 +74,15 @@ TEST(service, servhub)
 	char pgm_addr[SPDNET_ADDRESS_SIZE];
 	snprintf(pgm_addr, sizeof(pgm_addr), "epgm://%s;%s:%d",
 	         get_ifaddr(), SERVHUB_MULTICAST_IP, SERVHUB_MULTICAST_PORT);
-	struct spdnet_nodepool serv_snodepool;
-	struct spdnet_nodepool req_snodepool;
+	struct spdnet_nodepool snodepool;
 	struct spdnet_node spublish;
 	struct spdnet_multicast smulticast;
-	spdnet_nodepool_init(&serv_snodepool, 20, ctx);
-	spdnet_nodepool_init(&req_snodepool, 20, ctx);
+	spdnet_nodepool_init(&snodepool, 20, ctx);
 	spdnet_publish_init(&spublish, SERVHUB_PUBLISH_ADDRESS, ctx);
 	spdnet_multicast_init(&smulticast, pgm_addr, 1, ctx);
 	struct servhub servhub;
 	servhub_init(&servhub, "servhub", ROUTER_ADDRESS,
-	             &serv_snodepool, &req_snodepool, &spublish, &smulticast);
+	             &snodepool, &spublish, &smulticast);
 	struct task servhub_task;
 	task_init(&servhub_task, "servhub_task",
 	          (task_run_func_t)servhub_run, &servhub);
@@ -120,8 +118,7 @@ TEST(service, servhub)
 	task_stop(&servhub_task);
 	task_close(&servhub_task);
 	servhub_close(&servhub);
-	spdnet_nodepool_close(&serv_snodepool);
-	spdnet_nodepool_close(&req_snodepool);
+	spdnet_nodepool_close(&snodepool);
 	spdnet_multicast_close(&smulticast);
 
 	// close spdnet router
