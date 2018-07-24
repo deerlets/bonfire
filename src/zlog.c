@@ -1,4 +1,5 @@
 #include "zlog.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -29,7 +30,8 @@
 #define CL_CYAN  "\033[1;36m"
 #endif
 
-static enum zlog_level limit = ZLOG_INFO;
+static int limit = ZLOG_INFO;
+
 static zlog_before_log_func_t before_log_cb;
 static zlog_after_log_func_t after_log_cb;
 
@@ -56,20 +58,10 @@ zlog_set_after_log_cb(zlog_after_log_func_t cb)
 	return last;
 }
 
-static int
-__zlog_message(enum zlog_level level, const char *string, va_list ap)
+static int __zlog_message(int level, const char *format, va_list ap)
 {
-	if (level < limit) return 0;
-
-	if (before_log_cb)
-		before_log_cb(string, ap);
-
-	if (!string || *string == '\0') {
-		printf("__zlog_message: Empty string.\n");
-		return 1;
-	}
-
 	char prefix[40];
+
 	switch (level) {
 	case ZLOG_DEBUG: // Bright Cyan, important stuff!
 		strcpy(prefix, CL_CYAN"[Debug]"CL_RESET": ");
@@ -98,88 +90,32 @@ __zlog_message(enum zlog_level level, const char *string, va_list ap)
 	}
 
 	printf("%s", prefix);
-	vprintf(string, ap);
+	vprintf(format, ap);
 	fflush(stdout);
-
-	if (after_log_cb)
-		after_log_cb(string, ap);
 
 	return 0;
 }
 
-int zlog_debug(const char *string, ...)
+int zlog_message(int level, const char *format, ...)
 {
 	int rc;
 	va_list ap;
 
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_DEBUG, string, ap);
+	assert(format && *format != '\0');
+
+	if (level < limit) return 0;
+
+	va_start(ap, format);
+	if (before_log_cb) before_log_cb(format, ap);
 	va_end(ap);
-	return rc;
-}
 
-int zlog_info(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_INFO, string, ap);
+	va_start(ap, format);
+	rc = __zlog_message(level, format, ap);
 	va_end(ap);
-	return rc;
-}
 
-int zlog_notice(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_NOTICE, string, ap);
+	va_start(ap, format);
+	if (after_log_cb) after_log_cb(format, ap);
 	va_end(ap);
-	return rc;
-}
 
-int zlog_warn(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_WARN, string, ap);
-	va_end(ap);
-	return rc;
-}
-
-int zlog_error(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_ERROR, string, ap);
-	va_end(ap);
-	return rc;
-}
-
-int zlog_fatal(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_FATAL, string, ap);
-	va_end(ap);
-	return rc;
-}
-
-int zlog_none(const char *string, ...)
-{
-	int rc;
-	va_list ap;
-
-	va_start(ap, string);
-	rc = __zlog_message(ZLOG_NONE, string, ap);
-	va_end(ap);
 	return rc;
 }
