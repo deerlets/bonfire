@@ -209,7 +209,7 @@ service_handler_func_t
 servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg);
-int servhub_run(struct servhub *hub);
+int servhub_loop(struct servhub *hub, long timeout);
 
 struct servhub *default_servhub(void);
 

@@ -85,8 +85,9 @@ TEST(service, servhub)
 	servhub_init(&servhub, "servhub", ROUTER_ADDRESS,
 	             &snodepool, &spublish, &smulticast);
 	struct task servhub_task;
-	task_init(&servhub_task, "servhub_task",
-	          (task_run_func_t)servhub_run, &servhub);
+	task_init_timeout(&servhub_task, "servhub_task",
+	                  (task_timeout_func_t)servhub_loop,
+	                  &servhub, 1000);
 	task_start(&servhub_task);
 
 	// init service

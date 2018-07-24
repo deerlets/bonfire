@@ -2,8 +2,6 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "timer.h"
-#include "zsocket.h"
 
 struct servhub *default_servhub(void)
 {
@@ -377,19 +375,9 @@ int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg)
 	return rc;
 }
 
-int servhub_run(struct servhub *hub)
+int servhub_loop(struct servhub *hub, long timeout)
 {
-	struct timeval next;
-	timers_run(&next);
-	assert(next.tv_sec >= 0 || next.tv_usec >= 0);
-
-	// 200 <= timeout <= 1000
-	long timeout = next.tv_sec * 1000 + next.tv_usec / 1000;
-	timeout = timeout < 1000 ? timeout : 1000;
-	timeout = timeout == 0 ? 200 : timeout;
 	spdnet_nodepool_loop(hub->snodepool, timeout);
 	do_servmsg(hub);
-
-	zsocket_loop(0);
 	return 0;
 }
