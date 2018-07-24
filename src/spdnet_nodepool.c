@@ -214,9 +214,9 @@ static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
 	}
 }
 
-int spdnet_nodepool_run(struct spdnet_nodepool *pool)
+int spdnet_nodepool_loop(struct spdnet_nodepool *pool, long timeout)
 {
-	if (spdnet_nodepool_poll(pool, 0) == -1)
+	if (spdnet_nodepool_poll(pool, timeout) == -1)
 		return -1;
 
 	spdnet_nodepool_do_poll(pool);

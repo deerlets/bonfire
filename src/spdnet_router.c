@@ -487,14 +487,14 @@ int spdnet_router_msg_dropped(struct spdnet_router *router)
 	return router->nr_msg_dropped;
 }
 
-int spdnet_router_run(struct spdnet_router *router)
+int spdnet_router_loop(struct spdnet_router *router, long timeout)
 {
 	int rc;
 	zmq_pollitem_t items[] = {
 		{ spdnet_node_get_socket(&router->snode), 0, ZMQ_POLLIN, 0 },
 	};
 
-	rc = zmq_poll(items, 1, 1000);
+	rc = zmq_poll(items, 1, timeout);
 	if (rc == 0 || rc == -1)
 		return 0;
 

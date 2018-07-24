@@ -31,21 +31,47 @@ static void *task_routine(void *arg)
 			continue;
 		}
 
-		if (t->t_run_fn(t->t_arg))
-			break;
+		if (t->t_type == TASK_T_RUN) {
+			if (t->t_fn.run_fn(t->t_arg))
+				break;
+		} else {
+			if (t->t_fn.timeout_fn(t->t_arg, t->t_timeout))
+				break;
+		}
 	}
 
 	return NULL;
 }
 
-int task_init(struct task *t, const char *name, int (*run_fn)(void *), void *arg)
+int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg)
 {
 	t->t_id = 0;
 	snprintf(t->t_name, TASK_NAME_LEN, "%s", name);
 	t->t_state = TASK_S_PENDING;
 	t->t_control = TASK_C_NONE;
-	t->t_run_fn = run_fn;
+
+	t->t_type = TASK_T_RUN;
+	t->t_fn.run_fn = fn;
 	t->t_arg = arg;
+	t->t_timeout = 0;
+
+	INIT_LIST_HEAD(&t->t_node);
+	return 0;
+}
+
+int task_init_timeout(struct task *t, const char *name, task_timeout_func_t fn,
+                      void *arg, long timeout)
+{
+	t->t_id = 0;
+	snprintf(t->t_name, TASK_NAME_LEN, "%s", name);
+	t->t_state = TASK_S_PENDING;
+	t->t_control = TASK_C_NONE;
+
+	t->t_type = TASK_T_TIMEOUT;
+	t->t_fn.timeout_fn = fn;
+	t->t_arg = arg;
+	t->t_timeout = timeout;
+
 	INIT_LIST_HEAD(&t->t_node);
 	return 0;
 }

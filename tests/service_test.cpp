@@ -66,8 +66,9 @@ TEST(service, servhub)
 	spdnet_router_init(&router, "router_inner", ctx);
 	spdnet_router_bind(&router, ROUTER_ADDRESS);
 	struct task router_task;
-	task_init(&router_task, "router_task",
-	          (task_run_func_t)spdnet_router_run, &router);
+	task_init_timeout(&router_task, "router_task",
+	                  (task_timeout_func_t)spdnet_router_loop,
+	                  &router, 1000);
 	task_start(&router_task);
 
 	// init servhub

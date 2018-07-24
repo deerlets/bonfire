@@ -387,7 +387,7 @@ int servhub_run(struct servhub *hub)
 	long timeout = next.tv_sec * 1000 + next.tv_usec / 1000;
 	timeout = timeout < 1000 ? timeout : 1000;
 	timeout = timeout == 0 ? 200 : timeout;
-	spdnet_nodepool_run(hub->snodepool);
+	spdnet_nodepool_loop(hub->snodepool, timeout);
 	do_servmsg(hub);
 
 	zsocket_loop(0);

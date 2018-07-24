@@ -15,8 +15,9 @@ TEST(spdnet, basic)
 	struct task router_task;
 	spdnet_router_init(&router, "router_inner", ctx);
 	spdnet_router_bind(&router, INNER_ROUTER_ADDRESS);
-	task_init(&router_task, "router_task",
-	          (task_run_func_t)spdnet_router_run, &router);
+	task_init_timeout(&router_task, "router_task",
+	                  (task_timeout_func_t)spdnet_router_loop,
+	                  &router, 1000);
 	task_start(&router_task);
 
 	int rc;
@@ -110,7 +111,7 @@ TEST(spdnet, nodepoll)
 	spdnet_msg_close(&msg);
 
 	while (snodepool.nr_snode)
-		spdnet_nodepool_run(&snodepool);
+		spdnet_nodepool_loop(&snodepool, 0);
 
 	spdnet_nodepool_close(&snodepool);
 	spdnet_ctx_destroy(ctx);
@@ -132,8 +133,9 @@ TEST(spdnet, router)
 	rc = spdnet_router_bind(&inner, INNER_ROUTER_ADDRESS);
 	assert(rc == 0);
 	struct task inner_task;
-	task_init(&inner_task, "router-inner-task",
-	          (task_run_func_t)spdnet_router_run, &inner);
+	task_init_timeout(&inner_task, "router-inner-task",
+	                  (task_timeout_func_t)spdnet_router_loop,
+	                  &inner, 1000);
 	task_start(&inner_task);
 	sleep(1);
 
@@ -149,8 +151,9 @@ TEST(spdnet, router)
 	assert(rc == 0);
 	spdnet_router_set_gateway(&outer, inner_id, inner_len, SPDNET_ROUTER);
 	struct task outer_task;
-	task_init(&outer_task, "router-outer-task",
-	          (task_run_func_t)spdnet_router_run, &outer);
+	task_init_timeout(&outer_task, "router-outer-task",
+	                  (task_timeout_func_t)spdnet_router_loop,
+	                  &outer, 1000);
 	task_start(&outer_task);
 	sleep(1);
 

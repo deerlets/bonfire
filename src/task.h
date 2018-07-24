@@ -10,6 +10,11 @@ extern "C" {
 
 #define TASK_NAME_LEN 64
 
+enum task_type {
+	TASK_T_RUN = 0,
+	TASK_T_TIMEOUT,
+};
+
 enum task_state {
 	TASK_S_PENDING = 0,
 	TASK_S_RUNNING = 1,
@@ -24,6 +29,7 @@ enum task_control {
 };
 
 typedef int (*task_run_func_t)(void *);
+typedef int (*task_timeout_func_t)(void *, long timeout);
 
 struct task {
 	pthread_t t_id;
@@ -31,12 +37,20 @@ struct task {
 	int t_state;
 	int t_control;
 
-	task_run_func_t t_run_fn;
+	int t_type;
+	union {
+		task_run_func_t run_fn;
+		task_timeout_func_t timeout_fn;
+	} t_fn;
 	void *t_arg;
+	long t_timeout;
+
 	struct list_head t_node;
 };
 
-int task_init(struct task *t, const char *name, int (*run)(void *), void *arg);
+int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg);
+int task_init_timeout(struct task *t, const char *name, task_timeout_func_t fn,
+                      void *arg, long timeout);
 int task_close(struct task *t);
 int task_start(struct task *t);
 int task_stop(struct task *t);
