@@ -126,12 +126,14 @@ struct service {
 
 #define SERVICE_ERRNO_MAP(XX) \
 	XX(EOK, "OK") \
-	XX(ETIMEOUT, "request timeout") \
+	XX(ETIMEOUT, "timeout") \
+	XX(ECALLBACK, "callback") \
 	XX(ENOSERV, "service unknown") \
 	XX(ENOREQ, "request unknown") \
 	XX(EINVAL, "invalid argument") \
 	XX(ENORES, "resource not found") \
 	XX(ERES, "resource error") \
+	XX(EBUSY, "resource busy") \
 	XX(ESERVICECALL, "service call error") \
 	XX(EIO, "io error")
 
