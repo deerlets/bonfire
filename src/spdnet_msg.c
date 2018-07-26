@@ -36,8 +36,7 @@ int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len)
 	memcpy(meta, buf, sizeof(*meta));
 
 	cur = buf + sizeof(*meta);
-	meta->name = malloc(strlen(cur) + 1);
-	strcpy(meta->name, cur);
+	meta->name = strdup(cur);
 
 	return 0;
 }
@@ -134,8 +133,7 @@ int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 	       MSG_CONTENT_SIZE(src));
 
 	memcpy(&dst->__meta, &src->__meta, sizeof(src->__meta));
-	dst->__meta.name = malloc(strlen(src->__meta.name) + 1);
-	strcpy(dst->__meta.name, src->__meta.name);
+	dst->__meta.name = strdup(src->__meta.name);
 	return 0;
 }
 

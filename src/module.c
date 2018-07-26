@@ -23,8 +23,7 @@ char *mod_error(void)
 
 static void path_to_name(const char *filepath, char *name, size_t size)
 {
-	char __filepath[strlen(filepath) + 1];
-	strcpy(__filepath, filepath);
+	char *__filepath = strdup(filepath);
 
 	// FIXME: windows may use '\\'
 	char *start = strrchr(__filepath, '/');
@@ -38,6 +37,8 @@ static void path_to_name(const char *filepath, char *name, size_t size)
 
 	memset(name, 0, size);
 	memcpy(name, start, len);
+
+	free(__filepath);
 }
 
 struct module *module_self(void *address)
