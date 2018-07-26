@@ -48,19 +48,35 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 	timer->killed = 0;
 	INIT_LIST_HEAD(&timer->node);
 
-	pthread_mutex_lock(&timers_lock);
-	list_add(&timer->node, &timers);
-	pthread_mutex_unlock(&timers_lock);
+	if (timer->tid == pthread_self()) {
+		list_add(&timer->node, &timers);
+	} else {
+		pthread_mutex_lock(&timers_lock);
+		list_add(&timer->node, &timers);
+		pthread_mutex_unlock(&timers_lock);
+	}
 }
 
 void kill_timer(struct timer *timer)
 {
-	timer->killed = 1;
+	if (timer->tid == pthread_self()) {
+		timer->killed = 1;
+	} else {
+		pthread_mutex_lock(&timers_lock);
+		timer->killed = 1;
+		pthread_mutex_unlock(&timers_lock);
+	}
 }
 
 void trigger_timer(struct timer *timer)
 {
-	gettimeofday(&timer->timeout, NULL);
+	if (timer->tid == pthread_self()) {
+		gettimeofday(&timer->timeout, NULL);
+	} else {
+		pthread_mutex_lock(&timers_lock);
+		gettimeofday(&timer->timeout, NULL);
+		pthread_mutex_unlock(&timers_lock);
+	}
 }
 
 int timers_init()
