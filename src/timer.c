@@ -35,6 +35,9 @@
 static LIST_HEAD(timers);
 static pthread_mutex_t timers_lock;
 
+static LIST_HEAD(timers_added);
+static pthread_mutex_t timers_added_lock;
+
 void set_timer(struct timer *timer, timer_handler_func_t handler,
                void *arg, uint64_t timeout, uint64_t repeat)
 {
@@ -45,25 +48,20 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
 	timer->tid = pthread_self();
-	timer->killed = 0;
 	INIT_LIST_HEAD(&timer->node);
 
-	if (timer->tid == pthread_self()) {
-		list_add(&timer->node, &timers);
-	} else {
-		pthread_mutex_lock(&timers_lock);
-		list_add(&timer->node, &timers);
-		pthread_mutex_unlock(&timers_lock);
-	}
+	pthread_mutex_lock(&timers_added_lock);
+	list_add(&timer->node, &timers_added);
+	pthread_mutex_unlock(&timers_added_lock);
 }
 
 void kill_timer(struct timer *timer)
 {
 	if (timer->tid == pthread_self()) {
-		timer->killed = 1;
+		list_del(&timer->node);
 	} else {
 		pthread_mutex_lock(&timers_lock);
-		timer->killed = 1;
+		list_del(&timer->node);
 		pthread_mutex_unlock(&timers_lock);
 	}
 }
@@ -82,12 +80,14 @@ void trigger_timer(struct timer *timer)
 int timers_init()
 {
 	pthread_mutex_init(&timers_lock, NULL);
+	pthread_mutex_init(&timers_added_lock, NULL);
 	return 0;
 }
 
 int timers_close()
 {
 	pthread_mutex_destroy(&timers_lock);
+	pthread_mutex_destroy(&timers_added_lock);
 	return 0;
 }
 
@@ -98,16 +98,20 @@ int timers_run(struct timeval *next)
 	gettimeofday(&now, NULL);
 	if (next) timerclear(next);
 
-	pthread_mutex_lock(&timers_lock);
 	struct timer *pos, *n;
+
+	pthread_mutex_lock(&timers_added_lock);
+	list_for_each_entry_safe(pos, n, &timers_added, node) {
+		list_del(&pos->node);
+		INIT_LIST_HEAD(&pos->node);
+		list_add(&pos->node, &timers);
+	}
+	pthread_mutex_unlock(&timers_added_lock);
+
+	pthread_mutex_lock(&timers_lock);
 	list_for_each_entry_safe(pos, n, &timers, node) {
 		if (pos->tid != tid)
 			continue;
-
-		if (pos->killed) {
-			list_del(&pos->node);
-			continue;
-		}
 
 		if (timercmp(&pos->timeout, &now, >)) {
 			if (next) {
@@ -124,7 +128,7 @@ int timers_run(struct timeval *next)
 		pos->handler(pos);
 
 		// delete killed timer after call handler
-		if (pos->killed || !timerisset(&pos->repeat)) {
+		if (!timerisset(&pos->repeat)) {
 			list_del(&pos->node);
 			continue;
 		}

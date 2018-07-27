@@ -19,7 +19,6 @@ struct timer {
 	struct timeval timeout;
 	struct timeval repeat;
 	pthread_t tid;
-	int killed;
 	struct list_head node;
 };
 
