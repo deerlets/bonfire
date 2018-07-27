@@ -70,7 +70,7 @@ const char *get_ifaddr()
 	return retval;
 }
 
-void bytes_to_hexstr(uint8_t *bytes, int len, char *hexstr)
+void bytes_to_hexstr(const uint8_t *bytes, int len, char *hexstr)
 {
 	const char hextab[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 	                       'A', 'B', 'C', 'D', 'E', 'F'};

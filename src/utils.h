@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 const char *get_ifaddr();
-void bytes_to_hexstr(uint8_t *bytes, int len, char *hexstr);
+void bytes_to_hexstr(const uint8_t *bytes, int len, char *hexstr);
 void hexstr_to_bytes(const char *hexstr, uint8_t *bytes, size_t size);
 int gcd(int n1, int n2);
 
