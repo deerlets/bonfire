@@ -447,9 +447,9 @@ static void zsocket_do_close()
 		}
 
 		if (pos->state & ZS_S_EOF) {
+			__zsocket_close(pos);
 			if (pos->s_ops.close_cb)
 				pos->s_ops.close_cb(pos);
-			__zsocket_close(pos);
 			if (pos->type == ZS_T_CONNECTION)
 				free(pos);
 		}
