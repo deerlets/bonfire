@@ -7,6 +7,5 @@
 #include "zero/module.h"
 #include "zero/spdnet.h"
 #include "zero/service.h"
-#include "zero/zsocket.h"
 
 #endif
