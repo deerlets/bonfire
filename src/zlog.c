@@ -63,6 +63,9 @@ static int __zlog_message(int level, const char *format, va_list ap)
 	char prefix[40];
 
 	switch (level) {
+	case ZLOG_NONE: // None
+		strcpy(prefix, "");
+		break;
 	case ZLOG_DEBUG: // Bright Cyan, important stuff!
 		strcpy(prefix, CL_CYAN"[Debug]"CL_RESET": ");
 		break;
@@ -80,9 +83,6 @@ static int __zlog_message(int level, const char *format, va_list ap)
 		break;
 	case ZLOG_FATAL: // Bright Red (Fatal errors, abort(); if possible)
 		strcpy(prefix, CL_RED"[Fatal Error]"CL_RESET": ");
-		break;
-	case ZLOG_NONE: // None
-		strcpy(prefix, "");
 		break;
 	default:
 		printf("__zlog_message: Invalid level passed.\n");
@@ -103,10 +103,10 @@ int zlog_message(int level, const char *format, ...)
 
 	assert(format && *format != '\0');
 
-	if (level < limit) return 0;
+	if (level < limit && level != ZLOG_NONE) return 0;
 
 	va_start(ap, format);
-	if (before_log_cb) before_log_cb(format, ap);
+	if (before_log_cb) before_log_cb(level, format, ap);
 	va_end(ap);
 
 	va_start(ap, format);
@@ -114,7 +114,7 @@ int zlog_message(int level, const char *format, ...)
 	va_end(ap);
 
 	va_start(ap, format);
-	if (after_log_cb) after_log_cb(format, ap);
+	if (after_log_cb) after_log_cb(level, format, ap);
 	va_end(ap);
 
 	return rc;
