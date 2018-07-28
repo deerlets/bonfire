@@ -177,8 +177,10 @@ static void do_servmsg(struct servhub *hub)
 			if (hub->prepare_cb)
 				hub->prepare_cb(pos);
 
-			if (hub->filter_cb)
-				hub->filter_cb(pos);
+			if (hub->filter_cb) {
+				if (hub->filter_cb(pos))
+					pos->state = SM_FILTERD;
+			}
 
 			if (pos->state != SM_FILTERD)
 				handle_msg(hub, pos);
