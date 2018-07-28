@@ -48,6 +48,7 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
 	timer->tid = pthread_self();
+	timer->killed = 0;
 	INIT_LIST_HEAD(&timer->node);
 
 	pthread_mutex_lock(&timers_added_lock);
@@ -57,6 +58,8 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 
 void kill_timer(struct timer *timer)
 {
+	timer->killed = 1;
+
 	if (timer->tid == pthread_self()) {
 		list_del(&timer->node);
 	} else {
@@ -127,8 +130,11 @@ int timers_run(struct timeval *next)
 		// call handler
 		pos->handler(pos);
 
+		if (pos->killed) continue;
+
 		// delete killed timer after call handler
 		if (!timerisset(&pos->repeat)) {
+			pos->killed = 1;
 			list_del(&pos->node);
 			continue;
 		}
