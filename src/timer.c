@@ -172,7 +172,10 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 		}
 
 		// calculate new timeout & next
-		if (timerisset(&pos->repeat)) {
+		if (!timerisset(&pos->repeat)) {
+			pos->timeout.tv_sec = 0;
+			pos->timeout.tv_usec = 0;
+		} else {
 			do {
 				timeradd(&pos->timeout, &pos->repeat,
 				         &pos->timeout);
