@@ -48,7 +48,6 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
 	timer->tid = pthread_self();
-	timer->killed = 0;
 	INIT_LIST_HEAD(&timer->node);
 
 	pthread_mutex_lock(&timers_added_lock);
@@ -58,8 +57,6 @@ void set_timer(struct timer *timer, timer_handler_func_t handler,
 
 void kill_timer(struct timer *timer)
 {
-	timer->killed = 1;
-
 	if (timer->tid == pthread_self()) {
 		list_del(&timer->node);
 	} else {
@@ -127,29 +124,29 @@ int timers_run(struct timeval *next)
 			continue;
 		}
 
+		// calculate new timeout & next
+		if (timerisset(&pos->repeat)) {
+			do {
+				timeradd(&pos->timeout, &pos->repeat,
+				         &pos->timeout);
+			} while (timercmp(&pos->timeout, &now, <));
+
+			if (next) {
+				struct timeval __next;
+				timersub(&pos->timeout, &now, &__next);
+				if (timercmp(&__next, next, <) ||
+				    !timerisset(next))
+					*next = __next;
+			}
+		}
+
 		// call handler
 		pos->handler(pos);
 
-		if (pos->killed) continue;
-
-		// delete killed timer after call handler
-		if (!timerisset(&pos->repeat)) {
-			pos->killed = 1;
-			list_del(&pos->node);
-			continue;
-		}
-
-		// calculate new timeout & next
-		do {
-			timeradd(&pos->timeout, &pos->repeat, &pos->timeout);
-		} while (timercmp(&pos->timeout, &now, <));
-
-		if (next) {
-			struct timeval __next;
-			timersub(&pos->timeout, &now, &__next);
-			if (timercmp(&__next, next, <) || !timerisset(next))
-				*next = __next;
-		}
+		/*
+		 * do nothing after call handler as current timer
+		 * will be killed in handler
+		 */
 	}
 	pthread_mutex_unlock(&timers_lock);
 
