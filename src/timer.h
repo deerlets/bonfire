@@ -5,32 +5,49 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include "list.h"
+#include "mutex.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct timer;
+struct timer_loop;
+
 typedef int (*timer_handler_func_t)(struct timer *timer);
 
 struct timer {
 	timer_handler_func_t handler;
 	void *arg;
+
+	// timeout & repeat: millisecond
 	struct timeval timeout;
 	struct timeval repeat;
-	pthread_t tid;
+
+	struct timer_loop *loop;
 	struct list_head node;
 };
 
-// timeout & repeat: millisecond
-void set_timer(struct timer *timer, timer_handler_func_t handler,
-              void *arg, uint64_t timeout, uint64_t repeat);
-void kill_timer(struct timer *timer);
-void trigger_timer(struct timer *timer);
+int timer_init(struct timer_loop *loop, struct timer *timer);
+int timer_close(struct timer *timer);
+void timer_start(struct timer *timer, timer_handler_func_t handler,
+                 void *arg, uint64_t timeout, uint64_t repeat);
+void timer_stop(struct timer *timer);
+void timer_trigger(struct timer *timer);
 
-int timers_init();
-int timers_close();
-int timers_run();
+struct timer_loop {
+	pthread_t tid;
+	struct list_head timers;
+	pthread_mutex_t timers_lock;
+	struct list_head timers_added;
+	pthread_mutex_t timers_added_lock;
+};
+
+int timer_loop_init(struct timer_loop *loop);
+int timer_loop_close(struct timer_loop *loop);
+int timer_loop_run(struct timer_loop *loop, struct timeval *next);
+
+struct timer_loop *default_timer_loop(void);
 
 #ifdef __cplusplus
 }
