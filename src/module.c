@@ -41,17 +41,6 @@ static void path_to_name(const char *filepath, char *name, size_t size)
 	free(__filepath);
 }
 
-struct module *module_self(void *address)
-{
-	struct module *pos;
-	list_for_each_entry(pos, &modules, node) {
-		if (address == pos->init_fn)
-			return pos;
-	}
-
-	return NULL;
-}
-
 struct module *load_module(const char *filepath, const char *param)
 {
 	char fullname[MODULE_NAME_SIZE];
@@ -89,7 +78,7 @@ struct module *load_module(const char *filepath, const char *param)
 	INIT_LIST_HEAD(&m->node);
 	list_add(&m->node, &modules);
 
-	if ((*func)()) {
+	if ((*func)(m)) {
 		dlclose(handle);
 		__errno = MOD_EINIT;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE,

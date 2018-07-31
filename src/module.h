@@ -37,17 +37,22 @@ char *mod_error(void);
  * module init & exit
  */
 
-typedef int (*module_init_func_t)(void);
+struct module;
+
+typedef int (*module_init_func_t)(struct module *m);
 typedef void (*module_exit_func_t)(void);
 
+static __attribute__((unused)) struct module *__module_self(struct module *m)
+{ static struct module* __m; if (m) __m = m; return __m; }
+
 #define module_init(init_func) \
-	int __module_init(void) { return init_func(); }
+	int __module_init(struct module *m) \
+	{ __module_self(m); return init_func(); }
+
 #define module_exit(exit_func) \
 	void __module_exit(void) { exit_func(); }
 
-struct module *module_self(void *address);
-extern int __module_init(void);
-#define THIS_MODULE module_self(__module_init)
+#define THIS_MODULE __module_self(NULL)
 
 /*
  * module & param
