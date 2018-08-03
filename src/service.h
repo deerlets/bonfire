@@ -18,11 +18,16 @@ extern "C" {
  */
 
 enum servmsg_state {
+	// raw
 	SM_RAW_UNINTERRUPTIBLE = 0,
 	SM_RAW_INTERRUPTIBLE,
-	SM_PENDING,
-	SM_TIMEOUT,
-	SM_FILTERD,
+
+	// intermediate
+	SM_PENDING = 0x10,
+	SM_FILTER,
+
+	// result
+	SM_TIMEOUT = 0x20,
 	SM_HANDLED,
 };
 
@@ -51,6 +56,8 @@ void servmsg_close(struct servmsg *sm);
 
 static inline int servmsg_interruptible(struct servmsg *sm)
 {
+	assert(sm->state < SM_PENDING);
+
 	if (sm->state == SM_RAW_INTERRUPTIBLE)
 		return 1;
 	return 0;
@@ -62,25 +69,21 @@ static inline void servmsg_pending(struct servmsg *sm)
 	sm->state = SM_PENDING;
 }
 
-static inline void servmsg_timeout(struct servmsg *sm)
+static inline void servmsg_filter(struct servmsg *sm)
 {
-	assert(sm->state == SM_PENDING);
-	sm->state = SM_TIMEOUT;
+	assert(sm->state == SM_RAW_INTERRUPTIBLE || sm->state == SM_PENDING);
+	sm->state = SM_FILTER;
 }
 
-static inline void servmsg_filterd(struct servmsg *sm)
+static inline void servmsg_timeout(struct servmsg *sm)
 {
-	assert(sm->state != SM_TIMEOUT &&
-	       sm->state != SM_FILTERD &&
-	       sm->state != SM_HANDLED);
-	sm->state = SM_FILTERD;
+	assert(sm->state >= SM_PENDING && sm->state < SM_TIMEOUT);
+	sm->state = SM_TIMEOUT;
 }
 
 static inline void servmsg_handled(struct servmsg *sm, int rc)
 {
-	assert(sm->state != SM_TIMEOUT &&
-	       sm->state != SM_FILTERD &&
-	       sm->state != SM_HANDLED);
+	assert(sm->state >= SM_PENDING && sm->state < SM_TIMEOUT);
 	sm->state = SM_HANDLED;
 	sm->rc = rc;
 }
@@ -106,6 +109,7 @@ servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size)
  * service
  */
 
+typedef void (*service_prepare_func_t)(struct servmsg *sm);
 typedef int (*service_handler_func_t)(struct servmsg *sm);
 
 struct service {
@@ -183,9 +187,8 @@ struct servhub {
 	struct spdnet_node *spublish;
 	struct spdnet_multicast *smulticast;
 
-	service_handler_func_t prepare_cb;
-	service_handler_func_t finished_cb;
-	service_handler_func_t filter_cb;
+	service_prepare_func_t prepare_cb;
+	service_prepare_func_t finished_cb;
 
 	struct list_head servareas;
 	mutex_t servareas_lock;
@@ -203,12 +206,10 @@ int servhub_register_services(struct servhub *hub, const char *name,
                              struct service *services,
                              struct spdnet_node **__snode);
 int servhub_unregister_service(struct servhub *hub, const char *name);
-service_handler_func_t
-servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb);
-service_handler_func_t
-servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb);
-service_handler_func_t
-servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb);
+service_prepare_func_t
+servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb);
+service_prepare_func_t
+servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg);
 int servhub_loop(struct servhub *hub, long timeout);

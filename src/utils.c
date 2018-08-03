@@ -79,6 +79,8 @@ void bytes_to_hexstr(const uint8_t *bytes, int len, char *hexstr)
 		hexstr[i * 2] = hextab[bytes[i] / 16];
 		hexstr[i * 2 + 1] = hextab[bytes[i] % 16];
 	}
+
+	hexstr[len * 2] = 0;
 }
 
 void hexstr_to_bytes(const char *hexstr, uint8_t *bytes, size_t size)

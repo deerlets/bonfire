@@ -118,17 +118,16 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	fn = servarea_find_handler(sa, MSG_HEADER_DATA(&sm->request),
 	                           MSG_HEADER_SIZE(&sm->request));
 	mutex_unlock(&hub->servareas_lock);
+
+	// call handler
 	if (!fn) {
 		sm->rc = SERVICE_ENOREQ;
 		sm->state = SM_HANDLED;
-		return;
+	} else {
+		sm->rc = fn(sm);
+		if (sm->state < SM_PENDING)
+			sm->state = SM_HANDLED;
 	}
-
-	// call service
-	sm->rc = fn(sm);
-	if (sm->state == SM_RAW_INTERRUPTIBLE ||
-	    sm->state == SM_RAW_UNINTERRUPTIBLE)
-		sm->state = SM_HANDLED;
 }
 
 static void finish_msg(struct servhub *hub, struct servmsg *sm)
@@ -172,31 +171,32 @@ static void do_servmsg(struct servhub *hub)
 {
 	struct servmsg *pos, *n;
 	list_for_each_entry_safe(pos, n, &hub->servmsgs, node) {
-		if (pos->state == SM_RAW_INTERRUPTIBLE ||
-		    pos->state == SM_RAW_UNINTERRUPTIBLE) {
+		// stage 1: handle raw
+		if (pos->state < SM_PENDING) {
 			if (hub->prepare_cb)
 				hub->prepare_cb(pos);
 
-			if (hub->filter_cb) {
-				if (hub->filter_cb(pos))
-					pos->state = SM_FILTERD;
-			}
-
-			if (pos->state != SM_FILTERD)
+			if (pos->state < SM_PENDING)
 				handle_msg(hub, pos);
 		}
 
-		assert(pos->state != SM_RAW_UNINTERRUPTIBLE &&
-		       pos->state != SM_RAW_INTERRUPTIBLE);
+		// stage 2: handle intermediate
+		assert(pos->state >= SM_PENDING);
 
 		if (pos->state == SM_PENDING)
 			continue;
-
-		if (pos->state == SM_TIMEOUT)
+		else if (pos->state == SM_FILTER) {
+			list_del(&pos->node);
+			servmsg_close(pos);
+			free(pos);
+			continue;
+		} else if (pos->state == SM_TIMEOUT)
 			pos->rc = SERVICE_ETIMEOUT;
 
-		if ((pos->state == SM_HANDLED ||
-		     pos->state == SM_TIMEOUT) && pos->src) {
+		// stage 3: handle result
+		assert(pos->state == SM_HANDLED || pos->state == SM_TIMEOUT);
+
+		if (pos->src) {
 			finish_msg(hub, pos);
 			spdnet_sendmsg(pos->snode, &pos->response);
 		}
@@ -231,7 +231,6 @@ int servhub_init(struct servhub *hub, const char *name,
 
 	hub->prepare_cb = NULL;
 	hub->finished_cb = NULL;
-	hub->filter_cb = NULL;
 
 	INIT_LIST_HEAD(&hub->servareas);
 	mutex_init(&hub->servareas_lock);
@@ -303,27 +302,19 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 	return 0;
 }
 
-service_handler_func_t
-servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb)
+service_prepare_func_t
+servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb)
 {
-	service_handler_func_t last = hub->prepare_cb;
+	service_prepare_func_t last = hub->prepare_cb;
 	hub->prepare_cb = prepare_cb;
 	return last;
 }
 
-service_handler_func_t
-servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb)
+service_prepare_func_t
+servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb)
 {
-	service_handler_func_t last = hub->finished_cb;
+	service_prepare_func_t last = hub->finished_cb;
 	hub->finished_cb = finished_cb;
-	return last;
-}
-
-service_handler_func_t
-servhub_set_filter(struct servhub *hub, service_handler_func_t filter_cb)
-{
-	service_handler_func_t last = hub->filter_cb;
-	hub->filter_cb = filter_cb;
 	return last;
 }
 
