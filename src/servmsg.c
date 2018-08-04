@@ -32,6 +32,9 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 		sm->dest_len = strlen(snode->id);
 	}
 
+	sm->header = header;
+	sm->header_len = hdr_len;
+
 	sm->user_data = NULL;
 	sm->rc = 0;
 	sm->state = SM_RAW_INTERRUPTIBLE;

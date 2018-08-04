@@ -115,8 +115,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 
 	// find handler
 	service_handler_func_t fn;
-	fn = servarea_find_handler(sa, MSG_HEADER_DATA(&sm->request),
-	                           MSG_HEADER_SIZE(&sm->request));
+	fn = servarea_find_handler(sa, sm->header, sm->header_len);
 	mutex_unlock(&hub->servareas_lock);
 
 	// call handler

@@ -36,10 +36,13 @@ struct servmsg {
 	struct spdnet_msg response;
 	struct spdnet_node *snode;
 
-	void *src;
+	const void *src;
 	size_t src_len;
-	void *dest;
+	const void *dest;
 	size_t dest_len;
+
+	const void *header;
+	size_t header_len;
 
 	void *user_data;
 	int rc;
