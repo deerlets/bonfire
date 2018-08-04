@@ -26,7 +26,7 @@ enum servmsg_state {
 	SM_PENDING = 0x10,
 
 	// result
-	SM_FILTER = 0x20,
+	SM_FILTERED = 0x20,
 	SM_TIMEOUT,
 	SM_HANDLED,
 };
@@ -72,10 +72,10 @@ static inline void servmsg_pending(struct servmsg *sm)
 	sm->state = SM_PENDING;
 }
 
-static inline void servmsg_filter(struct servmsg *sm)
+static inline void servmsg_filtered(struct servmsg *sm)
 {
 	assert(sm->state <= SM_PENDING && sm->state != SM_RAW_UNINTERRUPTIBLE);
-	sm->state = SM_FILTER;
+	sm->state = SM_FILTERED;
 }
 
 static inline void servmsg_timeout(struct servmsg *sm)
@@ -197,6 +197,12 @@ struct servhub {
 	mutex_t servareas_lock;
 
 	struct list_head servmsgs;
+
+	int servmsg_total;
+	int servmsg_doing;
+	int servmsg_filtered;
+	int servmsg_timeout;
+	int servmsg_handled;
 };
 
 int servhub_init(struct servhub *hub, const char *name,
