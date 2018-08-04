@@ -185,25 +185,23 @@ static void do_servmsg(struct servhub *hub)
 
 		if (pos->state == SM_PENDING)
 			continue;
-		else if (pos->state == SM_FILTER) {
-			list_del(&pos->node);
-			servmsg_close(pos);
-			free(pos);
-			continue;
-		} else if (pos->state == SM_TIMEOUT)
-			pos->rc = SERVICE_ETIMEOUT;
 
 		// stage 3: handle result
-		assert(pos->state == SM_HANDLED || pos->state == SM_TIMEOUT);
+		assert(pos->state >= SM_FILTER);
 
-		if (pos->src) {
-			finish_msg(hub, pos);
-			spdnet_sendmsg(pos->snode, &pos->response);
+		if (pos->state != SM_FILTER) {
+			if (pos->state == SM_TIMEOUT)
+				pos->rc = SERVICE_ETIMEOUT;
+
+			if (pos->src) {
+				finish_msg(hub, pos);
+				spdnet_sendmsg(pos->snode, &pos->response);
+			}
 		}
 
+		// stage 4: release servmsg
 		if (hub->finished_cb)
 			hub->finished_cb(pos);
-
 		list_del(&pos->node);
 		servmsg_close(pos);
 		free(pos);

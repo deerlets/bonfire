@@ -24,10 +24,10 @@ enum servmsg_state {
 
 	// intermediate
 	SM_PENDING = 0x10,
-	SM_FILTER,
 
 	// result
-	SM_TIMEOUT = 0x20,
+	SM_FILTER = 0x20,
+	SM_TIMEOUT,
 	SM_HANDLED,
 };
 
@@ -71,19 +71,19 @@ static inline void servmsg_pending(struct servmsg *sm)
 
 static inline void servmsg_filter(struct servmsg *sm)
 {
-	assert(sm->state == SM_RAW_INTERRUPTIBLE || sm->state == SM_PENDING);
+	assert(sm->state <= SM_PENDING && sm->state != SM_RAW_UNINTERRUPTIBLE);
 	sm->state = SM_FILTER;
 }
 
 static inline void servmsg_timeout(struct servmsg *sm)
 {
-	assert(sm->state >= SM_PENDING && sm->state < SM_TIMEOUT);
+	assert(sm->state <= SM_PENDING);
 	sm->state = SM_TIMEOUT;
 }
 
 static inline void servmsg_handled(struct servmsg *sm, int rc)
 {
-	assert(sm->state >= SM_PENDING && sm->state < SM_TIMEOUT);
+	assert(sm->state <= SM_PENDING);
 	sm->state = SM_HANDLED;
 	sm->rc = rc;
 }
