@@ -139,10 +139,11 @@ struct service {
 	XX(ENOREQ, "request unknown") \
 	XX(EINVAL, "invalid argument") \
 	XX(ENORES, "resource not found") \
-	XX(ERES, "resource error") \
+	XX(EDUP, "resource duplicated") \
+	XX(ESTATE, "resource state error") \
 	XX(EBUSY, "resource busy") \
-	XX(ESERVICECALL, "service call error") \
-	XX(EIO, "io error")
+	XX(EIO, "resource io error") \
+	XX(ESERVICECALL, "service call error")
 
 typedef enum {
 #define XX(code, _) SERVICE_##code,
