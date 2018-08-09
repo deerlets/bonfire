@@ -1,6 +1,7 @@
 #include "spdnet.h"
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <zmq.h>
 
@@ -214,9 +215,10 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 		return -1;
 	}
 
-	rc = spdnet_meta_unserialize(&msg->__meta, zmq_msg_data(&meta_msg),
-	                             zmq_msg_size(&meta_msg));
-	assert(rc == 0);
+	if (msg->__meta) free(msg->__meta);
+	msg->__meta = malloc(zmq_msg_size(&meta_msg));
+	memcpy(msg->__meta, zmq_msg_data(&meta_msg), zmq_msg_size(&meta_msg));
+	assert(zmq_msg_size(&meta_msg) == msg->__meta->len);
 	zmq_msg_close(&meta_msg);
 
 	return 0;
@@ -263,15 +265,14 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 	if (rc == -1) return -1;
 
 	spdnet_meta_t meta;
-	meta.name = snode->name;
 	meta.node_type = snode->type;
 	meta.ttl = 10;
+	meta.len = sizeof(meta) + strlen(snode->name) + 1;
 
 	zmq_msg_t meta_msg;
-	size_t meta_len = sizeof(meta) + strlen(snode->name) + 1;
-	zmq_msg_init_size(&meta_msg, meta_len);
-	rc = spdnet_meta_serialize(&meta, zmq_msg_data(&meta_msg), meta_len);
-	assert(rc == meta_len);
+	zmq_msg_init_size(&meta_msg, meta.len);
+	memcpy(zmq_msg_data(&meta_msg), &meta, sizeof(meta));
+	strcpy(zmq_msg_data(&meta_msg) + sizeof(meta), snode->name);
 	rc = zmq_msg_send(&meta_msg, snode->socket, 0);
 	zmq_msg_close(&meta_msg);
 	if (rc == -1) return -1;

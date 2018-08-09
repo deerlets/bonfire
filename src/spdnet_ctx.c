@@ -12,7 +12,7 @@ void *spdnet_ctx_create(void)
 
 int spdnet_ctx_destroy(void *ctx)
 {
-	return zmq_ctx_shutdown(ctx);
+	return zmq_ctx_term(ctx);
 }
 
 /*

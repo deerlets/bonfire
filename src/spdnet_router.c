@@ -397,6 +397,7 @@ int spdnet_router_close(struct spdnet_router *router)
 		free(pos);
 	}
 
+	zmq_close(router->snode.socket);
 	return spdnet_node_close(&router->snode);
 }
 

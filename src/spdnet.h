@@ -96,19 +96,17 @@ const char *spdnet_strerror(int err);
  */
 
 typedef struct spdnet_meta {
-	char *name;
 	int node_type;
 	int ttl;
-} spdnet_meta_t;
-
-int spdnet_meta_serialize(spdnet_meta_t *meta, void *buf, size_t len);
-int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len);
+	int len;
+	char name[0];
+} __attribute__((packed)) spdnet_meta_t;
 
 struct spdnet_msg {
 	zmq_msg_t __sockid; // destid for sender, srcid for receiver
 	zmq_msg_t __header;
 	zmq_msg_t __content;
-	spdnet_meta_t __meta;
+	spdnet_meta_t *__meta;
 };
 
 int spdnet_msg_init(struct spdnet_msg *msg);
@@ -121,8 +119,6 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src);
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src);
 zmq_msg_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name);
 const char *spdnet_msg_gets(struct spdnet_msg *msg, const char *property);
-int spdnet_msg_sets(struct spdnet_msg *msg, const char *property,
-                    const char *value);
 
 #define SPDNET_MSG_INIT_DATA(msg, sockid, header, content) \
 	spdnet_msg_init_data(msg, sockid, -1, header, -1, content, -1)

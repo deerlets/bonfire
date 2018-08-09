@@ -13,34 +13,6 @@ const char *spdnet_strerror(int err) {
 }
 #undef SPDNET_STRERROR_GEN
 
-int spdnet_meta_serialize(spdnet_meta_t *meta, void *buf, size_t len)
-{
-	int rc;
-	assert(len >= sizeof(*meta) + strlen(meta->name) + 1);
-
-	memcpy(buf, meta, sizeof(*meta));
-	rc = sizeof(*meta);
-	rc += sprintf(buf + rc, "%s", meta->name);
-	rc++;
-
-	return rc;
-}
-
-int spdnet_meta_unserialize(spdnet_meta_t *meta, void *buf, size_t len)
-{
-	char *cur;
-	assert(*((char *)buf + len - 1) == '\0');
-
-	// must free meta->name before memcpy
-	if (meta->name) free(meta->name);
-	memcpy(meta, buf, sizeof(*meta));
-
-	cur = buf + sizeof(*meta);
-	meta->name = strdup(cur);
-
-	return 0;
-}
-
 int spdnet_msg_init(struct spdnet_msg *msg)
 {
 	memset(msg, 0, sizeof(*msg));
@@ -51,6 +23,7 @@ int spdnet_msg_init(struct spdnet_msg *msg)
 		return -1;
 	if (zmq_msg_init(&msg->__content) == -1)
 		return -1;
+	msg->__meta = NULL;
 
 	return 0;
 }
@@ -90,23 +63,23 @@ int spdnet_msg_init_data(struct spdnet_msg *msg,
 	} else
 		zmq_msg_init(MSG_CONTENT(msg));
 
+	// meta
+	msg->__meta = NULL;
+
 	return 0;
 }
 
 int spdnet_msg_close(struct spdnet_msg *msg)
 {
-	int rc = 0;
+	assert(zmq_msg_close(&msg->__sockid) == 0);
+	assert(zmq_msg_close(&msg->__header) == 0);
+	assert(zmq_msg_close(&msg->__content) == 0);
 
-	rc = zmq_msg_close(&msg->__sockid);
-	assert(rc == 0);
-	rc = zmq_msg_close(&msg->__header);
-	assert(rc == 0);
-	rc = zmq_msg_close(&msg->__content);
-	assert(rc == 0);
-	if (msg->__meta.name) {
-		free(msg->__meta.name);
-		msg->__meta.name = NULL;
+	if (msg->__meta) {
+		free(msg->__meta);
+		msg->__meta = NULL;
 	}
+
 	return 0;
 }
 
@@ -115,8 +88,13 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src)
 	zmq_msg_move(&dst->__sockid, &src->__sockid);
 	zmq_msg_move(&dst->__header, &src->__header);
 	zmq_msg_move(&dst->__content, &src->__content);
-	memmove(&dst->__meta, &src->__meta, sizeof(src->__meta));
-	src->__meta.name = NULL;
+
+	assert(dst->__meta == NULL);
+	if (src->__meta) {
+		dst->__meta = src->__meta;
+		src->__meta = NULL;
+	}
+
 	return 0;
 }
 
@@ -132,8 +110,11 @@ int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 	memcpy(MSG_CONTENT_DATA(dst), MSG_CONTENT_DATA(src),
 	       MSG_CONTENT_SIZE(src));
 
-	memcpy(&dst->__meta, &src->__meta, sizeof(src->__meta));
-	dst->__meta.name = strdup(src->__meta.name);
+	if (src->__meta) {
+		dst->__meta = malloc(src->__meta->len);
+		memcpy(dst->__meta, src->__meta, src->__meta->len);
+	}
+
 	return 0;
 }
 
@@ -151,18 +132,8 @@ zmq_msg_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name)
 
 const char *spdnet_msg_gets(struct spdnet_msg *msg, const char *property)
 {
+	assert(msg->__meta);
 	if (!strcmp(property, "name"))
-		return msg->__meta.name;
+		return msg->__meta->name;
 	return NULL;
-}
-
-int spdnet_msg_sets(struct spdnet_msg *msg, const char *property,
-                    const char *value)
-{
-	if (!strcmp(property, "name"))
-		snprintf(msg->__meta.name, SPDNET_NAME_SIZE, "%s", value);
-	else
-		return -1;
-
-	return 0;
 }
