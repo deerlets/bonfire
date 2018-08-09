@@ -121,6 +121,7 @@ TEST(service, servhub)
 	task_close(&servhub_task);
 	servhub_close(&servhub);
 	spdnet_nodepool_close(&snodepool);
+	spdnet_publish_close(&spublish);
 	spdnet_multicast_close(&smulticast);
 
 	// close spdnet router
@@ -128,10 +129,4 @@ TEST(service, servhub)
 	task_close(&router_task);
 	spdnet_router_close(&router);
 	spdnet_ctx_destroy(ctx);
-}
-
-TEST(service, wait)
-{
-	// wait for other thread to exit
-	sleep(1);
 }
