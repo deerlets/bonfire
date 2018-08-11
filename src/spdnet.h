@@ -248,6 +248,7 @@ struct spdnet_nodepool {
 
 	struct list_head snodes;
 	mutex_t snodes_lock;
+	mutex_t snodes_del_lock;
 
 	struct list_head pollins;
 	struct list_head pollouts;

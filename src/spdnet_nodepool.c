@@ -26,6 +26,7 @@ int spdnet_nodepool_init(struct spdnet_nodepool *pool, int water_mark, void *ctx
 	pool->nr_snode = 0;
 	INIT_LIST_HEAD(&pool->snodes);
 	mutex_init(&pool->snodes_lock);
+	mutex_init(&pool->snodes_del_lock);
 	INIT_LIST_HEAD(&pool->pollins);
 	INIT_LIST_HEAD(&pool->pollouts);
 	INIT_LIST_HEAD(&pool->pollerrs);
@@ -41,6 +42,7 @@ int spdnet_nodepool_close(struct spdnet_nodepool *pool)
 		free(pos);
 	}
 	mutex_close(&pool->snodes_lock);
+	mutex_close(&pool->snodes_del_lock);
 
 	return 0;
 }
@@ -96,8 +98,10 @@ void spdnet_nodepool_add(struct spdnet_nodepool *pool, struct spdnet_node *snode
 void spdnet_nodepool_del(struct spdnet_nodepool *pool, struct spdnet_node *snode)
 {
 	mutex_lock(&pool->snodes_lock);
+	mutex_lock(&pool->snodes_del_lock);
 	list_del(&snode->node);
 	pool->nr_snode--;
+	mutex_unlock(&pool->snodes_del_lock);
 	mutex_unlock(&pool->snodes_lock);
 }
 
@@ -115,8 +119,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	INIT_LIST_HEAD(&pool->recvmsg_timeouts);
 
 	mutex_lock(&pool->snodes_lock);
-	items = malloc(sizeof(struct zmq_pollitem_t) * (pool->nr_snode + 1));
-	memset(items, 0, sizeof(struct zmq_pollitem_t) * (pool->nr_snode + 1));
+	items = calloc(1, sizeof(struct zmq_pollitem_t) * (pool->nr_snode + 1));
 
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
@@ -147,6 +150,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 			list_add_tail(&pos->pollin_node, &pool->pollins);
 		}
 	}
+	mutex_lock(&pool->snodes_del_lock);
 	mutex_unlock(&pool->snodes_lock);
 
 	list_for_each_entry(pos, &pool->pollins, pollin_node) {
@@ -156,10 +160,13 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 		}
 	}
 
-	if (!item_index)
+	if (!item_index) {
+		mutex_unlock(&pool->snodes_del_lock);
 		goto finally;
+	}
 
 	rc = zmq_poll(items, item_index, timeout);
+	mutex_unlock(&pool->snodes_del_lock);
 	if (rc == -1 || rc == 0) {
 		INIT_LIST_HEAD(&pool->pollins);
 		INIT_LIST_HEAD(&pool->pollouts);
