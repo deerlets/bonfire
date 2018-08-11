@@ -54,3 +54,53 @@ void servmsg_close(struct servmsg *sm)
 	spdnet_msg_close(&sm->request);
 	spdnet_msg_close(&sm->response);
 }
+
+int servmsg_interruptible(struct servmsg *sm)
+{
+	assert(sm->state < SM_PENDING);
+
+	if (sm->state == SM_RAW_INTERRUPTIBLE)
+		return 1;
+	return 0;
+}
+
+void servmsg_pending(struct servmsg *sm)
+{
+	assert(sm->state == SM_RAW_INTERRUPTIBLE);
+	sm->state = SM_PENDING;
+}
+
+void servmsg_filtered(struct servmsg *sm)
+{
+	assert(sm->state <= SM_PENDING && sm->state != SM_RAW_UNINTERRUPTIBLE);
+	sm->state = SM_FILTERED;
+}
+
+void servmsg_timeout(struct servmsg *sm)
+{
+	assert(sm->state <= SM_PENDING);
+	sm->state = SM_TIMEOUT;
+}
+
+void servmsg_handled(struct servmsg *sm, int rc)
+{
+	assert(sm->state <= SM_PENDING);
+	sm->state = SM_HANDLED;
+	sm->rc = rc;
+}
+
+const char *servmsg_reqid(struct servmsg *sm)
+{
+	return spdnet_msg_gets(&sm->request, "name");
+}
+
+int servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size)
+{
+	if (size == -1)
+		size = strlen((const char *)data);
+
+	zmq_msg_close(MSG_CONTENT(&sm->response));
+	zmq_msg_init_size(MSG_CONTENT(&sm->response), size);
+	memcpy(MSG_CONTENT_DATA(&sm->response), data, size);
+	return 0;
+}
