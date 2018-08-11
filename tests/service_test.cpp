@@ -5,9 +5,6 @@
 #include "utils.h"
 
 #define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
-#define SERVHUB_PUBLISH_ADDRESS "inproc://servhub-publish"
-#define SERVHUB_MULTICAST_IP "239.255.12.24"
-#define SERVHUB_MULTICAST_PORT 5964
 
 static int on_hello(struct servmsg *sm)
 {
@@ -67,27 +64,17 @@ TEST(service, servhub)
 	spdnet_router_bind(&router, ROUTER_ADDRESS);
 	struct task router_task;
 	task_init_timeout(&router_task, "router_task",
-	                  (task_timeout_func_t)spdnet_router_loop,
-	                  &router, 1000);
+	                  (task_timeout_func_t)spdnet_router_loop, &router, 500);
 	task_start(&router_task);
 
 	// init servhub
-	char pgm_addr[SPDNET_ADDRESS_SIZE];
-	snprintf(pgm_addr, sizeof(pgm_addr), "epgm://%s;%s:%d",
-	         get_ifaddr(), SERVHUB_MULTICAST_IP, SERVHUB_MULTICAST_PORT);
 	struct spdnet_nodepool snodepool;
-	struct spdnet_node spublish;
-	struct spdnet_multicast smulticast;
 	spdnet_nodepool_init(&snodepool, 20, ctx);
-	spdnet_publish_init(&spublish, SERVHUB_PUBLISH_ADDRESS, ctx);
-	spdnet_multicast_init(&smulticast, pgm_addr, 1, ctx);
 	struct servhub servhub;
-	servhub_init(&servhub, "servhub", ROUTER_ADDRESS,
-	             &snodepool, &spublish, &smulticast);
+	servhub_init(&servhub, "servhub", ROUTER_ADDRESS, &snodepool);
 	struct task servhub_task;
 	task_init_timeout(&servhub_task, "servhub_task",
-	                  (task_timeout_func_t)servhub_loop,
-	                  &servhub, 1000);
+	                  (task_timeout_func_t)servhub_loop, &servhub, 500);
 	task_start(&servhub_task);
 
 	// init service
@@ -121,8 +108,6 @@ TEST(service, servhub)
 	task_close(&servhub_task);
 	servhub_close(&servhub);
 	spdnet_nodepool_close(&snodepool);
-	spdnet_publish_close(&spublish);
-	spdnet_multicast_close(&smulticast);
 
 	// close spdnet router
 	task_stop(&router_task);

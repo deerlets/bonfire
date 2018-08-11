@@ -5,8 +5,8 @@
 
 struct servhub *default_servhub(void)
 {
-	static struct servhub servhub;
-	return &servhub;
+       static struct servhub servhub;
+       return &servhub;
 }
 
 #define SERVICE_STRERROR_GEN(name, msg) case SERVICE_ ## name: return msg;
@@ -154,20 +154,6 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 	free(buf);
 }
 
-static void service_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
-{
-	struct servhub *hub = snode->user_data;
-
-	if (filter_wrong_spdnet_msg(hub, msg, snode) == 0) {
-		struct servmsg *sm = malloc(sizeof(*sm));
-		servmsg_init(sm, msg, snode);
-		list_add(&sm->node, &hub->servmsgs);
-		hub->servmsg_total++;
-		hub->servmsg_doing++;
-	}
-	spdnet_recvmsg_async(snode, service_recvmsg_cb, 0);
-}
-
 static void do_servmsg(struct servhub *hub)
 {
 	struct servmsg *pos, *n;
@@ -217,24 +203,28 @@ static void do_servmsg(struct servhub *hub)
 	}
 }
 
-int servhub_init(struct servhub *hub, const char *name,
-                 const char *router_addr,
-                 struct spdnet_nodepool *snodepool,
-                 struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast)
+static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
+{
+	struct servhub *hub = snode->user_data;
+
+	if (filter_wrong_spdnet_msg(hub, msg, snode) == 0) {
+		struct servmsg *sm = malloc(sizeof(*sm));
+		servmsg_init(sm, msg, snode);
+		list_add(&sm->node, &hub->servmsgs);
+		hub->servmsg_total++;
+		hub->servmsg_doing++;
+	}
+	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+}
+
+int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+                 struct spdnet_nodepool *snodepool)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
 
 	hub->name = name;
 	hub->router_addr = router_addr;
-
 	hub->snodepool = snodepool;
-	hub->spublish = spublish;
-	hub->smulticast = smulticast;
-
-	hub->smulticast->sub.user_data = hub;
-	spdnet_nodepool_add(hub->snodepool, &hub->smulticast->sub);
-	spdnet_recvmsg_async(&hub->smulticast->sub, service_recvmsg_cb, 0);
 
 	hub->prepare_cb = NULL;
 	hub->finished_cb = NULL;
@@ -249,6 +239,8 @@ int servhub_init(struct servhub *hub, const char *name,
 	hub->servmsg_timeout = 0;
 	hub->servmsg_handled = 0;
 
+	hub->user_data = NULL;
+
 	struct spdnet_node *snode;
 	servhub_register_services(hub, hub->name, services, &snode);
 	return 0;
@@ -257,8 +249,6 @@ int servhub_init(struct servhub *hub, const char *name,
 int servhub_close(struct servhub *hub)
 {
 	servhub_unregister_service(hub, hub->name);
-
-	spdnet_nodepool_del(hub->snodepool, &hub->smulticast->sub);
 
 	struct servarea *pos, *n;
 	list_for_each_entry_safe(pos, n, &hub->servareas, node) {
@@ -280,7 +270,7 @@ int servhub_register_services(struct servhub *hub, const char *name,
 	spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
 	spdnet_connect(snode, hub->router_addr);
 	spdnet_register(snode);
-	spdnet_recvmsg_async(snode, service_recvmsg_cb, 0);
+	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
 	snode->user_data = hub;
 	if (__snode) *__snode = snode;
 
@@ -312,6 +302,19 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 	spdnet_nodepool_put(hub->snodepool, snode);
 
 	return 0;
+}
+
+void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode)
+{
+	snode->user_data = hub;
+	spdnet_nodepool_add(hub->snodepool, snode);
+	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+}
+
+void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode)
+{
+	spdnet_nodepool_del(hub->snodepool, snode);
+	snode->recvmsg_cb = NULL;
 }
 
 service_prepare_func_t

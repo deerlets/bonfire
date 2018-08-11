@@ -144,10 +144,7 @@ servarea_find_handler(struct servarea *sa, const char *name, size_t len);
 struct servhub {
 	const char *name;
 	const char *router_addr;
-
 	struct spdnet_nodepool *snodepool;
-	struct spdnet_node *spublish;
-	struct spdnet_multicast *smulticast;
 
 	service_prepare_func_t prepare_cb;
 	service_prepare_func_t finished_cb;
@@ -156,24 +153,24 @@ struct servhub {
 	mutex_t servareas_lock;
 
 	struct list_head servmsgs;
-
 	int servmsg_total;
 	int servmsg_doing;
 	int servmsg_filtered;
 	int servmsg_timeout;
 	int servmsg_handled;
+
+	void *user_data;
 };
 
-int servhub_init(struct servhub *hub, const char *name,
-                 const char *router_addr,
-                 struct spdnet_nodepool *snodepool,
-                 struct spdnet_node *spublish,
-                 struct spdnet_multicast *smulticast);
+int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+                 struct spdnet_nodepool *snodepool);
 int servhub_close(struct servhub *hub);
 int servhub_register_services(struct servhub *hub, const char *name,
                              struct service *services,
                              struct spdnet_node **__snode);
 int servhub_unregister_service(struct servhub *hub, const char *name);
+void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode);
+void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode);
 service_prepare_func_t
 servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb);
 service_prepare_func_t

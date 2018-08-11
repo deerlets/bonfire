@@ -5,8 +5,8 @@
 #include "spdnet.h"
 #include "task.h"
 
-#define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
-#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:8339"
+#define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"
+#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:18339"
 
 TEST(spdnet, basic)
 {
@@ -16,8 +16,7 @@ TEST(spdnet, basic)
 	spdnet_router_init(&router, "router_inner", ctx);
 	spdnet_router_bind(&router, INNER_ROUTER_ADDRESS);
 	task_init_timeout(&router_task, "router_task",
-	                  (task_timeout_func_t)spdnet_router_loop,
-	                  &router, 1000);
+	                  (task_timeout_func_t)spdnet_router_loop, &router, 500);
 	task_start(&router_task);
 
 	int rc;
