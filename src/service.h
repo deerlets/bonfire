@@ -101,6 +101,9 @@ struct service {
 	XX(ESTATE, "resource state error") \
 	XX(EBUSY, "resource busy") \
 	XX(EIO, "resource io error") \
+	XX(EFAIL, "operation failed") \
+	XX(EPERM, "permission denied") \
+	XX(EAUTH, "authentication failed") \
 	XX(ESERVICECALL, "service call error")
 
 typedef enum {
