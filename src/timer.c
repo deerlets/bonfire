@@ -48,7 +48,7 @@ int timer_init(struct timer_loop *loop, struct timer *timer)
 	if (timer->loop->tid != pthread_self())
 		pthread_mutex_lock(&loop->timers_added_lock);
 
-	list_add(&timer->node, &loop->timers);
+	list_add(&timer->node, &loop->timers_added);
 
 	if (timer->loop->tid != pthread_self())
 		pthread_mutex_unlock(&loop->timers_added_lock);
