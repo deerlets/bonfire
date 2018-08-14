@@ -28,7 +28,7 @@ struct timer {
 	struct list_head node;
 };
 
-int timer_init(struct timer_loop *loop, struct timer *timer);
+int timer_init(struct timer *timer, struct timer_loop *loop);
 int timer_close(struct timer *timer);
 void timer_start(struct timer *timer, timer_handler_func_t handler,
                  void *arg, uint64_t timeout, uint64_t repeat);
@@ -36,11 +36,8 @@ void timer_stop(struct timer *timer);
 void timer_trigger(struct timer *timer);
 
 struct timer_loop {
-	pthread_t tid;
 	struct list_head timers;
 	pthread_mutex_t timers_lock;
-	struct list_head timers_added;
-	pthread_mutex_t timers_added_lock;
 };
 
 int timer_loop_init(struct timer_loop *loop);
