@@ -51,7 +51,7 @@ struct module *load_module(const char *filepath, const char *param)
 		return NULL;
 	}
 
-	void *handle = dlopen(filepath, RTLD_LAZY);
+	void *handle = dlopen(filepath, RTLD_LAZY | RTLD_GLOBAL);
 	if (handle == NULL) {
 		__errno = MOD_EOPEN;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
