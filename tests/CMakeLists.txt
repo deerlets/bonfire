@@ -29,7 +29,3 @@ add_test(runModuleTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runModuleTests)
 add_executable(runZbufTests zbuf_test.cpp)
 target_link_libraries(runZbufTests gtest gtest_main zero)
 add_test(runZbufTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runZbufTests)
-
-add_executable(runUtilsTests utils_test.cpp)
-target_link_libraries(runUtilsTests gtest gtest_main zero)
-add_test(runUtilsTests ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/runUtilsTests)

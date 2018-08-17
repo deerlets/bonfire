@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 #include "service.h"
 #include "task.h"
-#include "utils.h"
 
 #define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
 
