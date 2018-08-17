@@ -11,6 +11,7 @@ spdnet_nodepool_new_node(struct spdnet_nodepool *pool, int type)
 	struct spdnet_node *snode = malloc(sizeof(*snode));
 	memset(snode, 0, sizeof(*snode));
 	spdnet_node_init(snode, type, pool->ctx);
+	snode->count = 1;
 
 	mutex_lock(&pool->snodes_lock);
 	list_add(&snode->node, &pool->snodes);
@@ -133,6 +134,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 				list_del(&pos->node);
 				spdnet_node_close(pos);
 				spdnet_node_init(pos, pos->type, pool->ctx);
+				pos->count = 0;
 				list_add(&pos->node, &pool->snodes);
 			}
 			continue;
