@@ -132,6 +132,9 @@ int load_modules_from_dir(const char *dirname)
 			continue;
 #endif
 
+		if (find_module(entry->d_name))
+			continue;
+
 		snprintf(buf, sizeof(buf), "%s/%s", dirname, entry->d_name);
 		if (load_module(buf, NULL) == NULL)
 			rc = -1;

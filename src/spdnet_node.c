@@ -242,7 +242,8 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 
 	// sockid
 	if (snode->type == SPDNET_NODE) {
-		rc = zmq_send(snode->socket, &snode->type, 1, ZMQ_SNDMORE);
+		rc = zmq_send(snode->socket, &snode->type, 1,
+		              ZMQ_SNDMORE | ZMQ_DONTWAIT);
 		if (rc == -1) return -1;
 	}
 	rc = zmq_msg_send(MSG_SOCKID(msg), snode->socket, ZMQ_SNDMORE);
