@@ -356,7 +356,8 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 	return rc;
 }
 
-int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg)
+int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
+                            long timeout)
 {
 	int rc;
 	struct spdnet_node snode;
@@ -372,7 +373,7 @@ int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg)
 	item.fd = 0;
 	item.events = ZMQ_POLLIN;
 	item.revents = 0;
-	if (zmq_poll(&item, 1, -1) != 1) {
+	if (zmq_poll(&item, 1, timeout) != 1) {
 		rc = -1;
 	} else {
 		spdnet_recvmsg(&snode, msg, 0);

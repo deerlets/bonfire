@@ -179,7 +179,8 @@ servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb);
 service_prepare_func_t
 servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
-int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg);
+int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
+                            long timeout);
 int servhub_loop(struct servhub *hub, long timeout);
 
 struct servhub *default_servhub(void);
