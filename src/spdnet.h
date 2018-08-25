@@ -228,6 +228,7 @@ int spdnet_subscribe_set_filter(struct spdnet_node *sub,
 struct spdnet_multicast {
 	struct spdnet_node sub;
 	struct spdnet_node pub;
+	char *pgm_addr;
 };
 
 int spdnet_multicast_init(struct spdnet_multicast *mc,

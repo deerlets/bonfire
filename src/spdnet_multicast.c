@@ -1,5 +1,7 @@
 #include "spdnet.h"
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 int spdnet_multicast_init(struct spdnet_multicast *mc,
                           const char *pgm_addr, int hops, void *ctx)
@@ -23,13 +25,17 @@ int spdnet_multicast_init(struct spdnet_multicast *mc,
 	rc = spdnet_bind(&mc->pub, pgm_addr);
 	assert(rc == 0);
 
+	mc->pgm_addr = strdup(pgm_addr);
 	return rc;
 }
 
 int spdnet_multicast_close(struct spdnet_multicast *mc)
 {
+	zmq_disconnect(&mc->sub, mc->pgm_addr);
 	spdnet_node_close(&mc->sub);
+	zmq_unbind(&mc->pub.socket, mc->pgm_addr);
 	spdnet_node_close(&mc->pub);
+	free(mc->pgm_addr);
 	return 0;
 }
 
