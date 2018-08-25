@@ -140,10 +140,12 @@ static void finish_msg(struct servhub *hub, struct servmsg *sm)
 	}
 
 	// 64 is large enough
-	size_t buflen = 64 + strlen(service_strerror(sm->rc)) + cnt_len;
+	const char *errmsg = sm->errmsg;
+	if (!errmsg) errmsg = service_strerror(sm->rc);
+	size_t buflen = 64 + strlen(errmsg) + cnt_len;
 	char *buf = malloc(buflen);
 	int nr = snprintf(buf, buflen, "{\"errno\":%d, \"errmsg\":\"%s\","
-	                  " \"result\":", -sm->rc, service_strerror(sm->rc));
+	                  " \"result\":", -sm->rc, errmsg);
 	memcpy(buf + nr, cnt, cnt_len);
 	buf[nr + cnt_len] = '}';
 	buf[nr + cnt_len + 1] = '\0';

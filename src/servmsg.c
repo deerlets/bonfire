@@ -37,6 +37,7 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 
 	sm->user_data = NULL;
 	sm->rc = 0;
+	sm->errmsg = NULL;
 	sm->state = SM_RAW_INTERRUPTIBLE;
 
 	INIT_LIST_HEAD(&sm->node);
@@ -87,6 +88,13 @@ void servmsg_handled(struct servmsg *sm, int rc)
 	assert(sm->state <= SM_PENDING);
 	sm->state = SM_HANDLED;
 	sm->rc = rc;
+}
+
+int servmsg_error(struct servmsg *sm, int err, const char *errmsg)
+{
+	sm->rc = err;
+	sm->errmsg = errmsg;
+	return err;
 }
 
 const char *servmsg_reqid(struct servmsg *sm)

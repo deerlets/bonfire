@@ -14,6 +14,25 @@ extern "C" {
 #endif
 
 /*
+ * service_errno
+ */
+
+#define SERVICE_ERRNO_MAP(XX) \
+	XX(EOK, "OK") \
+	XX(ETIMEOUT, "timeout") \
+	XX(ENOSERV, "service unknown") \
+	XX(ENOREQ, "request unknown")
+
+typedef enum {
+#define XX(code, _) SERVICE_##code,
+	SERVICE_ERRNO_MAP(XX)
+#undef XX
+	SERVICE_ERRNO_MAX = 1000
+} service_errno_t;
+
+const char *service_strerror(int err);
+
+/*
  * servmsg
  */
 
@@ -46,6 +65,7 @@ struct servmsg {
 
 	void *user_data;
 	int rc;
+	const char *errmsg;
 	int state;
 
 	struct list_head node;
@@ -62,6 +82,7 @@ void servmsg_pending(struct servmsg *sm);
 void servmsg_filtered(struct servmsg *sm);
 void servmsg_timeout(struct servmsg *sm);
 void servmsg_handled(struct servmsg *sm, int rc);
+int servmsg_error(struct servmsg *sm, int err, const char *errmsg);
 
 const char *servmsg_reqid(struct servmsg *sm);
 int servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size);
@@ -88,32 +109,6 @@ struct service {
 	{ name, handler, desc, 1, 0, NULL, NULL }
 #define INIT_SERVICE_PRIVATE(name, handler, desc) \
 	{ name, handler, desc, 0, 0, NULL, NULL }
-
-#define SERVICE_ERRNO_MAP(XX) \
-	XX(EOK, "OK") \
-	XX(ETIMEOUT, "timeout") \
-	XX(ECALLBACK, "callback") \
-	XX(ENOSERV, "service unknown") \
-	XX(ENOREQ, "request unknown") \
-	XX(EINVAL, "invalid argument") \
-	XX(ENORES, "resource not found") \
-	XX(EDUP, "resource duplicated") \
-	XX(ESTATE, "resource state error") \
-	XX(EBUSY, "resource busy") \
-	XX(EIO, "resource io error") \
-	XX(EFAIL, "operation failed") \
-	XX(EPERM, "permission denied") \
-	XX(EAUTH, "authentication failed") \
-	XX(ESERVICECALL, "service call error")
-
-typedef enum {
-#define XX(code, _) SERVICE_##code,
-	SERVICE_ERRNO_MAP(XX)
-#undef XX
-	SERVICE_ERRNO_MAX = 1000
-} service_errno_t;
-
-const char *service_strerror(int err);
 
 /*
  * servarea
