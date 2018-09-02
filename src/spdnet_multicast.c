@@ -9,6 +9,8 @@ int spdnet_multicast_init(struct spdnet_multicast *mc,
 	int rc;
 	void *sub, *pub;
 
+	memset(mc, 0, sizeof(*mc));
+
 	sub = zmq_socket(ctx, ZMQ_SUB);
 	rc = zmq_setsockopt(sub, ZMQ_MULTICAST_HOPS, &hops, sizeof(int));
 	assert(rc == 0);

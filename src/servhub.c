@@ -223,6 +223,7 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
                  struct spdnet_nodepool *snodepool)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
+	memset(hub, 0, sizeof(*hub));
 
 	hub->name = name;
 	hub->router_addr = router_addr;

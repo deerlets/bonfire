@@ -7,6 +7,8 @@
 
 int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 {
+	memset(snode, 0, sizeof(*snode));
+
 	memset(snode->id, 0, sizeof(snode->id));
 	snode->id_len = 0;
 
@@ -39,6 +41,8 @@ int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 
 int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket)
 {
+	memset(snode, 0, sizeof(*snode));
+
 	memset(snode->id, 0, sizeof(snode->id));
 	snode->id_len = 0;
 	zmq_getsockopt(socket, ZMQ_IDENTITY, snode->id, &snode->id_len);

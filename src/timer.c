@@ -42,6 +42,7 @@ struct timer_loop *default_timer_loop(void)
 int timer_init(struct timer *timer, struct timer_loop *loop)
 {
 	memset(timer, 0, sizeof(*timer));
+
 	timer->loop = loop;
 	INIT_LIST_HEAD(&timer->node);
 

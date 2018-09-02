@@ -370,6 +370,7 @@ int spdnet_router_init(struct spdnet_router *router, const char *id, void *ctx)
 {
 	assert(router);
 	assert(ctx);
+	memset(router, 0, sizeof(*router));
 
 	router->ctx = ctx;
 

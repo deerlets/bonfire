@@ -3,6 +3,8 @@
 void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
                   struct spdnet_node *snode)
 {
+	memset(sm, 0, sizeof(*sm));
+
 	spdnet_msg_init(&sm->request);
 	spdnet_msg_move(&sm->request, msg);
 

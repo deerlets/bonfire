@@ -21,6 +21,8 @@ static unsigned int calc_tag(const void *buf, size_t len)
 
 int servarea_init(struct servarea *sa, const char *name)
 {
+	memset(sa, 0, sizeof(*sa));
+
 	sa->name = name;
 	sa->servtab = (struct service **)calloc(1, sizeof(void *) * NR_SERVICE);
 	if (sa->servtab == NULL)

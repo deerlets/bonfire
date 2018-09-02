@@ -22,6 +22,8 @@ spdnet_nodepool_new_node(struct spdnet_nodepool *pool, int type)
 
 int spdnet_nodepool_init(struct spdnet_nodepool *pool, int water_mark, void *ctx)
 {
+	memset(pool, 0, sizeof(*pool));
+
 	pool->ctx = ctx;
 	pool->water_mark = water_mark;
 	pool->nr_snode = 0;

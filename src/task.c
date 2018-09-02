@@ -45,6 +45,8 @@ static void *task_routine(void *arg)
 
 int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg)
 {
+	memset(t, 0, sizeof(*t));
+
 	t->t_id = 0;
 	snprintf(t->t_name, TASK_NAME_LEN, "%s", name);
 	t->t_state = TASK_S_PENDING;
@@ -62,6 +64,8 @@ int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg)
 int task_init_timeout(struct task *t, const char *name, task_timeout_func_t fn,
                       void *arg, long timeout)
 {
+	memset(t, 0, sizeof(*t));
+
 	t->t_id = 0;
 	snprintf(t->t_name, TASK_NAME_LEN, "%s", name);
 	t->t_state = TASK_S_PENDING;
