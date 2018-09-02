@@ -1,8 +1,8 @@
 # .gitignore
 
 bin/
-include/
-lib*/
+include
+lib*
 share/
 thirdparty/
 patch/
