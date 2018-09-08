@@ -8,10 +8,6 @@
 extern "C" {
 #endif
 
-#define MODULE_NAME_SIZE 256
-#define MODULE_PARAM_SIZE 1024
-#define MODULE_ERRMSG_SIZE 512
-
 #define VERSION_MAJOR(v) (v >> 24)
 #define VERSION_MINOR(v) ((v >> 16) & 0xff)
 #define VERSION_PATCH(v) ((v >> 8) & 0xff)
@@ -59,10 +55,12 @@ static __attribute__((unused)) struct module *__module_self(struct module *m)
  */
 
 struct module {
-	char name[MODULE_NAME_SIZE];
-	char fullname[MODULE_NAME_SIZE];
-	char filepath[PATH_MAX];
-	char param[MODULE_PARAM_SIZE];
+	char *filepath;
+	char *filename;
+	char *name;
+	char *param;
+	char *alias;
+	char *desc;
 	int version;
 	void *handle;
 	module_init_func_t init_fn;
@@ -79,6 +77,7 @@ struct module *find_module(const char *name);
 struct list_head *get_modules();
 
 void module_set_name(struct module *m, const char *name);
+void module_set_info(struct module *m, const char *alias, const char *desc);
 void module_set_version(struct module *m, int version);
 
 int param_get_int(const char *name, int *value, const char *param);

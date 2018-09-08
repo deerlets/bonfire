@@ -7,6 +7,8 @@
 #include <dlfcn.h>
 #include <dirent.h>
 
+#define MODULE_ERRMSG_SIZE 512
+
 static int __errno;
 static char __errmsg[MODULE_ERRMSG_SIZE];
 static LIST_HEAD(modules);
@@ -21,8 +23,11 @@ char *mod_error(void)
 	return __errmsg;
 }
 
-static void path_to_name(const char *filepath, char *name, size_t size)
+static char *get_filename(const char *filepath)
 {
+	char *retval;
+
+	// strrchr not accept const char *
 	char *__filepath = strdup(filepath);
 
 	// FIXME: windows may use '\\'
@@ -30,24 +35,30 @@ static void path_to_name(const char *filepath, char *name, size_t size)
 	if (!start) start = __filepath;
 	else start++;
 
-	char *end = __filepath + strlen(__filepath);
-
-	size_t len = end - start;
-	if (len > size) len = size;
-
-	memset(name, 0, size);
-	memcpy(name, start, len);
-
+	retval = strdup(start);
 	free(__filepath);
+
+	return retval;
+}
+
+static void __free_module(struct module *m)
+{
+	free(m->name);
+	free(m->filename);
+	free(m->filepath);
+	if (m->param) free(m->param);
+	if (m->alias) free(m->alias);
+	if (m->desc) free(m->desc);
+	free(m);
 }
 
 struct module *load_module(const char *filepath, const char *param)
 {
-	char fullname[MODULE_NAME_SIZE];
-	path_to_name(filepath, fullname, sizeof(fullname));
+	char *filename = get_filename(filepath);
 
-	if (find_module(fullname)) {
+	if (find_module(filename)) {
 		__errno = MOD_ERELOAD;
+		free(filename);
 		return NULL;
 	}
 
@@ -55,6 +66,7 @@ struct module *load_module(const char *filepath, const char *param)
 	if (handle == NULL) {
 		__errno = MOD_EOPEN;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
+		free(filename);
 		return NULL;
 	}
 
@@ -63,15 +75,16 @@ struct module *load_module(const char *filepath, const char *param)
 		dlclose(handle);
 		__errno = MOD_ESYM;
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
+		free(filename);
 		return NULL;
 	}
 
 	struct module *m = malloc(sizeof(struct module));
 	memset(m, 0, sizeof(*m));
-	snprintf(m->filepath, sizeof(m->filepath), "%s", filepath);
-	snprintf(m->fullname, sizeof(m->fullname), "%s", fullname);
-	snprintf(m->name, sizeof(m->name), "%s", fullname);
-	snprintf(m->param, sizeof(m->param), "%s", param);
+	m->filepath = strdup(filepath);
+	m->filename = filename;
+	m->name = strdup(filename);
+	if (param) m->param = strdup(param);
 	m->version = 0;
 	m->handle = handle;
 	m->init_fn = func;
@@ -84,7 +97,7 @@ struct module *load_module(const char *filepath, const char *param)
 		snprintf(__errmsg, MODULE_ERRMSG_SIZE,
 		         "module_init of %s failed!\n", filepath);
 		list_del(&m->node);
-		free(m);
+		__free_module(m);
 		return NULL;
 	}
 
@@ -103,7 +116,7 @@ int unload_module(struct module *m)
 
 	assert(dlclose(m->handle) == 0);
 	list_del(&m->node);
-	free(m);
+	__free_module(m);
 	return 0;
 }
 
@@ -161,7 +174,7 @@ struct module *find_module(const char *name)
 {
 	struct module *pos;
 	list_for_each_entry(pos, &modules, node) {
-		if (!strcmp(pos->name, name) || !strcmp(pos->fullname, name))
+		if (!strcmp(pos->name, name) || !strcmp(pos->filename, name))
 			return pos;
 	}
 
@@ -175,7 +188,25 @@ struct list_head *get_modules()
 
 void module_set_name(struct module *m, const char *name)
 {
-	snprintf(m->name, sizeof(m->name), "%s", name);
+	free(m->name);
+	m->name = strdup(name);
+}
+
+void module_set_info(struct module *m, const char *alias, const char *desc)
+{
+	if (m->alias) {
+		free(m->alias);
+		m->alias = NULL;
+	}
+	if (m->desc) {
+		free(m->desc);
+		m->desc = NULL;
+	}
+
+	if (alias)
+		m->alias = strdup(alias);
+	if (desc)
+		m->desc = strdup(desc);
 }
 
 void module_set_version(struct module *m, int version)
@@ -186,6 +217,9 @@ void module_set_version(struct module *m, int version)
 int param_get_int(const char *name, int *value, const char *param)
 {
 	char *start, *end;
+
+	assert(name && value);
+	if (!param) return -1;
 
 	start = strstr(param, name);
 	if (!start) return -1;
@@ -209,6 +243,9 @@ int param_get_int(const char *name, int *value, const char *param)
 int param_get_string(const char *name, void *buf, size_t size, const char *param)
 {
 	char *start, *end;
+
+	assert(name && buf && size);
+	if (!param) return -1;
 
 	start = strstr(param, name);
 	if (!start) return -1;

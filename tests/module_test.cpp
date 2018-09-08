@@ -24,6 +24,7 @@ TEST(module, basic)
 	assert(value == 1);
 	param_get_string("mystr", buf, sizeof(buf), mod->param);
 	assert(strcmp(buf, "hello world") == 0);
+	module_set_info(mod, "alias for mock_module", "I'm a mock module");
 	unload_module(mod);
 
 	rc = load_modules_from_dir("./test_dir");
