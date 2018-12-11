@@ -24,7 +24,8 @@ int servarea_init(struct servarea *sa, const char *name)
 	memset(sa, 0, sizeof(*sa));
 
 	sa->name = name;
-	sa->servtab = (struct service **)calloc(1, sizeof(void *) * NR_SERVICE);
+	sa->servtab = (struct hlist_head *)calloc(
+		NR_SERVICE, sizeof(struct hlist_head));
 	if (sa->servtab == NULL)
 		return -1;
 
@@ -48,23 +49,13 @@ int servarea_close(struct servarea *sa)
 void servarea_register_service(struct servarea *sa, struct service *service)
 {
 	assert(service->name);
+	assert(service->hash_node.next == NULL);
+	assert(service->hash_node.pprev == NULL);
 
 	service->tag = calc_tag(service->name, strlen(service->name));
 
-	struct service *p = sa->servtab[tag_hash_fn(service->tag)];
-
-	if (!p)
-		sa->servtab[tag_hash_fn(service->tag)] = service;
-	else {
-		while (p->hash_next) {
-			if (p == service || p->tag == service->tag)
-				return;
-			p = p->hash_next;
-		}
-		//service->hash_next = p->hash_next;
-		p->hash_next = service;
-		service->hash_prev = p;
-	}
+	struct hlist_head *head = &sa->servtab[tag_hash_fn(service->tag)];
+	hlist_add_head(&service->hash_node, head);
 
 	list_add(&service->node, &sa->services);
 }
@@ -73,17 +64,8 @@ void servarea_unregister_service(struct servarea *sa, struct service *service)
 {
 	assert(service->name);
 
-	struct service *p = sa->servtab[tag_hash_fn(service->tag)];
-
-	if (p == service)
-		sa->servtab[tag_hash_fn(service->tag)] = service->hash_next;
-
-	if (service->hash_prev)
-		service->hash_prev->hash_next = service->hash_next;
-	if (service->hash_next)
-		service->hash_next->hash_prev = service->hash_prev;
-
-	list_del(&service->node);
+	hlist_del_init(&service->hash_node);
+	list_del_init(&service->node);
 }
 
 void servarea_register_services(struct servarea *sa, struct service *services)
@@ -99,10 +81,11 @@ __servarea_find_service(struct servarea *sa, const char *name)
 {
 	unsigned int tag = calc_tag(name, strlen(name));
 
-	struct service *p = sa->servtab[tag_hash_fn(tag)];
-	for (; p != NULL; p = p->hash_next) {
-		if (strcmp(p->name, name) == 0)
-			return p;
+	struct hlist_head *head = &sa->servtab[tag_hash_fn(tag)];
+	struct service *pos;
+	hlist_for_each_entry(pos, head, hash_node) {
+		if (strcmp(pos->name, name) == 0)
+			return pos;
 	}
 
 	return NULL;
@@ -113,10 +96,12 @@ servarea_find_service(struct servarea *sa, const char *name, size_t len)
 {
 	unsigned int tag = calc_tag(name, len);
 
-	struct service *p = sa->servtab[tag_hash_fn(tag)];
-	for (; p != NULL; p = p->hash_next) {
-		if (strlen(p->name) == len && memcmp(p->name, name, len) == 0)
-			return p;
+	struct hlist_head *head = &sa->servtab[tag_hash_fn(tag)];
+	struct service *pos;
+	hlist_for_each_entry(pos, head, hash_node) {
+		if (strlen(pos->name) == len &&
+		    memcmp(pos->name, name, len) == 0)
+			return pos;
 	}
 
 	return NULL;

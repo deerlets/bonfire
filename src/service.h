@@ -100,15 +100,14 @@ struct service {
 	const char *desc;
 	int visible;
 	unsigned int tag;
-	struct service *hash_next;
-	struct service *hash_prev;
+	struct hlist_node hash_node;
 	struct list_head node;
 };
 
 #define INIT_SERVICE(name, handler, desc) \
-	{ name, handler, desc, 1, 0, NULL, NULL }
+	{ name, handler, desc, 1, 0 }
 #define INIT_SERVICE_PRIVATE(name, handler, desc) \
-	{ name, handler, desc, 0, 0, NULL, NULL }
+	{ name, handler, desc, 0, 0 }
 
 /*
  * servarea
@@ -116,7 +115,7 @@ struct service {
 
 struct servarea {
 	const char *name;
-	struct service **servtab;
+	struct hlist_head *servtab;
 	struct list_head services;
 	struct list_head node;
 };
