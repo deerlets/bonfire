@@ -52,29 +52,6 @@ else
 	export AR=ar
 fi
 
-libpgm()
-{
-	libpgm_path=$PREFIX/thirdparty/libpgm
-	if [ ! -e $libpgm_path ]; then
-		if [ "$REPOS" = github ]; then
-			git clone https://github.com/steve-o/openpgm.git $libpgm_path
-		else
-			git clone $GIT_BASE/mirrors/openpgm.git $libpgm_path
-		fi
-		git -C $libpgm_path checkout release-5-2-122
-	fi
-
-	if [ ! "$(find $PREFIX/lib -maxdepth 1 -name ${FUNCNAME[0]}*)" ]; then
-		cd $libpgm_path/openpgm/pgm
-		aclocal
-		libtoolize --force
-		automake --add-missing
-		autoreconf --force --install
-		./configure --prefix=$PREFIX
-		make && make install
-	fi
-}
-
 libzmq()
 {
 	libzeromq_path=$PREFIX/thirdparty/libzeromq
@@ -89,7 +66,7 @@ libzmq()
 
 	if [ ! "$(find $PREFIX/lib -maxdepth 1 -name ${FUNCNAME[0]}*)" ]; then
 		mkdir -p $libzeromq_path/build && cd $libzeromq_path/build
-		cmake .. -DWITH_OPENPGM=1 -DBUILD_TESTS=off -DWITH_PERF_TOOL=off \
+		cmake .. -DWITH_OPENPGM=off -DBUILD_TESTS=off -DWITH_PERF_TOOL=off \
 			-DCMAKE_INSTALL_PREFIX=$PREFIX
 		make && make install
 	fi
@@ -114,7 +91,6 @@ libgtest()
 	fi
 }
 
-do_build libpgm
 do_build libzmq
 do_build libgtest
 
