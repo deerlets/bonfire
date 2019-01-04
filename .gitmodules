@@ -1,0 +1,6 @@
+[submodule "deps/libzmq"]
+	path = deps/libzmq
+	url = https://github.com/zeromq/libzmq
+[submodule "deps/googletest"]
+	path = deps/googletest
+	url = https://github.com/google/googletest
