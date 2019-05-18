@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_STANDARD 11)
-set(PROJECT_NAME zerox-test)
+set(PROJECT_NAME zerox-tests)
 
 project(${PROJECT_NAME} C CXX)
 add_definitions(-DWITH_TESTS)

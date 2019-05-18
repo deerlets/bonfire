@@ -12,8 +12,8 @@ target_link_libraries(zero ws2_32)
 endif ()
 
 install(TARGETS zero
-	RUNTIME DESTINATION bin
-	LIBRARY DESTINATION lib
-	ARCHIVE DESTINATION lib)
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib)
 
 install(FILES ${INC} DESTINATION include/zero)
