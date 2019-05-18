@@ -1,0 +1,8 @@
+dist: trusty
+sudo: require
+
+compiler: gcc
+language: c
+
+script:
+  - bash ./tools/build.sh
