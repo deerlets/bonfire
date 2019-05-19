@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8)
 
-file(GLOB_RECURSE SRC *.c)
-file(GLOB_RECURSE INC *.h)
+file(GLOB SRC *.c)
+file(GLOB INC *.h)
 
 add_library(zebra SHARED ${SRC})
 set_target_properties(zebra PROPERTIES PUBLIC_HEADER "${INC}")
-set_target_properties(zebra PROPERTIES VERSION 0.1.0 SOVERSION 0.1)
+set_target_properties(zebra PROPERTIES VERSION 1.0.0 SOVERSION 1)
 target_link_libraries(zebra pthread dl spdnet)
 
 install(TARGETS zebra
