@@ -26,10 +26,11 @@ if (HAVE_ZMQ_BUG)
     add_definitions(-DHAVE_ZMQ_BUG)
 endif ()
 
-include_directories(src)
 include_directories(include)
 link_directories(${PROJECT_SOURCE_DIR}/lib ${PROJECT_SOURCE_DIR}/lib64)
 
+add_subdirectory(src/spdnet)
+include_directories(src)
 add_subdirectory(src)
 
 option(BUILD_TESTS "Build all tests." OFF)

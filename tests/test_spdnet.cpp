@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <gtest/gtest.h>
-#include "spdnet.h"
+#include <spdnet/spdnet.h>
 #include "task.h"
 
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"

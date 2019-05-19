@@ -5,9 +5,9 @@
 #include <stddef.h>
 #include <string.h>
 #include <semaphore.h>
-#include "spdnet.h"
-#include "list.h"
-#include "mutex.h"
+#include <spdnet/spdnet.h>
+#include <spdnet/list.h>
+#include <spdnet/mutex.h>
 
 #ifdef __cplusplus
 extern "C" {
