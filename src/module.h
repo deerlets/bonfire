@@ -1,5 +1,5 @@
-#ifndef __ZSERV_MODULE_H
-#define __ZSERV_MODULE_H
+#ifndef __ZEBRA_MODULE_H
+#define __ZEBRA_MODULE_H
 
 #include <limits.h>
 #include "list.h"

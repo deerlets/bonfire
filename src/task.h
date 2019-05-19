@@ -1,5 +1,5 @@
-#ifndef __ZSERV_TASK_H
-#define __ZSERV_TASK_H
+#ifndef __ZEBRA_TASK_H
+#define __ZEBRA_TASK_H
 
 #include <pthread.h>
 #include "list.h"

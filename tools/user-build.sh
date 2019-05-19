@@ -25,7 +25,7 @@ libzmq()
     fi
 }
 
-zserv()
+zebra()
 {
     mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
     cmake .. -DBUILD_TESTS=on -DBUILD_DEBUG=$DEBUG && make -j$JOBS && make test
@@ -36,5 +36,5 @@ main()
 {
     do_build libgtest
     do_build libzmq
-    do_build zserv
+    do_build zebra
 }

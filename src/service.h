@@ -1,5 +1,5 @@
-#ifndef __ZSERV_SERVICE_H
-#define __ZSERV_SERVICE_H
+#ifndef __ZEBRA_SERVICE_H
+#define __ZEBRA_SERVICE_H
 
 #include <assert.h>
 #include <stddef.h>
