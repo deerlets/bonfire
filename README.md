@@ -1,6 +1,6 @@
 # Zserv
 
-[![Build Status](https://travis-ci.com/yonzkon/zserv.svg?branch=master)](https://travis-ci.com/yonzkon/zserv)
+[![Build Status](https://travis-ci.com/deerlets/zserv.svg?branch=master)](https://travis-ci.com/deerlets/zserv)
 
 A service discovery and registry framework written in pure C.
 
