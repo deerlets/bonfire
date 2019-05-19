@@ -1,5 +1,5 @@
-#ifndef __ZERO_MODULE_H
-#define __ZERO_MODULE_H
+#ifndef __ZSERV_MODULE_H
+#define __ZSERV_MODULE_H
 
 #include <limits.h>
 #include "list.h"

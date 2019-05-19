@@ -1,5 +1,5 @@
-#ifndef __ZERO_SPDNET_H
-#define __ZERO_SPDNET_H
+#ifndef __ZSERV_SPDNET_H
+#define __ZSERV_SPDNET_H
 
 #include <time.h>
 #include <limits.h>

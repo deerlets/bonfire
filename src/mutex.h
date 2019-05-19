@@ -1,5 +1,5 @@
-#ifndef __ZERO_MUTEX_H
-#define __ZERO_MUTEX_H
+#ifndef __ZSERV_MUTEX_H
+#define __ZSERV_MUTEX_H
 
 #include <pthread.h>
 

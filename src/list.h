@@ -1,5 +1,5 @@
-#ifndef __ZERO_LIST_H
-#define __ZERO_LIST_H
+#ifndef __ZSERV_LIST_H
+#define __ZSERV_LIST_H
 
 #include <stddef.h>
 

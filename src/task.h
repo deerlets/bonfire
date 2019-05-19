@@ -1,5 +1,5 @@
-#ifndef __ZERO_TASK_H
-#define __ZERO_TASK_H
+#ifndef __ZSERV_TASK_H
+#define __ZSERV_TASK_H
 
 #include <pthread.h>
 #include "list.h"

@@ -1,5 +1,5 @@
-#ifndef __ZERO_TIMER_H
-#define __ZERO_TIMER_H
+#ifndef __ZSERV_TIMER_H
+#define __ZSERV_TIMER_H
 
 #include <stdint.h>
 #include <pthread.h>

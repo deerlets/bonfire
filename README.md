@@ -1,14 +1,14 @@
-# Libzero
+# Zserv
 
-[![Build Status](https://travis-ci.com/yonzkon/libzero.svg?branch=master)](https://travis-ci.com/yonzkon/libzero)
+[![Build Status](https://travis-ci.com/yonzkon/zserv.svg?branch=master)](https://travis-ci.com/yonzkon/zserv)
 
-A microservices framework written in pure C.
+A service discovery and registry framework written in pure C.
 
 ## Supported platforms
 
 - Linux
-- Msys2
 - MacOS
+- Msys2
 
 ## Build
 ```

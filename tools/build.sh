@@ -63,13 +63,14 @@ libzmq()
 
     if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
         mkdir -p $libzmq_path/build && cd $libzmq_path/build
-        cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR -DBUILD_TESTS=off
+        cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR \
+            -DBUILD_TESTS=off -DWITH_PERF_TOOL=off
         make -j$JOBS && make install
         [ ! $? -eq 0 ] && exit 1
     fi
 }
 
-libzero()
+zserv()
 {
     mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
     cmake .. -DWITH_TESTS=on && make -j$JOBS && make test
@@ -79,4 +80,4 @@ libzero()
 do_init
 do_build libgtest
 do_build libzmq
-do_build libzero
+do_build zserv
