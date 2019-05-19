@@ -1,8 +1,15 @@
-dist: trusty
-sudo: require
+os:
+  - linux
+  - osx
 
 compiler: gcc
 language: c
+sudo: require
+dist: trusty
+
+install:
+  - if [ $TRAVIS_OS_NAME == osx ]; then HOMEBREW_NO_AUTO_UPDATE=1 brew cask install oclint; fi
 
 script:
   - bash ./tools/build.sh
+  - if [ $TRAVIS_OS_NAME == osx ]; then oclint-json-compilation-database -p build; fi

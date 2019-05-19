@@ -126,8 +126,7 @@ zmq_msg_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name)
 		return &msg->__header;
 	else if (!strcmp(name, "content"))
 		return &msg->__content;
-	else
-		return NULL;
+	return NULL;
 }
 
 const char *spdnet_msg_gets(struct spdnet_msg *msg, const char *property)
