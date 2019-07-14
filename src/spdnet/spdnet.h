@@ -95,6 +95,7 @@ const char *spdnet_strerror(int err);
  * spdnet_msg
  */
 
+typedef zmq_msg_t spdnet_frame_t;
 typedef struct spdnet_meta {
 	int node_type;
 	int ttl;
@@ -103,11 +104,19 @@ typedef struct spdnet_meta {
 } __attribute__((packed)) spdnet_meta_t;
 
 struct spdnet_msg {
-	zmq_msg_t __sockid; // destid for sender, srcid for receiver
-	zmq_msg_t __header;
-	zmq_msg_t __content;
+	spdnet_frame_t __sockid; // destid for sender, srcid for receiver
+	spdnet_frame_t __header;
+	spdnet_frame_t __content;
 	spdnet_meta_t *__meta;
 };
+
+int spdnet_frame_init(spdnet_frame_t *frame);
+int spdnet_frame_init_size(spdnet_frame_t *frame, size_t size);
+int spdnet_frame_close(spdnet_frame_t *frame);
+int spdnet_frame_move(spdnet_frame_t *dest, spdnet_frame_t *src);
+int spdnet_frame_copy(spdnet_frame_t *dest, spdnet_frame_t *src);
+void *spdnet_frame_data(spdnet_frame_t *frame);
+size_t spdnet_frame_size(const spdnet_frame_t *frame);
 
 int spdnet_msg_init(struct spdnet_msg *msg);
 int spdnet_msg_init_data(struct spdnet_msg *msg,
@@ -117,23 +126,23 @@ int spdnet_msg_init_data(struct spdnet_msg *msg,
 int spdnet_msg_close(struct spdnet_msg *msg);
 int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src);
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src);
-zmq_msg_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name);
+spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name);
 const char *spdnet_msg_gets(struct spdnet_msg *msg, const char *property);
 
 #define SPDNET_MSG_INIT_DATA(msg, sockid, header, content) \
 	spdnet_msg_init_data(msg, sockid, -1, header, -1, content, -1)
 
 #define MSG_SOCKID(msg) spdnet_msg_get(msg, "sockid")
-#define MSG_SOCKID_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "sockid"))
-#define MSG_SOCKID_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "sockid"))
+#define MSG_SOCKID_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "sockid"))
+#define MSG_SOCKID_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "sockid"))
 
 #define MSG_HEADER(msg) spdnet_msg_get(msg, "header")
-#define MSG_HEADER_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "header"))
-#define MSG_HEADER_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "header"))
+#define MSG_HEADER_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "header"))
+#define MSG_HEADER_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "header"))
 
 #define MSG_CONTENT(msg) spdnet_msg_get(msg, "content")
-#define MSG_CONTENT_DATA(msg) zmq_msg_data(spdnet_msg_get(msg, "content"))
-#define MSG_CONTENT_SIZE(msg) zmq_msg_size(spdnet_msg_get(msg, "content"))
+#define MSG_CONTENT_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "content"))
+#define MSG_CONTENT_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "content"))
 
 /*
  * spdnet_ctx
@@ -146,8 +155,8 @@ int spdnet_ctx_destroy(void *ctx);
  * zhelper
  */
 
-int z_recv_more(void *s, zmq_msg_t *msg, int flags);
-int z_recv_not_more(void *s, zmq_msg_t *msg, int flags);
+int z_recv_more(void *s, spdnet_frame_t *frame, int flags);
+int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 
 /*
  * spdnet_node

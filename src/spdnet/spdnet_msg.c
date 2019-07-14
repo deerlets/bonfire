@@ -13,6 +13,40 @@ const char *spdnet_strerror(int err) {
 }
 #undef SPDNET_STRERROR_GEN
 
+int spdnet_frame_init(spdnet_frame_t *frame)
+{
+	return zmq_msg_init(frame);
+}
+int spdnet_frame_init_size(spdnet_frame_t *frame, size_t size)
+{
+	return zmq_msg_init_size(frame, size);
+}
+
+int spdnet_frame_close(spdnet_frame_t *frame)
+{
+	return zmq_msg_close(frame);
+}
+
+int spdnet_frame_move(spdnet_frame_t *dest, spdnet_frame_t *src)
+{
+	return zmq_msg_move(dest, src);
+}
+
+int spdnet_frame_copy(spdnet_frame_t *dest, spdnet_frame_t *src)
+{
+	return zmq_msg_copy(dest, src);
+}
+
+void *spdnet_frame_data(spdnet_frame_t *frame)
+{
+	return zmq_msg_data(frame);
+}
+
+size_t spdnet_frame_size(const spdnet_frame_t *frame)
+{
+	return zmq_msg_size(frame);
+}
+
 int spdnet_msg_init(struct spdnet_msg *msg)
 {
 	memset(msg, 0, sizeof(*msg));
