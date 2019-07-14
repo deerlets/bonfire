@@ -5,9 +5,8 @@
 #include <stddef.h>
 #include <string.h>
 #include <pthread.h>
-#include <semaphore.h>
-#include <spdnet/spdnet.h>
-#include <spdnet/list.h>
+#include <spdnet.h>
+#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {

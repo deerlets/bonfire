@@ -1,8 +1,7 @@
 #ifndef __ZEBRA_MODULE_H
 #define __ZEBRA_MODULE_H
 
-#include <limits.h>
-#include <spdnet/list.h>
+#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {

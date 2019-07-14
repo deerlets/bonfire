@@ -1,9 +1,9 @@
 #ifndef __ZEBRA_SPDNET_H
 #define __ZEBRA_SPDNET_H
 
-#include <zmq.h>
 #include <pthread.h>
-#include "list.h"
+#include <zmq.h>
+#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {

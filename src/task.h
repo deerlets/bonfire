@@ -2,7 +2,7 @@
 #define __ZEBRA_TASK_H
 
 #include <pthread.h>
-#include <spdnet/list.h>
+#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {

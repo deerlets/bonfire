@@ -4,3 +4,6 @@
 [submodule "deps/googletest"]
 	path = deps/googletest
 	url = https://github.com/google/googletest
+[submodule "deps/extlibc"]
+	path = deps/extlibc
+	url = https://github.com/deerlets/extlibc.git

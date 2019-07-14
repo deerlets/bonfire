@@ -29,6 +29,7 @@ endif ()
 include_directories(include)
 link_directories(${PROJECT_SOURCE_DIR}/lib ${PROJECT_SOURCE_DIR}/lib64)
 
+include_directories(src/spdnet)
 add_subdirectory(src/spdnet)
 include_directories(src)
 add_subdirectory(src)

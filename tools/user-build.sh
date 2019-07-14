@@ -25,6 +25,19 @@ libzmq()
     fi
 }
 
+extlibc()
+{
+    extlibc_path=$PROJECT_DIR/deps/extlibc
+
+    if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
+        mkdir -p $extlibc_path/build && cd $extlibc_path/build
+        cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR \
+            -DBUILD_TESTS=off -DBUILD_SHARED=off
+        make -j$JOBS && make install
+        [ ! $? -eq 0 ] && exit 1
+    fi
+}
+
 zebra()
 {
     mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
@@ -36,5 +49,6 @@ main()
 {
     do_build libgtest
     do_build libzmq
+    do_build extlibc
     do_build zebra
 }

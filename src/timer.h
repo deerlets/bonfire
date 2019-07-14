@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include <spdnet/list.h>
+#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {
