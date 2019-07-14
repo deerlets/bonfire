@@ -13,10 +13,10 @@ spdnet_nodepool_new_node(struct spdnet_nodepool *pool, int type)
 	spdnet_node_init(snode, type, pool->ctx);
 	snode->count = 1;
 
-	mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
 	list_add(&snode->node, &pool->snodes);
 	pool->nr_snode++;
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 	return snode;
 }
 
@@ -28,8 +28,8 @@ int spdnet_nodepool_init(struct spdnet_nodepool *pool, int water_mark, void *ctx
 	pool->water_mark = water_mark;
 	pool->nr_snode = 0;
 	INIT_LIST_HEAD(&pool->snodes);
-	mutex_init(&pool->snodes_lock);
-	mutex_init(&pool->snodes_del_lock);
+	pthread_mutex_init(&pool->snodes_lock, NULL);
+	pthread_mutex_init(&pool->snodes_del_lock, NULL);
 	INIT_LIST_HEAD(&pool->pollins);
 	INIT_LIST_HEAD(&pool->pollouts);
 	INIT_LIST_HEAD(&pool->pollerrs);
@@ -44,8 +44,8 @@ int spdnet_nodepool_close(struct spdnet_nodepool *pool)
 		spdnet_node_close(pos);
 		free(pos);
 	}
-	mutex_close(&pool->snodes_lock);
-	mutex_close(&pool->snodes_del_lock);
+	pthread_mutex_destroy(&pool->snodes_lock);
+	pthread_mutex_destroy(&pool->snodes_del_lock);
 
 	return 0;
 }
@@ -53,32 +53,32 @@ int spdnet_nodepool_close(struct spdnet_nodepool *pool)
 struct spdnet_node *
 spdnet_nodepool_find(struct spdnet_nodepool *pool, const char *name)
 {
-	mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &pool->snodes, node) {
 		if (strcmp(name, pos->id) == 0) {
 			pos->count++;
-			mutex_unlock(&pool->snodes_lock);
+			pthread_mutex_unlock(&pool->snodes_lock);
 			return pos;
 		}
 	}
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 
 	return NULL;
 }
 
 struct spdnet_node *spdnet_nodepool_get(struct spdnet_nodepool *pool)
 {
-	mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &pool->snodes, node) {
 		if (pos->count == 0) {
 			pos->count++;
-			mutex_unlock(&pool->snodes_lock);
+			pthread_mutex_unlock(&pool->snodes_lock);
 			return pos;
 		}
 	}
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 
 	return spdnet_nodepool_new_node(pool, SPDNET_NODE);
 }
@@ -92,20 +92,20 @@ void spdnet_nodepool_put(struct spdnet_nodepool *pool, struct spdnet_node *snode
 
 void spdnet_nodepool_add(struct spdnet_nodepool *pool, struct spdnet_node *snode)
 {
-	mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
 	list_add(&snode->node, &pool->snodes);
 	pool->nr_snode++;
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 }
 
 void spdnet_nodepool_del(struct spdnet_nodepool *pool, struct spdnet_node *snode)
 {
-	mutex_lock(&pool->snodes_lock);
-	mutex_lock(&pool->snodes_del_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_del_lock);
 	list_del(&snode->node);
 	pool->nr_snode--;
-	mutex_unlock(&pool->snodes_del_lock);
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_unlock(&pool->snodes_del_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 }
 
 static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
@@ -121,7 +121,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	INIT_LIST_HEAD(&pool->pollerrs);
 	INIT_LIST_HEAD(&pool->recvmsg_timeouts);
 
-	mutex_lock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_lock);
 	items = calloc(1, sizeof(struct zmq_pollitem_t) * (pool->nr_snode + 1));
 
 	struct spdnet_node *pos, *n;
@@ -154,8 +154,8 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 			list_add_tail(&pos->pollin_node, &pool->pollins);
 		}
 	}
-	mutex_lock(&pool->snodes_del_lock);
-	mutex_unlock(&pool->snodes_lock);
+	pthread_mutex_lock(&pool->snodes_del_lock);
+	pthread_mutex_unlock(&pool->snodes_lock);
 
 	list_for_each_entry(pos, &pool->pollins, pollin_node) {
 		if (pos->alive_timeout && pos->alive_timeout <= time(NULL)) {
@@ -165,12 +165,12 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	}
 
 	if (!item_index) {
-		mutex_unlock(&pool->snodes_del_lock);
+		pthread_mutex_unlock(&pool->snodes_del_lock);
 		goto finally;
 	}
 
 	rc = zmq_poll(items, item_index, timeout);
-	mutex_unlock(&pool->snodes_del_lock);
+	pthread_mutex_unlock(&pool->snodes_del_lock);
 	if (rc == -1 || rc == 0) {
 		INIT_LIST_HEAD(&pool->pollins);
 		INIT_LIST_HEAD(&pool->pollouts);

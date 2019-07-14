@@ -104,10 +104,10 @@ static int filter_wrong_spdnet_msg(struct servhub *hub, struct spdnet_msg *msg,
 static void handle_msg(struct servhub *hub, struct servmsg *sm)
 {
 	// find servarea
-	mutex_lock(&hub->servareas_lock);
+	pthread_mutex_lock(&hub->servareas_lock);
 	struct servarea *sa;
 	if (!(sa = find_servarea(hub, sm->dest, sm->dest_len))) {
-		mutex_unlock(&hub->servareas_lock);
+		pthread_mutex_unlock(&hub->servareas_lock);
 		sm->rc = SERVICE_ENOSERV;
 		sm->state = SM_HANDLED;
 		return;
@@ -116,7 +116,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	// find handler
 	service_handler_func_t fn;
 	fn = servarea_find_handler(sa, sm->header, sm->header_len);
-	mutex_unlock(&hub->servareas_lock);
+	pthread_mutex_unlock(&hub->servareas_lock);
 
 	// call handler
 	if (!fn) {
@@ -233,7 +233,7 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 	hub->finished_cb = NULL;
 
 	INIT_LIST_HEAD(&hub->servareas);
-	mutex_init(&hub->servareas_lock);
+	pthread_mutex_init(&hub->servareas_lock, NULL);
 
 	INIT_LIST_HEAD(&hub->servmsgs);
 	hub->servmsg_total = 0;
@@ -260,7 +260,7 @@ int servhub_close(struct servhub *hub)
 		free(pos);
 	}
 
-	mutex_close(&hub->servareas_lock);
+	pthread_mutex_destroy(&hub->servareas_lock);
 	return 0;
 }
 
@@ -280,20 +280,20 @@ int servhub_register_services(struct servhub *hub, const char *name,
 	struct servarea *sa = malloc(sizeof(*sa));
 	servarea_init(sa, name);
 	servarea_register_services(sa, services);
-	mutex_lock(&hub->servareas_lock);
+	pthread_mutex_lock(&hub->servareas_lock);
 	list_add(&sa->node, &hub->servareas);
-	mutex_unlock(&hub->servareas_lock);
+	pthread_mutex_unlock(&hub->servareas_lock);
 
 	return 0;
 }
 
 int servhub_unregister_service(struct servhub *hub, const char *name)
 {
-	mutex_lock(&hub->servareas_lock);
+	pthread_mutex_lock(&hub->servareas_lock);
 	struct servarea *sa = find_servarea(hub, name, strlen(name));
 	assert(sa);
 	list_del(&sa->node);
-	mutex_unlock(&hub->servareas_lock);
+	pthread_mutex_unlock(&hub->servareas_lock);
 	servarea_close(sa);
 	free(sa);
 

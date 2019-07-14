@@ -4,10 +4,10 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <spdnet/spdnet.h>
 #include <spdnet/list.h>
-#include <spdnet/mutex.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -147,7 +147,7 @@ struct servhub {
 	service_prepare_func_t finished_cb;
 
 	struct list_head servareas;
-	mutex_t servareas_lock;
+	pthread_mutex_t servareas_lock;
 
 	struct list_head servmsgs;
 	int servmsg_total;

@@ -1,11 +1,9 @@
 #ifndef __ZEBRA_SPDNET_H
 #define __ZEBRA_SPDNET_H
 
-#include <time.h>
-#include <limits.h>
 #include <zmq.h>
+#include <pthread.h>
 #include "list.h"
-#include "mutex.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -240,8 +238,8 @@ struct spdnet_nodepool {
 	int nr_snode;
 
 	struct list_head snodes;
-	mutex_t snodes_lock;
-	mutex_t snodes_del_lock;
+	pthread_mutex_t snodes_lock;
+	pthread_mutex_t snodes_del_lock;
 
 	struct list_head pollins;
 	struct list_head pollouts;

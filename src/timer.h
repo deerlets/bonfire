@@ -5,7 +5,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <spdnet/list.h>
-#include <spdnet/mutex.h>
 
 #ifdef __cplusplus
 extern "C" {
