@@ -8,6 +8,9 @@
 #include <spdnet.h>
 #include "list.h"
 
+#define SERVAREA_DELIMITER "://"
+#define SERVICE_DELIMITER '/'
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,6 +64,10 @@ struct servmsg {
 
 	const void *header;
 	size_t header_len;
+	// uri scheme, area always equal header
+	size_t area_len;
+	const void *service;
+	size_t service_len;
 
 	void *user_data;
 	int rc;
@@ -138,9 +145,11 @@ servarea_find_handler(struct servarea *sa, const char *name, size_t len);
  */
 
 struct servhub {
-	const char *name;
+	const char *id;
 	const char *router_addr;
 	struct spdnet_nodepool *snodepool;
+	// default snode used by servhub
+	struct spdnet_node *snode;
 
 	service_prepare_func_t prepare_cb;
 	service_prepare_func_t finished_cb;
@@ -158,13 +167,17 @@ struct servhub {
 	void *user_data;
 };
 
-int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
                  struct spdnet_nodepool *snodepool);
 int servhub_close(struct servhub *hub);
-int servhub_register_services(struct servhub *hub, const char *name,
-                             struct service *services,
-                             struct spdnet_node **__snode);
-int servhub_unregister_service(struct servhub *hub, const char *name);
+int servhub_register_servarea(struct servhub *hub,
+                              const char *area_name,
+                              struct service *services,
+                              const char *sockid,
+                              struct spdnet_node **__snode);
+int servhub_unregister_servarea(struct servhub *hub,
+                                const char *area_name,
+                                const char *sockid);
 void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode);
 void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode);
 service_prepare_func_t

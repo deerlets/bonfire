@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SERVAREA_NAME "servhub"
+
 struct servhub *default_servhub(void)
 {
        static struct servhub servhub;
@@ -31,7 +33,7 @@ static int on_services(struct servmsg *sm)
 	char *buf = malloc(buflen);
 	int nr = sprintf(buf, "{\"services\": [");
 	const char *service_template =
-		"{\"service\":\"%s\",\"request\":\"%s\",\"describe\":\"%s\"}";
+		"{\"servarea\":\"%s\",\"service\":\"%s\",\"describe\":\"%s\"}";
 
 	struct servarea *pos;
 	list_for_each_entry(pos, &hub->servareas, node) {
@@ -92,10 +94,10 @@ static int filter_wrong_spdnet_msg(struct servhub *hub, struct spdnet_msg *msg,
 
 	// filter mesasage send by servhub-self
 	else if (snode->type != SPDNET_SUB &&
-	    strlen(hub->name) == snode->id_len &&
-	    memcmp(hub->name, snode->id, snode->id_len) == 0 &&
-	    strlen(hub->name) == MSG_SOCKID_SIZE(msg) &&
-	    memcmp(hub->name, MSG_SOCKID_DATA(msg), MSG_SOCKID_SIZE(msg)) == 0)
+	    strlen(hub->id) == snode->id_len &&
+	    memcmp(hub->id, snode->id, snode->id_len) == 0 &&
+	    strlen(hub->id) == MSG_SOCKID_SIZE(msg) &&
+	    memcmp(hub->id, MSG_SOCKID_DATA(msg), MSG_SOCKID_SIZE(msg)) == 0)
 		return 1;
 
 	return 0;
@@ -106,7 +108,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	// find servarea
 	pthread_mutex_lock(&hub->servareas_lock);
 	struct servarea *sa;
-	if (!(sa = find_servarea(hub, sm->dest, sm->dest_len))) {
+	if (!(sa = find_servarea(hub, sm->header, sm->area_len))) {
 		pthread_mutex_unlock(&hub->servareas_lock);
 		sm->rc = SERVICE_ENOSERV;
 		sm->state = SM_HANDLED;
@@ -115,7 +117,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 
 	// find handler
 	service_handler_func_t fn;
-	fn = servarea_find_handler(sa, sm->header, sm->header_len);
+	fn = servarea_find_handler(sa, sm->service, sm->service_len);
 	pthread_mutex_unlock(&hub->servareas_lock);
 
 	// call handler
@@ -219,13 +221,13 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
 }
 
-int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
+int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
                  struct spdnet_nodepool *snodepool)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
 	memset(hub, 0, sizeof(*hub));
 
-	hub->name = name;
+	hub->id = id;
 	hub->router_addr = router_addr;
 	hub->snodepool = snodepool;
 
@@ -244,14 +246,15 @@ int servhub_init(struct servhub *hub, const char *name, const char *router_addr,
 
 	hub->user_data = NULL;
 
-	struct spdnet_node *snode;
-	servhub_register_services(hub, hub->name, services, &snode);
+	servhub_register_servarea(hub, SERVAREA_NAME, services,
+	                          SERVAREA_NAME, &hub->snode);
+	spdnet_setid(hub->snode, id, strlen(id));
 	return 0;
 }
 
 int servhub_close(struct servhub *hub)
 {
-	servhub_unregister_service(hub, hub->name);
+	servhub_unregister_servarea(hub, SERVAREA_NAME, SERVAREA_NAME);
 
 	struct servarea *pos, *n;
 	list_for_each_entry_safe(pos, n, &hub->servareas, node) {
@@ -264,21 +267,25 @@ int servhub_close(struct servhub *hub)
 	return 0;
 }
 
-int servhub_register_services(struct servhub *hub, const char *name,
+int servhub_register_servarea(struct servhub *hub,
+                              const char *area_name,
                               struct service *services,
+                              const char *sockid,
                               struct spdnet_node **__snode)
 {
-	struct spdnet_node *snode = spdnet_nodepool_get(hub->snodepool);
-	spdnet_setid(snode, name, strlen(name));
-	spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
-	spdnet_connect(snode, hub->router_addr);
-	spdnet_register(snode);
-	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
-	snode->user_data = hub;
-	if (__snode) *__snode = snode;
+	if (sockid) {
+		struct spdnet_node *snode = spdnet_nodepool_get(hub->snodepool);
+		spdnet_setid(snode, sockid, strlen(sockid));
+		spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
+		spdnet_connect(snode, hub->router_addr);
+		spdnet_register(snode);
+		spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+		snode->user_data = hub;
+		if (__snode) *__snode = snode;
+	}
 
 	struct servarea *sa = malloc(sizeof(*sa));
-	servarea_init(sa, name);
+	servarea_init(sa, area_name);
 	servarea_register_services(sa, services);
 	pthread_mutex_lock(&hub->servareas_lock);
 	list_add(&sa->node, &hub->servareas);
@@ -287,10 +294,12 @@ int servhub_register_services(struct servhub *hub, const char *name,
 	return 0;
 }
 
-int servhub_unregister_service(struct servhub *hub, const char *name)
+int servhub_unregister_servarea(struct servhub *hub,
+                                const char *area_name,
+                                const char *sockid)
 {
 	pthread_mutex_lock(&hub->servareas_lock);
-	struct servarea *sa = find_servarea(hub, name, strlen(name));
+	struct servarea *sa = find_servarea(hub, area_name, strlen(area_name));
 	assert(sa);
 	list_del(&sa->node);
 	pthread_mutex_unlock(&hub->servareas_lock);
@@ -298,11 +307,14 @@ int servhub_unregister_service(struct servhub *hub, const char *name)
 	free(sa);
 
 	// find will increase snode's count, so put twice
-	struct spdnet_node *snode =
-		spdnet_nodepool_find(hub->snodepool, name);
-	assert(snode);
-	spdnet_nodepool_put(hub->snodepool, snode);
-	spdnet_nodepool_put(hub->snodepool, snode);
+	if (sockid) {
+		struct spdnet_node *snode =
+			spdnet_nodepool_find(hub->snodepool, sockid);
+		if (snode) {
+			spdnet_nodepool_put(hub->snodepool, snode);
+			spdnet_nodepool_put(hub->snodepool, snode);
+		}
+	}
 
 	return 0;
 }

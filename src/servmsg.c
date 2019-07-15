@@ -37,6 +37,24 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 	sm->header = header;
 	sm->header_len = hdr_len;
 
+	char *p;
+	sm->area_len = hdr_len;
+	sm->service = NULL;
+	sm->service_len = 0;
+	p = strstr(header, SERVAREA_DELIMITER);
+	if (p) {
+		sm->area_len = p - (char *)header;
+		p += strlen(SERVAREA_DELIMITER);
+		sm->service = p;
+		p = strchr(p, SERVICE_DELIMITER);
+		if (p) {
+			sm->service_len = p - (char *)sm->service;
+		} else {
+			sm->service_len = (char *)header + hdr_len
+				- (char *)sm->service;
+		}
+	}
+
 	sm->user_data = NULL;
 	sm->rc = 0;
 	sm->errmsg = NULL;
@@ -101,7 +119,7 @@ int servmsg_error(struct servmsg *sm, int err, const char *errmsg)
 
 const char *servmsg_reqid(struct servmsg *sm)
 {
-	return spdnet_msg_gets(&sm->request, "name");
+	return MSG_SOCKID_DATA(&sm->request);
 }
 
 int servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size)

@@ -76,31 +76,54 @@ TEST(service, servhub)
 	                  (task_timeout_func_t)servhub_loop, &servhub, 500);
 	task_start(&servhub_task);
 
-	// init service
-	servhub_register_services(&servhub, "testing", services, NULL);
-
 	// wait for tasks
 	sleep(1);
 
-	// start testing
+	// client & msg
 	struct spdnet_node client;
+	struct spdnet_msg msg;
+
+	// init service
+	servhub_register_servarea(&servhub, "testing", services, NULL, NULL);
+	// start testing
 	spdnet_node_init(&client, SPDNET_NODE, ctx);
 	spdnet_connect(&client, ROUTER_ADDRESS);
-	struct spdnet_msg msg;
-	SPDNET_MSG_INIT_DATA(&msg, "testing", "zerox", "I'm xiedd.");
+	SPDNET_MSG_INIT_DATA(&msg, "servhub", "testing://zerox/t", "I'm xiedd.");
 	spdnet_sendmsg(&client, &msg);
 	sleep(1);
 	spdnet_recvmsg(&client, &msg, 0);
 	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
-	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5+6);
-	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "zerox_reply", 5+6), 0);
+	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 17+6);
+	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
+	                 "testing://zerox/t_reply", 17+6), 0);
 	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
 	                 "Welcome to zerox."), nullptr);
 	spdnet_msg_close(&msg);
 	spdnet_node_close(&client);
-
 	// close service
-	servhub_unregister_service(&servhub, "testing");
+	servhub_unregister_servarea(&servhub, "testing", NULL);
+
+	// init service
+	servhub_register_servarea(&servhub, "testing2", services,
+	                          "testing2-sockid", NULL);
+	// start testing2
+	spdnet_node_init(&client, SPDNET_NODE, ctx);
+	spdnet_connect(&client, ROUTER_ADDRESS);
+	SPDNET_MSG_INIT_DATA(&msg, "testing2-sockid",
+	                     "testing2://zerox/t", "I'm xiedd.");
+	spdnet_sendmsg(&client, &msg);
+	sleep(1);
+	spdnet_recvmsg(&client, &msg, 0);
+	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 15);
+	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 18+6);
+	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
+	                 "testing2://zerox/t_reply", 18+6), 0);
+	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
+	                 "Welcome to zerox."), nullptr);
+	spdnet_msg_close(&msg);
+	spdnet_node_close(&client);
+	// close service
+	servhub_unregister_servarea(&servhub, "testing2", "testing2-sockid");
 
 	// close servhub
 	task_stop(&servhub_task);

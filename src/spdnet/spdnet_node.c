@@ -12,7 +12,6 @@ int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 	memset(snode->id, 0, sizeof(snode->id));
 	snode->id_len = 0;
 
-	memset(snode->name, 0, sizeof(snode->name));
 	snode->type = type;
 	snode->alive_interval = 0;
 	snode->alive_timeout = 0;
@@ -47,7 +46,6 @@ int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket)
 	snode->id_len = 0;
 	zmq_getsockopt(socket, ZMQ_IDENTITY, snode->id, &snode->id_len);
 
-	memset(snode->name, 0, sizeof(snode->name));
 	snode->type = type;
 	snode->alive_interval = 0;
 	snode->alive_timeout = 0;
@@ -96,12 +94,6 @@ int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len)
 	return zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len);
 }
 
-void spdnet_setname(struct spdnet_node *snode, const char *name)
-{
-	assert(strlen(name) < SPDNET_NAME_SIZE);
-	strcpy(snode->name, name);
-}
-
 void spdnet_setalive(struct spdnet_node *snode, time_t alive)
 {
 	assert(snode->type == SPDNET_NODE);
@@ -112,11 +104,6 @@ void spdnet_setalive(struct spdnet_node *snode, time_t alive)
 		snode->alive_interval = alive;
 
 	snode->alive_timeout = time(NULL) + snode->alive_interval;
-}
-
-const char *spdnet_getname(struct spdnet_node *snode)
-{
-	return snode->name;
 }
 
 int spdnet_bind(struct spdnet_node *snode, const char *addr)
@@ -222,7 +209,7 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	if (msg->__meta) free(msg->__meta);
 	msg->__meta = malloc(zmq_msg_size(&meta_msg));
 	memcpy(msg->__meta, zmq_msg_data(&meta_msg), zmq_msg_size(&meta_msg));
-	assert(zmq_msg_size(&meta_msg) == msg->__meta->len);
+	assert(zmq_msg_size(&meta_msg) == sizeof(msg->__meta));
 	zmq_msg_close(&meta_msg);
 
 	return 0;
@@ -272,12 +259,10 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 	spdnet_meta_t meta;
 	meta.node_type = snode->type;
 	meta.ttl = 10;
-	meta.len = sizeof(meta) + strlen(snode->name) + 1;
 
 	zmq_msg_t meta_msg;
-	zmq_msg_init_size(&meta_msg, meta.len);
+	zmq_msg_init_size(&meta_msg, sizeof(meta));
 	memcpy(zmq_msg_data(&meta_msg), &meta, sizeof(meta));
-	strcpy(zmq_msg_data(&meta_msg) + sizeof(meta), snode->name);
 	rc = zmq_msg_send(&meta_msg, snode->socket, 0);
 	zmq_msg_close(&meta_msg);
 	if (rc == -1) return -1;

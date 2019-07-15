@@ -68,8 +68,7 @@ extern "C" {
 #define SPDNET_MIN_ALIVE_INTERVAL 10
 
 #define SPDNET_ZMTP_SOCKID_LEN 5
-#define SPDNET_SOCKID_SIZE 16
-#define SPDNET_NAME_SIZE 1024
+#define SPDNET_SOCKID_SIZE 64
 #define SPDNET_ADDRESS_SIZE 64
 
 #define SPDNET_ERRNO_MAP(XX) \
@@ -104,8 +103,6 @@ typedef zmq_msg_t spdnet_frame_t;
 typedef struct spdnet_meta {
 	int node_type;
 	int ttl;
-	int len;
-	char name[0];
 } __attribute__((packed)) spdnet_meta_t;
 
 struct spdnet_msg {
@@ -131,8 +128,7 @@ int spdnet_msg_init_data(struct spdnet_msg *msg,
 int spdnet_msg_close(struct spdnet_msg *msg);
 int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src);
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src);
-spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *name);
-const char *spdnet_msg_gets(struct spdnet_msg *msg, const char *property);
+spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name);
 
 #define SPDNET_MSG_INIT_DATA(msg, sockid, header, content) \
 	spdnet_msg_init_data(msg, sockid, -1, header, -1, content, -1)
@@ -181,7 +177,6 @@ struct spdnet_node {
 	char id[SPDNET_SOCKID_SIZE];
 	size_t id_len;
 
-	char name[SPDNET_NAME_SIZE];
 	int type;
 	time_t alive_interval;
 	time_t alive_timeout;
@@ -208,9 +203,7 @@ int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket);
 int spdnet_node_close(struct spdnet_node *snode);
 void *spdnet_node_get_socket(struct spdnet_node *snode);
 int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len);
-void spdnet_setname(struct spdnet_node *snode, const char *name);
 void spdnet_setalive(struct spdnet_node *snode, time_t alive);
-const char *spdnet_getname(struct spdnet_node *snode);
 int spdnet_bind(struct spdnet_node *snode, const char *addr);
 int spdnet_connect(struct spdnet_node *snode, const char *addr);
 int spdnet_disconnect(struct spdnet_node *snode);
@@ -258,7 +251,7 @@ int spdnet_nodepool_init(struct spdnet_nodepool *pool,
                          int water_mark, void *ctx);
 int spdnet_nodepool_close(struct spdnet_nodepool *pool);
 struct spdnet_node *
-spdnet_nodepool_find(struct spdnet_nodepool *pool, const char *name);
+spdnet_nodepool_find(struct spdnet_nodepool *pool, const char *id);
 struct spdnet_node *spdnet_nodepool_get(struct spdnet_nodepool *pool);
 void spdnet_nodepool_put(struct spdnet_nodepool *pool,
                          struct spdnet_node *snode);

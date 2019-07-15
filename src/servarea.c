@@ -40,8 +40,10 @@ int servarea_close(struct servarea *sa)
 	free(sa->servtab);
 
 	struct service *pos, *n;
-	list_for_each_entry_safe(pos, n, &sa->services, node)
-		list_del(&pos->node);
+	list_for_each_entry_safe(pos, n, &sa->services, node) {
+		hlist_del_init(&pos->hash_node);
+		list_del_init(&pos->node);
+	}
 
 	return 0;
 }
