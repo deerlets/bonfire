@@ -12,5 +12,6 @@ A service discovery and registry framework written in pure C.
 
 ## Build
 ```
-./tools/build.sh
+mkdir build && cd build
+cmake .. && make
 ```
