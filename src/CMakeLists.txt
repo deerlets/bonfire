@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 file(GLOB SRC *.c)
 file(GLOB INC *.h)
 
+add_definitions(-DZEBRA_INTERNAL)
+
 add_library(zebra SHARED ${SRC})
 set_target_properties(zebra PROPERTIES PUBLIC_HEADER "${INC}")
 set_target_properties(zebra PROPERTIES VERSION 1.0.0 SOVERSION 1)

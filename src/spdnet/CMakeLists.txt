@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 file(GLOB SRC *.c)
 file(GLOB INC spdnet.h)
 
+add_definitions(-DSPDNET_INTERNAL)
+
 add_library(spdnet SHARED ${SRC})
 set_target_properties(spdnet PROPERTIES PUBLIC_HEADER "${INC}")
 set_target_properties(spdnet PROPERTIES VERSION 1.0.0 SOVERSION 1)

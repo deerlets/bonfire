@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include <extlist.h>
+#include "list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +24,7 @@ struct timer {
 	struct timeval repeat;
 
 	struct timer_loop *loop;
-	struct list_head node;
+	struct zebra_list_head node;
 };
 
 int timer_init(struct timer *timer, struct timer_loop *loop);
@@ -35,7 +35,7 @@ void timer_stop(struct timer *timer);
 void timer_trigger(struct timer *timer);
 
 struct timer_loop {
-	struct list_head timers;
+	struct zebra_list_head timers;
 	pthread_mutex_t timers_lock;
 };
 

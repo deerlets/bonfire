@@ -6,7 +6,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <spdnet.h>
-#include <extlist.h>
+#include "list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,7 +67,7 @@ struct servmsg {
 	const char *errmsg;
 	int state;
 
-	struct list_head node;
+	struct zebra_list_head node;
 };
 
 void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
@@ -99,8 +99,8 @@ struct service {
 	const char *desc;
 	int visible;
 	unsigned int tag;
-	struct hlist_node hash_node;
-	struct list_head node;
+	struct zebra_hlist_node hash_node;
+	struct zebra_list_head node;
 };
 
 #define INIT_SERVICE(name, handler, desc) \
@@ -114,9 +114,9 @@ struct service {
 
 struct servarea {
 	const char *name;
-	struct hlist_head *servtab;
-	struct list_head services;
-	struct list_head node;
+	struct zebra_hlist_head *servtab;
+	struct zebra_list_head services;
+	struct zebra_list_head node;
 };
 
 int servarea_init(struct servarea *sa, const char *name);
@@ -145,10 +145,10 @@ struct servhub {
 	service_prepare_func_t prepare_cb;
 	service_prepare_func_t finished_cb;
 
-	struct list_head servareas;
+	struct zebra_list_head servareas;
 	pthread_mutex_t servareas_lock;
 
-	struct list_head servmsgs;
+	struct zebra_list_head servmsgs;
 	int servmsg_total;
 	int servmsg_doing;
 	int servmsg_filtered;

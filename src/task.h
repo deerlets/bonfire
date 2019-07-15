@@ -2,7 +2,7 @@
 #define __ZEBRA_TASK_H
 
 #include <pthread.h>
-#include <extlist.h>
+#include "list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,7 +45,7 @@ struct task {
 	void *t_arg;
 	long t_timeout;
 
-	struct list_head t_node;
+	struct zebra_list_head t_node;
 };
 
 int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg);

@@ -3,7 +3,6 @@
 
 #include <pthread.h>
 #include <zmq.h>
-#include <extlist.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,6 +87,14 @@ typedef enum {
 } spdnet_errno_t;
 
 const char *spdnet_strerror(int err);
+
+
+#ifdef SPDNET_INTERNAL
+#include <extlist.h>
+#define spdnet_list_head list_head
+#else
+struct spdnet_list_head { void *prev, *next; };
+#endif
 
 /*
  * spdnet_msg
@@ -189,11 +196,11 @@ struct spdnet_node {
 	time_t recvmsg_timeout;
 	int count;
 	int eof;
-	struct list_head node;
-	struct list_head pollin_node;
-	struct list_head pollout_node;
-	struct list_head pollerr_node;
-	struct list_head recvmsg_timeout_node;
+	struct spdnet_list_head node;
+	struct spdnet_list_head pollin_node;
+	struct spdnet_list_head pollout_node;
+	struct spdnet_list_head pollerr_node;
+	struct spdnet_list_head recvmsg_timeout_node;
 };
 
 int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx);
@@ -237,14 +244,14 @@ struct spdnet_nodepool {
 	int water_mark;
 	int nr_snode;
 
-	struct list_head snodes;
+	struct spdnet_list_head snodes;
 	pthread_mutex_t snodes_lock;
 	pthread_mutex_t snodes_del_lock;
 
-	struct list_head pollins;
-	struct list_head pollouts;
-	struct list_head pollerrs;
-	struct list_head recvmsg_timeouts;
+	struct spdnet_list_head pollins;
+	struct spdnet_list_head pollouts;
+	struct spdnet_list_head pollerrs;
+	struct spdnet_list_head recvmsg_timeouts;
 };
 
 int spdnet_nodepool_init(struct spdnet_nodepool *pool,
@@ -275,11 +282,11 @@ struct spdnet_routing_item {
 
 	time_t atime;
 
-	struct list_head node;
+	struct spdnet_list_head node;
 };
 
-#define INIT_SPDNET_ROUTING_ITEM(item, _id, _len, \
-	_nexthop_id, _nexthop_len, _nexthop_type) \
+#define INIT_SPDNET_ROUTING_ITEM( \
+	item, _id, _len, _nexthop_id, _nexthop_len, _nexthop_type) \
 	do { \
 		memset(item, 0, sizeof(*item)); \
 		item->len = _len; \
@@ -294,7 +301,7 @@ struct spdnet_routing_item {
 struct spdnet_router {
 	void *ctx;
 	struct spdnet_node snode;
-	struct list_head routing_table;
+	struct spdnet_list_head routing_table;
 
 	int nr_msg_routerd;
 	int nr_msg_dropped;

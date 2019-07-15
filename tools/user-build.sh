@@ -29,7 +29,7 @@ extlibc()
 {
     extlibc_path=$PROJECT_DIR/deps/extlibc
 
-    if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
+    if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *libcx*)" ]; then
         mkdir -p $extlibc_path/build && cd $extlibc_path/build
         cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR \
             -DBUILD_TESTS=off -DBUILD_SHARED=off

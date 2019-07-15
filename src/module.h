@@ -1,7 +1,8 @@
 #ifndef __ZEBRA_MODULE_H
 #define __ZEBRA_MODULE_H
 
-#include <extlist.h>
+#include <stddef.h>
+#include "list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,7 +64,7 @@ struct module {
 	int version;
 	void *handle;
 	module_init_func_t init_fn;
-	struct list_head node;
+	struct zebra_list_head node;
 };
 
 struct module *load_module(const char *filepath, const char *param);
@@ -73,7 +74,7 @@ int load_modules_from_dir(const char *dirname);
 int unload_all_modules(void);
 
 struct module *find_module(const char *name);
-struct list_head *get_modules();
+struct zebra_list_head *get_modules();
 
 void module_set_name(struct module *m, const char *name);
 void module_set_info(struct module *m, const char *alias, const char *desc);
