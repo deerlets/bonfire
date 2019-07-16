@@ -6,6 +6,9 @@
 
 #ifdef __cplusplus
 extern "C" {
+#define EXTERN_C extern "C"
+#else
+#define EXTERN_C
 #endif
 
 #define VERSION_MAJOR(v) (v >> 24)
@@ -42,11 +45,11 @@ static __attribute__((unused)) struct module *__module_self(struct module *m)
 { static struct module* __m; if (m) __m = m; return __m; }
 
 #define module_init(init_func) \
-	int __module_init(struct module *m) \
+	EXTERN_C int __module_init(struct module *m) \
 	{ __module_self(m); return init_func(); }
 
 #define module_exit(exit_func) \
-	void __module_exit(void) { exit_func(); }
+	EXTERN_C void __module_exit(void) { exit_func(); }
 
 #define THIS_MODULE __module_self(NULL)
 
