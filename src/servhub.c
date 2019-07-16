@@ -246,9 +246,7 @@ int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
 
 	hub->user_data = NULL;
 
-	servhub_register_servarea(hub, SERVAREA_NAME, services,
-	                          SERVAREA_NAME, &hub->snode);
-	spdnet_setid(hub->snode, id, strlen(id));
+	servhub_register_servarea(hub, SERVAREA_NAME, services, id, &hub->snode);
 	return 0;
 }
 
