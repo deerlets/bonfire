@@ -17,8 +17,8 @@ endif ()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
 option(DEBUG_SPDNET "Debug spdnet" OFF)
-if (DEBUG_SPDNET)
-    add_definitions(-DDEBUG_SPDNET)
+if (SPDNET_DEBUG)
+    add_definitions(-DSPDNET_DEBUG)
 endif ()
 
 option(HAVE_ZMQ_BUG "ZMQ have bug in 4.2.2-2 on arhclinux" ON)

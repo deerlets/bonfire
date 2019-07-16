@@ -26,7 +26,7 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	zmq_sleep(1);
 #endif
 
-#if defined(__WIN32) || defined(DEBUG_SPDNET)
+#if defined(__WIN32)
 	rc = spdnet_recvmsg(&snode, &msg, ZMQ_DONTWAIT);
 	if (rc == -1) goto finally;
 	const char *value = zmq_msg_gets(MSG_SOCKID(&msg), "Identity");
@@ -173,6 +173,14 @@ static int handle_msg_from_router(struct spdnet_router *router, zmq_msg_t *rid)
 	rc = z_recv_not_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 
+	LOG_DEBUG("[%s]: rid=%s, srcid=%s, dstid=%s, header=%s, content=%s\n",
+	          router->snode.id,
+	          zmq_msg_data(rid),
+	          zmq_msg_data(&srcid),
+	          zmq_msg_data(&dstid),
+	          zmq_msg_data(&header),
+	          zmq_msg_data(&content));
+
 	// save router routing
 	struct spdnet_routing_item *router_routing =
 		spdnet_find_routing_item_ex(router, rid);
@@ -267,6 +275,13 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 	rc = z_recv_not_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 
+	LOG_DEBUG("[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
+	          router->snode.id,
+	          zmq_msg_data(srcid),
+	          zmq_msg_data(&dstid),
+	          zmq_msg_data(&header),
+	          zmq_msg_data(&content));
+
 	// save src routing & find dst routing
 	struct spdnet_routing_item *src_routing =
 		spdnet_find_routing_item_ex(router, srcid);
@@ -332,7 +347,7 @@ static int on_pollin(struct spdnet_router *router)
 	rc = z_recv_more(socket, &delimiter, 0);
 	if (rc == -1) goto finally;
 
-#if defined(__WIN32) || defined(DEBUG_SPDNET)
+#if defined(__WIN32)
 	// zmq_msg_gets always fails with srcid
 	const char *socket_type = zmq_msg_gets(&delimiter, "Socket-Type");
 	assert(socket_type);
