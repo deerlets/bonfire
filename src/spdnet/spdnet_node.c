@@ -116,7 +116,8 @@ int spdnet_connect(struct spdnet_node *snode, const char *addr)
 {
 	int rc;
 
-	snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
+	if (addr != snode->addr)
+		snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
 	rc = zmq_connect(snode->socket, addr);
 
 	if (rc == 0 && snode->type == SPDNET_NODE)
