@@ -114,12 +114,21 @@ int spdnet_bind(struct spdnet_node *snode, const char *addr)
 
 int spdnet_connect(struct spdnet_node *snode, const char *addr)
 {
+	int rc;
+
 	snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
-	return zmq_connect(snode->socket, addr);
+	rc = zmq_connect(snode->socket, addr);
+
+	if (rc == 0 && snode->type == SPDNET_NODE)
+		rc = spdnet_register(snode);
+
+	return rc;
 }
 
 int spdnet_disconnect(struct spdnet_node *snode)
 {
+	if (snode->type == SPDNET_NODE)
+		spdnet_unregister(snode);
 	if (strlen(snode->addr))
 		return zmq_disconnect(snode->socket, snode->addr);
 	return 0;
@@ -127,12 +136,43 @@ int spdnet_disconnect(struct spdnet_node *snode)
 
 int spdnet_register(struct spdnet_node *snode)
 {
-	assert(snode->id_len);
 	int rc;
 	struct spdnet_msg msg;
 
 	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
 	                     SPDNET_REGISTER_MSG, SPDNET_REGISTER_MSG_LEN,
+	                     NULL, 0);
+	rc = spdnet_sendmsg(snode, &msg);
+	spdnet_msg_close(&msg);
+
+	if (rc == -1) return -1;
+	return 0;
+}
+
+int spdnet_unregister(struct spdnet_node *snode)
+{
+	assert(snode->id_len);
+	int rc;
+	struct spdnet_msg msg;
+
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
+	                     SPDNET_UNREGISTER_MSG, SPDNET_UNREGISTER_MSG_LEN,
+	                     NULL, 0);
+	rc = spdnet_sendmsg(snode, &msg);
+	spdnet_msg_close(&msg);
+
+	if (rc == -1) return -1;
+	return 0;
+}
+
+int spdnet_expose(struct spdnet_node *snode)
+{
+	assert(snode->id_len);
+	int rc;
+	struct spdnet_msg msg;
+
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
+	                     SPDNET_EXPOSE_MSG, SPDNET_EXPOSE_MSG_LEN,
 	                     NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);

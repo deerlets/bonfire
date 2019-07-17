@@ -173,17 +173,40 @@ static int handle_msg_from_router(struct spdnet_router *router, zmq_msg_t *rid)
 	rc = z_recv_not_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 
+#ifdef SPDNET_DEBUG
+	char *__rid = calloc(1, zmq_msg_size(rid) + 1);
+	char *__srcid = calloc(1, zmq_msg_size(&srcid) + 1);
+	char *__dstid = calloc(1, zmq_msg_size(&dstid) + 1);
+	char *__header = calloc(1, zmq_msg_size(&header) + 1);
+	char *__content = calloc(1, zmq_msg_size(&content) + 1);
+	memcpy(__rid, zmq_msg_data(rid), zmq_msg_size(rid));
+	memcpy(__srcid, zmq_msg_data(&srcid), zmq_msg_size(&srcid));
+	memcpy(__dstid, zmq_msg_data(&dstid), zmq_msg_size(&dstid));
+	memcpy(__header, zmq_msg_data(&header), zmq_msg_size(&header));
+	memcpy(__content, zmq_msg_data(&content), zmq_msg_size(&content));
 	LOG_DEBUG("[%s]: rid=%s, srcid=%s, dstid=%s, header=%s, content=%s\n",
-	          router->snode.id,
-	          zmq_msg_data(rid),
-	          zmq_msg_data(&srcid),
-	          zmq_msg_data(&dstid),
-	          zmq_msg_data(&header),
-	          zmq_msg_data(&content));
+	          router->snode.id, __rid, __srcid,
+	          __dstid, __header, __content);
+	free(__rid);
+	free(__srcid);
+	free(__dstid);
+	free(__header);
+	free(__content);
+#endif
 
 	// save router routing
 	struct spdnet_routing_item *router_routing =
 		spdnet_find_routing_item_ex(router, rid);
+	// handle unregister msg
+	if (memcmp(zmq_msg_data(&header), SPDNET_UNREGISTER_MSG,
+	           SPDNET_UNREGISTER_MSG_LEN) == 0) {
+		if (router_routing) {
+			list_del(&router_routing->node);
+			free(router_routing);
+		}
+		rc = 0;
+		goto finally;
+	}
 	if (!router_routing) {
 		router_routing = malloc(sizeof(*router_routing));
 		INIT_SPDNET_ROUTING_ITEM(router_routing,
@@ -275,16 +298,36 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 	rc = z_recv_not_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 
+#ifdef SPDNET_DEBUG
+	char *__srcid = calloc(1, zmq_msg_size(srcid) + 1);
+	char *__dstid = calloc(1, zmq_msg_size(&dstid) + 1);
+	char *__header = calloc(1, zmq_msg_size(&header) + 1);
+	char *__content = calloc(1, zmq_msg_size(&content) + 1);
+	memcpy(__srcid, zmq_msg_data(srcid), zmq_msg_size(srcid));
+	memcpy(__dstid, zmq_msg_data(&dstid), zmq_msg_size(&dstid));
+	memcpy(__header, zmq_msg_data(&header), zmq_msg_size(&header));
+	memcpy(__content, zmq_msg_data(&content), zmq_msg_size(&content));
 	LOG_DEBUG("[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
-	          router->snode.id,
-	          zmq_msg_data(srcid),
-	          zmq_msg_data(&dstid),
-	          zmq_msg_data(&header),
-	          zmq_msg_data(&content));
+	          router->snode.id, __srcid, __dstid, __header, __content);
+	free(__srcid);
+	free(__dstid);
+	free(__header);
+	free(__content);
+#endif
 
-	// save src routing & find dst routing
+	// save src routing
 	struct spdnet_routing_item *src_routing =
 		spdnet_find_routing_item_ex(router, srcid);
+	// handle unregister msg
+	if (memcmp(zmq_msg_data(&header), SPDNET_UNREGISTER_MSG,
+	           SPDNET_UNREGISTER_MSG_LEN) == 0) {
+		if (src_routing) {
+			list_del(&src_routing->node);
+			free(src_routing);
+		}
+		rc = 0;
+		goto finally;
+	}
 	if (!src_routing) {
 		src_routing = malloc(sizeof(*src_routing));
 		INIT_SPDNET_ROUTING_ITEM(src_routing,
@@ -296,7 +339,8 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 		list_add(&src_routing->node, &router->routing_table);
 	}
 
-	// filter register & alive msg, after src routing, before dst routing
+	// after src routing, before dst routing,
+	// filter register & alive msg but expose msg
 	if (memcmp(zmq_msg_data(&header), SPDNET_REGISTER_MSG,
 	           SPDNET_REGISTER_MSG_LEN) == 0 ||
 	    memcmp(zmq_msg_data(&header), SPDNET_ALIVE_MSG,
@@ -305,6 +349,7 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 		goto finally;
 	}
 
+	// find dst routing
 	struct spdnet_routing_item *dst_routing =
 		spdnet_find_routing_item_ex(router, &dstid);
 	if (!dst_routing) {

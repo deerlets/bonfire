@@ -276,7 +276,6 @@ int servhub_register_servarea(struct servhub *hub,
 		spdnet_setid(snode, sockid, strlen(sockid));
 		spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
 		spdnet_connect(snode, hub->router_addr);
-		spdnet_register(snode);
 		spdnet_recvmsg_async(snode, recvmsg_cb, 0);
 		snode->user_data = hub;
 		if (__snode) *__snode = snode;

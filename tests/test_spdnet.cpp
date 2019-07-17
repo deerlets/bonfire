@@ -64,12 +64,12 @@ TEST(spdnet, basic)
 	ASSERT_EQ(memcmp(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17), 0);
 	spdnet_msg_close(&msg);
 
-	ASSERT_EQ(spdnet_router_msg_routerd(&router), 3);
+	ASSERT_EQ(spdnet_router_msg_routerd(&router), 5);
 	ASSERT_EQ(spdnet_router_msg_dropped(&router), 0);
 
 	zmq_send(spdnet_node_get_socket(&requester), "service", 7, 0);
 	sleep(1);
-	ASSERT_EQ(spdnet_router_msg_routerd(&router), 3);
+	ASSERT_EQ(spdnet_router_msg_routerd(&router), 5);
 	ASSERT_EQ(spdnet_router_msg_dropped(&router), 1);
 
 	spdnet_node_close(&requester);

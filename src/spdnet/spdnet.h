@@ -59,6 +59,10 @@ extern "C" {
 #define SPDNET_SOCKID_NONE_LEN (sizeof(SPDNET_SOCKID_NONE)-1)
 #define SPDNET_REGISTER_MSG "snode-register"
 #define SPDNET_REGISTER_MSG_LEN (sizeof(SPDNET_REGISTER_MSG)-1)
+#define SPDNET_UNREGISTER_MSG "snode-unregister"
+#define SPDNET_UNREGISTER_MSG_LEN (sizeof(SPDNET_UNREGISTER_MSG)-1)
+#define SPDNET_EXPOSE_MSG "snode-expose"
+#define SPDNET_EXPOSE_MSG_LEN (sizeof(SPDNET_EXPOSE_MSG)-1)
 #define SPDNET_ALIVE_MSG "snode-alive"
 #define SPDNET_ALIVE_MSG_LEN (sizeof(SPDNET_ALIVE_MSG)-1)
 
@@ -214,6 +218,8 @@ int spdnet_bind(struct spdnet_node *snode, const char *addr);
 int spdnet_connect(struct spdnet_node *snode, const char *addr);
 int spdnet_disconnect(struct spdnet_node *snode);
 int spdnet_register(struct spdnet_node *snode);
+int spdnet_unregister(struct spdnet_node *snode);
+int spdnet_expose(struct spdnet_node *snode);
 int spdnet_alive(struct spdnet_node *snode);
 int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags);
 int spdnet_send(struct spdnet_node *snode, const void *buf,
