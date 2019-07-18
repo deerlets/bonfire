@@ -250,7 +250,7 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	if (msg->__meta) free(msg->__meta);
 	msg->__meta = malloc(zmq_msg_size(&meta_msg));
 	memcpy(msg->__meta, zmq_msg_data(&meta_msg), zmq_msg_size(&meta_msg));
-	assert(zmq_msg_size(&meta_msg) == sizeof(msg->__meta));
+	assert(zmq_msg_size(&meta_msg) == sizeof(*(msg->__meta)));
 	zmq_msg_close(&meta_msg);
 
 	return 0;
