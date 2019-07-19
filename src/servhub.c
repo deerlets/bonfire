@@ -221,7 +221,9 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
 }
 
-int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
+int servhub_init(struct servhub *hub,
+                 const char *id,
+                 const char *router_addr,
                  struct spdnet_nodepool *snodepool)
 {
 	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
@@ -244,9 +246,13 @@ int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
 	hub->servmsg_timeout = 0;
 	hub->servmsg_handled = 0;
 
+	hub->pid = 0;
+	hub->service_call_timeout = 1000;
+
 	hub->user_data = NULL;
 
-	servhub_register_servarea(hub, SERVAREA_NAME, services, id, &hub->snode);
+	servhub_register_servarea(hub, SERVAREA_NAME,
+	                          services, id, &hub->snode);
 	return 0;
 }
 
@@ -345,7 +351,13 @@ servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb)
 	return last;
 }
 
-int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
+void servhub_set_service_call_timeout(struct servhub *hub, long timeout)
+{
+	hub->service_call_timeout = timeout;
+}
+
+static int
+__servhub_service_call_local(struct servhub *hub, struct spdnet_msg *msg)
 {
 	int rc;
 
@@ -368,8 +380,8 @@ int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 	return rc;
 }
 
-int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
-                            long timeout)
+static int
+__servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
 {
 	int rc;
 	struct spdnet_node snode;
@@ -385,7 +397,7 @@ int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
 	item.fd = 0;
 	item.events = ZMQ_POLLIN;
 	item.revents = 0;
-	if (zmq_poll(&item, 1, timeout) != 1) {
+	if (zmq_poll(&item, 1, hub->service_call_timeout) != 1) {
 		rc = -1;
 	} else {
 		spdnet_recvmsg(&snode, msg, 0);
@@ -396,8 +408,35 @@ int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
 	return rc;
 }
 
+int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg)
+{
+	// Across thread access
+	if (pthread_self() != hub->pid) {
+		if (MSG_SOCKID_SIZE(msg) == 0) {
+			spdnet_frame_close(MSG_SOCKID(msg));
+			spdnet_frame_init_size(MSG_SOCKID(msg), strlen(hub->id));
+			memcpy(MSG_SOCKID_DATA(msg), hub->id, strlen(hub->id));
+		}
+		return __servhub_service_call(hub, msg);
+	}
+
+	if (MSG_SOCKID_SIZE(msg) == 0)
+		return __servhub_service_call_local(hub, msg);
+
+	if ((MSG_SOCKID_SIZE(msg) == strlen(hub->id) &&
+	    !memcmp(MSG_SOCKID_DATA(msg), hub->id, strlen(hub->id))))
+		return __servhub_service_call_local(hub, msg);
+
+	return __servhub_service_call(hub, msg);
+}
+
 int servhub_loop(struct servhub *hub, long timeout)
 {
+	if (hub->pid == 0)
+		hub->pid = pthread_self();
+	else
+		assert(hub->pid == pthread_self());
+
 	spdnet_nodepool_loop(hub->snodepool, timeout);
 	do_servmsg(hub);
 	return 0;

@@ -164,10 +164,15 @@ struct servhub {
 	int servmsg_timeout;
 	int servmsg_handled;
 
+	int service_call_timeout;
+	pthread_t pid;
+
 	void *user_data;
 };
 
-int servhub_init(struct servhub *hub, const char *id, const char *router_addr,
+int servhub_init(struct servhub *hub,
+                 const char *id,
+                 const char *router_addr,
                  struct spdnet_nodepool *snodepool);
 int servhub_close(struct servhub *hub);
 int servhub_register_servarea(struct servhub *hub,
@@ -184,9 +189,8 @@ service_prepare_func_t
 servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb);
 service_prepare_func_t
 servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb);
+void servhub_set_service_call_timeout(struct servhub *hub, long timeout);
 int servhub_service_call(struct servhub *hub, struct spdnet_msg *msg);
-int servhub_service_request(struct servhub *hub, struct spdnet_msg *msg,
-                            long timeout);
 int servhub_loop(struct servhub *hub, long timeout);
 
 struct servhub *default_servhub(void);
