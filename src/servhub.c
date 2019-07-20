@@ -132,33 +132,6 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	}
 }
 
-static void finish_msg(struct servhub *hub, struct servmsg *sm)
-{
-	const char *cnt = MSG_CONTENT_DATA(&sm->response);
-	int cnt_len = MSG_CONTENT_SIZE(&sm->response);
-
-	if (!cnt || !cnt_len) {
-		cnt = "null";
-		cnt_len = strlen(cnt);
-	}
-
-	// 64 is large enough
-	const char *errmsg = sm->errmsg;
-	if (!errmsg) errmsg = service_strerror(sm->rc);
-	size_t buflen = 64 + strlen(errmsg) + cnt_len;
-	char *buf = malloc(buflen);
-	int nr = snprintf(buf, buflen, "{\"errno\":%d, \"errmsg\":\"%s\","
-	                  " \"result\":", -sm->rc, errmsg);
-	memcpy(buf + nr, cnt, cnt_len);
-	buf[nr + cnt_len] = '}';
-	buf[nr + cnt_len + 1] = '\0';
-
-	zmq_msg_close(MSG_CONTENT(&sm->response));
-	zmq_msg_init_size(MSG_CONTENT(&sm->response), strlen(buf));
-	memcpy(MSG_CONTENT_DATA(&sm->response), buf, strlen(buf));
-	free(buf);
-}
-
 static void do_servmsg(struct servhub *hub)
 {
 	struct servmsg *pos, *n;
@@ -181,14 +154,18 @@ static void do_servmsg(struct servhub *hub)
 		// stage 3: handle result
 		assert(pos->state >= SM_FILTERED);
 
-		if (pos->state != SM_FILTERED) {
+		if (pos->state == SM_FILTERED) {
+			if (hub->finished_cb)
+				hub->finished_cb(pos);
+		} else {
 			if (pos->state == SM_TIMEOUT)
 				pos->rc = SERVICE_ETIMEOUT;
 
-			if (pos->src) {
-				finish_msg(hub, pos);
+			if (hub->finished_cb)
+				hub->finished_cb(pos);
+
+			if (pos->src)
 				spdnet_sendmsg(pos->snode, &pos->response);
-			}
 		}
 
 		if (pos->state == SM_FILTERED)
@@ -200,8 +177,6 @@ static void do_servmsg(struct servhub *hub)
 		hub->servmsg_doing--;
 
 		// stage 4: release servmsg
-		if (hub->finished_cb)
-			hub->finished_cb(pos);
 		list_del(&pos->node);
 		servmsg_close(pos);
 		free(pos);
@@ -212,13 +187,14 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
 	struct servhub *hub = snode->user_data;
 
-	if (filter_wrong_spdnet_msg(hub, msg, snode) == 0) {
-		struct servmsg *sm = malloc(sizeof(*sm));
-		servmsg_init(sm, msg, snode);
-		list_add(&sm->node, &hub->servmsgs);
-		hub->servmsg_total++;
-		hub->servmsg_doing++;
-	}
+	assert(filter_wrong_spdnet_msg(hub, msg, snode) == 0);
+
+	struct servmsg *sm = malloc(sizeof(*sm));
+	servmsg_init(sm, msg, snode);
+	list_add(&sm->node, &hub->servmsgs);
+	hub->servmsg_total++;
+	hub->servmsg_doing++;
+
 	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
 }
 
@@ -360,8 +336,6 @@ void servhub_set_service_call_timeout(struct servhub *hub, long timeout)
 static int
 __servhub_service_call_local(struct servhub *hub, struct spdnet_msg *msg)
 {
-	int rc;
-
 	struct servmsg sm;
 	servmsg_init_uninterruptible(&sm, msg, NULL);
 
@@ -374,11 +348,10 @@ __servhub_service_call_local(struct servhub *hub, struct spdnet_msg *msg)
 	if (hub->finished_cb)
 		hub->finished_cb(&sm);
 
-	rc = sm.rc;
 	spdnet_msg_move(msg, &sm.response);
 	servmsg_close(&sm);
 
-	return rc;
+	return 0;
 }
 
 static int
