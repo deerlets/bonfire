@@ -263,7 +263,7 @@ int spdnet_nodepool_init(struct spdnet_nodepool *pool,
                          int water_mark, void *ctx);
 int spdnet_nodepool_close(struct spdnet_nodepool *pool);
 struct spdnet_node *
-spdnet_nodepool_find(struct spdnet_nodepool *pool, const char *id);
+spdnet_nodepool_find(struct spdnet_nodepool *pool, const void *id, size_t len);
 struct spdnet_node *spdnet_nodepool_get(struct spdnet_nodepool *pool);
 void spdnet_nodepool_put(struct spdnet_nodepool *pool,
                          struct spdnet_node *snode);

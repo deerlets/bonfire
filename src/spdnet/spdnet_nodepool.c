@@ -51,12 +51,12 @@ int spdnet_nodepool_close(struct spdnet_nodepool *pool)
 }
 
 struct spdnet_node *
-spdnet_nodepool_find(struct spdnet_nodepool *pool, const char *id)
+spdnet_nodepool_find(struct spdnet_nodepool *pool, const void *id, size_t len)
 {
 	pthread_mutex_lock(&pool->snodes_lock);
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &pool->snodes, node) {
-		if (strcmp(id, pos->id) == 0) {
+		if (len == pos->id_len && memcmp(id, pos->id, len) == 0) {
 			pos->count++;
 			pthread_mutex_unlock(&pool->snodes_lock);
 			return pos;

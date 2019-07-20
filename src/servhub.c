@@ -288,8 +288,8 @@ int servhub_unregister_servarea(struct servhub *hub,
 
 	// find will increase snode's count, so put twice
 	if (sockid) {
-		struct spdnet_node *snode =
-			spdnet_nodepool_find(hub->snodepool, sockid);
+		struct spdnet_node *snode = spdnet_nodepool_find(
+			hub->snodepool, sockid, strlen(sockid));
 		if (snode) {
 			spdnet_nodepool_put(hub->snodepool, snode);
 			spdnet_nodepool_put(hub->snodepool, snode);
