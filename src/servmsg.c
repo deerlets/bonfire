@@ -18,7 +18,8 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
 	zmq_msg_close(MSG_HEADER(&sm->response));
 	zmq_msg_init_size(MSG_HEADER(&sm->response), hdr_len + 6);
 	memcpy(MSG_HEADER_DATA(&sm->response), header, hdr_len);
-	memcpy((char *)MSG_HEADER_DATA(&sm->response) + hdr_len, "_reply", 6);
+	memcpy((char *)MSG_HEADER_DATA(&sm->response) + hdr_len,
+	       RESPONSE_SUBFIX, RESPONSE_SUBFIX_LEN);
 
 	sm->snode = snode;
 

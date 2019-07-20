@@ -88,8 +88,9 @@ static int filter_wrong_spdnet_msg(struct servhub *hub, struct spdnet_msg *msg,
 	// FIXME: this function is not necessary, remove it in future
 
 	// servhub never handle response message
-	if (memcmp(MSG_HEADER_DATA(msg) + MSG_HEADER_SIZE(msg) - 6,
-	           "_reply", 6) == 0)
+	int len = RESPONSE_SUBFIX_LEN;
+	if (memcmp(MSG_HEADER_DATA(msg) + MSG_HEADER_SIZE(msg) - len,
+	           RESPONSE_SUBFIX, len) == 0)
 		return 1;
 
 	// filter mesasage send by servhub-self
