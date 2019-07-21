@@ -27,14 +27,14 @@ int spdnet_frame_close(spdnet_frame_t *frame)
 	return zmq_msg_close(frame);
 }
 
-int spdnet_frame_move(spdnet_frame_t *dest, spdnet_frame_t *src)
+int spdnet_frame_move(spdnet_frame_t *dst, spdnet_frame_t *src)
 {
-	return zmq_msg_move(dest, src);
+	return zmq_msg_move(dst, src);
 }
 
-int spdnet_frame_copy(spdnet_frame_t *dest, spdnet_frame_t *src)
+int spdnet_frame_copy(spdnet_frame_t *dst, spdnet_frame_t *src)
 {
-	return zmq_msg_copy(dest, src);
+	return zmq_msg_copy(dst, src);
 }
 
 void *spdnet_frame_data(spdnet_frame_t *frame)

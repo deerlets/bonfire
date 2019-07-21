@@ -116,7 +116,7 @@ typedef struct spdnet_meta {
 } __attribute__((packed)) spdnet_meta_t;
 
 struct spdnet_msg {
-	spdnet_frame_t __sockid; // destid for sender, srcid for receiver
+	spdnet_frame_t __sockid; // dstid for sender, srcid for receiver
 	spdnet_frame_t __header;
 	spdnet_frame_t __content;
 	spdnet_meta_t *__meta;
@@ -125,8 +125,8 @@ struct spdnet_msg {
 int spdnet_frame_init(spdnet_frame_t *frame);
 int spdnet_frame_init_size(spdnet_frame_t *frame, size_t size);
 int spdnet_frame_close(spdnet_frame_t *frame);
-int spdnet_frame_move(spdnet_frame_t *dest, spdnet_frame_t *src);
-int spdnet_frame_copy(spdnet_frame_t *dest, spdnet_frame_t *src);
+int spdnet_frame_move(spdnet_frame_t *dst, spdnet_frame_t *src);
+int spdnet_frame_copy(spdnet_frame_t *dst, spdnet_frame_t *src);
 void *spdnet_frame_data(spdnet_frame_t *frame);
 size_t spdnet_frame_size(const spdnet_frame_t *frame);
 
