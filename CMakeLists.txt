@@ -12,9 +12,8 @@ if (BUILD_DEBUG)
     message(STATUS "Build with -g for debug")
 else ()
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
-    message(STATUS "Build without -g but with -O3 for release")
+    message(STATUS "Build with -O3 for release")
 endif ()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 
 option(DEBUG_SPDNET "Debug spdnet" OFF)
 if (SPDNET_DEBUG)
@@ -49,7 +48,7 @@ include_directories(deps/extlibc/src)
 
 # zebra
 include_directories(include)
-link_directories(${PROJECT_SOURCE_DIR}/lib ${PROJECT_SOURCE_DIR}/lib64)
+link_directories(${PROJECT_SOURCE_DIR}/lib)
 
 include_directories(src/spdnet)
 add_subdirectory(src/spdnet)

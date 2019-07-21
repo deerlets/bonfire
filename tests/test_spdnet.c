@@ -1,14 +1,17 @@
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <cmocka.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <gtest/gtest.h>
 #include <spdnet/spdnet.h>
 #include "task.h"
 
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"
 #define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:18339"
 
-TEST(spdnet, basic)
+static void test_spdnet_basic(void **status)
 {
 	void *ctx = spdnet_ctx_create();
 	struct spdnet_router router;
@@ -26,51 +29,51 @@ TEST(spdnet, basic)
 	spdnet_node_init(&service, SPDNET_NODE, ctx);
 	spdnet_setid(&service, "service", strlen("service"));
 	rc = spdnet_connect(&service, INNER_ROUTER_ADDRESS);
-	ASSERT_NE(rc, -1);
+	assert_true(rc == 0);
 	rc = spdnet_register(&service);
-	ASSERT_NE(rc, -1);
+	assert_true(rc == 0);
 
 	spdnet_node_init(&requester, SPDNET_NODE, ctx);
 	rc = spdnet_connect(&requester, INNER_ROUTER_ADDRESS);
-	ASSERT_NE(rc, -1);
+	assert_true(rc == 0);
 	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "I'm xiedd.");
 	rc = spdnet_sendmsg(&requester, &msg);
-	ASSERT_NE(rc, -1);
+	assert_true(rc == 0);
 	spdnet_msg_close(&msg);
 
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(&service, &msg, 0);
-	ASSERT_NE(rc, -1);
-	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 5);
-	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5);
-	ASSERT_EQ(MSG_CONTENT_SIZE(&msg), 10);
-	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "hello", 5), 0);
-	ASSERT_EQ(memcmp(MSG_CONTENT_DATA(&msg), "I'm xiedd.", 10), 0);
+	assert_true(rc == 0);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 5);
+	assert_true(MSG_HEADER_SIZE(&msg) == 5);
+	assert_true(MSG_CONTENT_SIZE(&msg) == 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "hello", 5);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "I'm xiedd.", 10);
 	zmq_msg_close(MSG_CONTENT(&msg));
 	zmq_msg_init_size(MSG_CONTENT(&msg), 17);
 	memcpy(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17);
 	rc = spdnet_sendmsg(&service, &msg);
-	ASSERT_NE(rc, -1);
+	assert_true(rc == 0);
 	spdnet_msg_close(&msg);
 
 	sleep(1);
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(&requester, &msg, 0);
-	ASSERT_NE(rc, -1);
-	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
-	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 5);
-	ASSERT_EQ(MSG_CONTENT_SIZE(&msg), 17);
-	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg), "hello", 5), 0);
-	ASSERT_EQ(memcmp(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17), 0);
+	assert_true(rc == 0);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 7);
+	assert_true(MSG_HEADER_SIZE(&msg) == 5);
+	assert_true(MSG_CONTENT_SIZE(&msg) == 17);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "hello", 5);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17);
 	spdnet_msg_close(&msg);
 
-	ASSERT_EQ(spdnet_router_msg_routerd(&router), 5);
-	ASSERT_EQ(spdnet_router_msg_dropped(&router), 0);
+	assert_true(spdnet_router_msg_routerd(&router) == 5);
+	assert_true(spdnet_router_msg_dropped(&router) == 0);
 
 	zmq_send(spdnet_node_get_socket(&requester), "service", 7, 0);
 	sleep(1);
-	ASSERT_EQ(spdnet_router_msg_routerd(&router), 5);
-	ASSERT_EQ(spdnet_router_msg_dropped(&router), 1);
+	assert_true(spdnet_router_msg_routerd(&router) == 5);
+	assert_true(spdnet_router_msg_dropped(&router) == 1);
 
 	spdnet_node_close(&requester);
 	spdnet_node_close(&service);
@@ -90,7 +93,7 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	spdnet_nodepool_put((struct spdnet_nodepool *)snode->user_data, snode);
 }
 
-TEST(spdnet, nodepoll)
+static void test_spdnet_nodepool(void **status)
 {
 	int rc;
 	void *ctx = spdnet_ctx_create();
@@ -102,11 +105,11 @@ TEST(spdnet, nodepoll)
 	struct spdnet_node *p = spdnet_nodepool_get(&snodepool);
 	p->user_data = &snodepool;
 	rc = spdnet_connect(p, "tcp://192.168.31.12:1234");
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_sendmsg(p, &msg);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	spdnet_recvmsg_async(p, recvmsg_cb, 3000);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	spdnet_msg_close(&msg);
 
 	while (snodepool.nr_snode)
@@ -120,7 +123,7 @@ TEST(spdnet, nodepoll)
  * spdnet router
  */
 
-TEST(spdnet, router)
+static void test_spdnet_router(void **status)
 {
 	int rc;
 	void *ctx = spdnet_ctx_create();
@@ -128,9 +131,9 @@ TEST(spdnet, router)
 
 	// router inner
 	rc = spdnet_router_init(&inner, "router-inner", ctx);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_router_bind(&inner, INNER_ROUTER_ADDRESS);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	struct task inner_task;
 	task_init_timeout(&inner_task, "router-inner-task",
 	                  (task_timeout_func_t)spdnet_router_loop,
@@ -142,12 +145,12 @@ TEST(spdnet, router)
 	char inner_id[SPDNET_SOCKID_SIZE];
 	size_t inner_len;
 	rc = spdnet_router_init(&outer, NULL, ctx);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_router_bind(&outer, OUTER_ROUTER_ADDRESS);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_router_associate(&outer, INNER_ROUTER_ADDRESS,
 	                             inner_id, &inner_len);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	spdnet_router_set_gateway(&outer, inner_id, inner_len, SPDNET_ROUTER);
 	struct task outer_task;
 	task_init_timeout(&outer_task, "router-outer-task",
@@ -165,24 +168,24 @@ TEST(spdnet, router)
 	spdnet_setid(&service, "service", strlen("service"));
 
 	rc = spdnet_connect(&requester, OUTER_ROUTER_ADDRESS);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_connect(&service, INNER_ROUTER_ADDRESS);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = spdnet_register(&service);
-	assert(rc == 0);
+	assert_true(rc == 0);
 
 	// send from requester to service
 	spdnet_msg_close(&msg);
 	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "world");
 	rc = spdnet_sendmsg(&requester, &msg);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	sleep(1);
 	rc = spdnet_recvmsg(&service, &msg, 0);
-	assert(rc == 0);
-	assert(MSG_SOCKID_SIZE(&msg) == 9);
-	assert(MSG_HEADER_SIZE(&msg) == 5);
-	assert(memcmp("requester", MSG_SOCKID_DATA(&msg), 9) == 0);
-	assert(memcmp("hello", MSG_HEADER_DATA(&msg), 5) == 0);
+	assert_true(rc == 0);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 9);
+	assert_true(MSG_HEADER_SIZE(&msg) == 5);
+	assert_memory_equal("requester", MSG_SOCKID_DATA(&msg), 9);
+	assert_memory_equal("hello", MSG_HEADER_DATA(&msg), 5);
 	sleep(1);
 
 	// reply from service to requester
@@ -190,14 +193,14 @@ TEST(spdnet, router)
 	zmq_msg_init_size(MSG_HEADER(&msg), 5+6);
 	memcpy(MSG_HEADER_DATA(&msg), "hello_reply", 5+6);
 	rc = spdnet_sendmsg(&service, &msg);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	sleep(1);
 	rc = spdnet_recvmsg(&requester, &msg, 0);
-	assert(rc == 0);
-	assert(MSG_SOCKID_SIZE(&msg) == 7);
-	assert(MSG_HEADER_SIZE(&msg) == 5+6);
-	assert(memcmp("service", MSG_SOCKID_DATA(&msg), 7) == 0);
-	assert(memcmp("hello_reply", MSG_HEADER_DATA(&msg), 5+6) == 0);
+	assert_true(rc == 0);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 7);
+	assert_true(MSG_HEADER_SIZE(&msg) == 5+6);
+	assert_memory_equal("service", MSG_SOCKID_DATA(&msg), 7);
+	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 5+6);
 	sleep(1);
 
 	task_stop(&inner_task);
@@ -219,12 +222,12 @@ static void *sub_routine(void *sub)
 	zmq_msg_t msg;
 	zmq_msg_init(&msg);
 	zmq_msg_recv(&msg, sub, 0);
-	assert(strcmp((char *)zmq_msg_data(&msg), "hello pgm") == 0);
+	assert_memory_equal(zmq_msg_data(&msg), "hello pgm", 9);
 	zmq_msg_close(&msg);
 	return NULL;
 }
 
-TEST(spdnet, pgm)
+static void test_spdnet_pgm(void **status)
 {
 	// always fails
 	return;
@@ -235,10 +238,10 @@ TEST(spdnet, pgm)
 	//const char *url = "tcp://127.0.0.1:1234";
 	const char *url = "epgm://enp0s25;239.255.12.24:5964";
 	int rc = zmq_bind(pub, url);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	rc = zmq_connect(sub, url);
 	rc = zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0);
-	assert(rc == 0);
+	assert_true(rc == 0);
 	pthread_t tid;
 	pthread_create(&tid, NULL, sub_routine, sub);
 	sleep(3);
@@ -254,12 +257,13 @@ TEST(spdnet, pgm)
 	spdnet_ctx_destroy(ctx);
 }
 
-/*
- * spdnet wait
- */
-
-TEST(spdnet, wait)
+int main(void)
 {
-	// wait for other thread to exit
-	sleep(1);
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_spdnet_basic),
+		cmocka_unit_test(test_spdnet_nodepool),
+		cmocka_unit_test(test_spdnet_router),
+		cmocka_unit_test(test_spdnet_pgm),
+	};
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-libgtest()
+cmocka()
 {
-    googletest_path=$PROJECT_DIR/deps/googletest
+    cmocka_path=$PROJECT_DIR/deps/cmocka
 
     if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
-        mkdir -p $googletest_path/build && cd $googletest_path/build
+        mkdir -p $cmocka_path/build && cd $cmocka_path/build
         cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR
         make -j$JOBS && make install
         [ ! $? -eq 0 ] && exit 1
@@ -47,7 +47,7 @@ zebra()
 
 main()
 {
-    do_build libgtest
+    do_build cmocka
     do_build libzmq
     do_build extlibc
     do_build zebra

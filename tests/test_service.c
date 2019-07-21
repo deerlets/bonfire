@@ -1,5 +1,8 @@
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+#include <cmocka.h>
 #include <unistd.h>
-#include <gtest/gtest.h>
 #include "service.h"
 #include "task.h"
 
@@ -30,7 +33,7 @@ static struct service services[] = {
 	INIT_SERVICE(NULL, NULL, NULL),
 };
 
-TEST(service, servarea)
+static void test_servarea(void **status)
 {
 	struct servarea sa;
 	servarea_init(&sa, "testing");
@@ -38,23 +41,22 @@ TEST(service, servarea)
 
 	struct service *serv;
 	serv = __servarea_find_service(&sa, "hello");
-	ASSERT_NE(serv, (void *)NULL);
-	ASSERT_STREQ(serv->name, "hello");
+	assert_true(serv);
+	assert_string_equal(serv->name, "hello");
 
-	// ASSERT_EQ failed when comparing functions on Darwin
-	assert(serv->handler == on_hello);
-	assert(__servarea_find_handler(&sa, "hello") == on_hello);
+	assert_true(serv->handler == on_hello);
+	assert_true(__servarea_find_handler(&sa, "hello") == on_hello);
 
 	for (size_t i = 0; i < sizeof(services)/sizeof(struct service) - 1; i++)
 		servarea_unregister_service(&sa, services + i);
 
-	ASSERT_EQ(__servarea_find_service(&sa, "hello"), (void *)NULL);
-	ASSERT_EQ(__servarea_find_handler(&sa, "hello"), (void *)NULL);
+	assert_true(__servarea_find_service(&sa, "hello") == NULL);
+	assert_true(__servarea_find_handler(&sa, "hello") == NULL);
 
 	servarea_close(&sa);
 }
 
-TEST(service, servhub)
+static void test_servhub(void **status)
 {
 	// init spdnet router
 	void *ctx = spdnet_ctx_create();
@@ -92,12 +94,11 @@ TEST(service, servhub)
 	spdnet_sendmsg(&client, &msg);
 	sleep(1);
 	spdnet_recvmsg(&client, &msg, 0);
-	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
-	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 17+6);
-	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
-	                 "testing://zerox/t#reply", 17+6), 0);
-	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
-	                 "Welcome to zerox."), nullptr);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 7);
+	assert_true(MSG_HEADER_SIZE(&msg) == 17+6);
+	assert_memory_equal(MSG_HEADER_DATA(&msg),
+	                    "testing://zerox/t#reply", 17+6);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17);
 	spdnet_msg_close(&msg);
 	spdnet_node_close(&client);
 	// close service
@@ -114,12 +115,11 @@ TEST(service, servhub)
 	spdnet_sendmsg(&client, &msg);
 	sleep(1);
 	spdnet_recvmsg(&client, &msg, 0);
-	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 15);
-	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 18+6);
-	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
-	                 "testing2://zerox/t#reply", 18+6), 0);
-	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
-	                 "Welcome to zerox."), nullptr);
+	assert_true(MSG_SOCKID_SIZE(&msg) == 15);
+	assert_true(MSG_HEADER_SIZE(&msg) == 18+6);
+	assert_memory_equal(MSG_HEADER_DATA(&msg),
+	                    "testing2://zerox/t#reply", 18+6);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "Welcome to zerox.", 17);
 	spdnet_msg_close(&msg);
 	spdnet_node_close(&client);
 	// close service
@@ -136,4 +136,13 @@ TEST(service, servhub)
 	task_close(&router_task);
 	spdnet_router_close(&router);
 	spdnet_ctx_destroy(ctx);
+}
+
+int main(void)
+{
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(test_servarea),
+		cmocka_unit_test(test_servhub),
+	};
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }
