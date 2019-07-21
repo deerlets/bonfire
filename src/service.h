@@ -1,9 +1,7 @@
 #ifndef __ZEBRA_SERVICE_H
 #define __ZEBRA_SERVICE_H
 
-#include <assert.h>
 #include <stddef.h>
-#include <string.h>
 #include <pthread.h>
 #include <spdnet.h>
 #include "list.h"

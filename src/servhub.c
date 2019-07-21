@@ -375,9 +375,10 @@ __servhub_service_call(struct servhub *hub, struct servmsg *sm)
 	spdnet_node_init(&snode, SPDNET_NODE, hub->snodepool->ctx);
 
 	rc = spdnet_connect(&snode, hub->router_addr);
-	assert(rc == 0);
+	if (rc) goto errout;
+
 	rc = spdnet_sendmsg(&snode, &sm->request);
-	assert(rc == 0);
+	if (rc) goto errout;
 
 	zmq_pollitem_t item;
 	item.socket = spdnet_node_get_socket(&snode);
@@ -388,9 +389,9 @@ __servhub_service_call(struct servhub *hub, struct servmsg *sm)
 		rc = -1;
 	} else {
 		rc = spdnet_recvmsg(&snode, &sm->response, 0);
-		assert(rc == 0);
 	}
 
+errout:
 	spdnet_node_close(&snode);
 	return rc;
 }

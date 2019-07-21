@@ -1,6 +1,7 @@
 #ifndef __ZEBRA_SPDNET_H
 #define __ZEBRA_SPDNET_H
 
+#include <stddef.h>
 #include <pthread.h>
 #include <zmq.h>
 

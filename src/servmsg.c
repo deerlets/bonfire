@@ -1,4 +1,6 @@
 #include "service.h"
+#include <assert.h>
+#include <string.h>
 
 void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
 {
