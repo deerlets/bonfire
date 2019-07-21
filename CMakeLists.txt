@@ -48,7 +48,9 @@ include_directories(deps/extlibc/src)
 
 # zebra
 include_directories(include)
-link_directories(${PROJECT_SOURCE_DIR}/lib)
+if (EXISTS ${PROJECT_SOURCE_DIR}/lib)
+    link_directories(${PROJECT_SOURCE_DIR}/lib)
+endif ()
 
 include_directories(src/spdnet)
 add_subdirectory(src/spdnet)
