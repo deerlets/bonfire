@@ -109,9 +109,9 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	// find servarea
 	pthread_mutex_lock(&hub->servareas_lock);
 	struct servarea *sa;
-	if (!(sa = find_servarea(hub, sm->header, sm->area_len))) {
+	if (!(sa = find_servarea(hub, sm->area, sm->area_len))) {
 		pthread_mutex_unlock(&hub->servareas_lock);
-		sm->rc = SERVICE_ENOSERV;
+		sm->err = SERVICE_ENOSERV;
 		sm->state = SM_HANDLED;
 		return;
 	}
@@ -123,10 +123,10 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 
 	// call handler
 	if (!fn) {
-		sm->rc = SERVICE_ENOREQ;
+		sm->err = SERVICE_ENOREQ;
 		sm->state = SM_HANDLED;
 	} else {
-		sm->rc = fn(sm);
+		sm->err = fn(sm);
 		if (sm->state < SM_PENDING)
 			sm->state = SM_HANDLED;
 	}
@@ -159,12 +159,12 @@ static void do_servmsg(struct servhub *hub)
 				hub->finished_cb(pos);
 		} else {
 			if (pos->state == SM_TIMEOUT)
-				pos->rc = SERVICE_ETIMEOUT;
+				pos->err = SERVICE_ETIMEOUT;
 
 			if (hub->finished_cb)
 				hub->finished_cb(pos);
 
-			if (pos->src)
+			if (pos->srcid)
 				spdnet_sendmsg(pos->snode, &pos->response);
 		}
 
@@ -190,8 +190,23 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	assert(filter_wrong_spdnet_msg(hub, msg, snode) == 0);
 
 	struct servmsg *sm = malloc(sizeof(*sm));
-	servmsg_init(sm, msg, snode);
+	servmsg_init(sm, msg);
+
+	// set sockid of sm->response to srcid
+	spdnet_frame_copy(MSG_SOCKID(&sm->response), MSG_SOCKID(&sm->request));
+	sm->srcid = MSG_SOCKID_DATA(&sm->response);
+	sm->srcid_len = MSG_SOCKID_SIZE(&sm->response);
+
+	// set sockid of sm->request to dstid
+	spdnet_frame_close(MSG_SOCKID(&sm->request));
+	spdnet_frame_init_size(MSG_SOCKID(&sm->request), snode->id_len);
+	memcpy(MSG_SOCKID_DATA(&sm->request), snode->id, snode->id_len);
+	sm->dstid = MSG_SOCKID_DATA(&sm->request);
+	sm->dstid_len = MSG_SOCKID_SIZE(&sm->request);
+
+	sm->snode = snode;
 	list_add(&sm->node, &hub->servmsgs);
+
 	hub->servmsg_total++;
 	hub->servmsg_doing++;
 
@@ -337,7 +352,10 @@ static int
 __servhub_service_call_local(struct servhub *hub, struct spdnet_msg *msg)
 {
 	struct servmsg sm;
-	servmsg_init_uninterruptible(&sm, msg, NULL);
+	servmsg_init(&sm, msg);
+	sm.dstid = MSG_SOCKID_DATA(&sm.request);
+	sm.dstid_len = MSG_SOCKID_SIZE(&sm.request);
+	sm.state = SM_RAW_UNINTERRUPTIBLE;
 
 	if (hub->prepare_cb)
 		hub->prepare_cb(&sm);

@@ -95,7 +95,7 @@ TEST(service, servhub)
 	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 7);
 	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 17+6);
 	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
-	                 "testing://zerox/t_reply", 17+6), 0);
+	                 "testing://zerox/t#reply", 17+6), 0);
 	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
 	                 "Welcome to zerox."), nullptr);
 	spdnet_msg_close(&msg);
@@ -117,7 +117,7 @@ TEST(service, servhub)
 	ASSERT_EQ(MSG_SOCKID_SIZE(&msg), 15);
 	ASSERT_EQ(MSG_HEADER_SIZE(&msg), 18+6);
 	ASSERT_EQ(memcmp(MSG_HEADER_DATA(&msg),
-	                 "testing2://zerox/t_reply", 18+6), 0);
+	                 "testing2://zerox/t#reply", 18+6), 0);
 	ASSERT_NE(strstr((char *)MSG_CONTENT_DATA(&msg),
 	                 "Welcome to zerox."), nullptr);
 	spdnet_msg_close(&msg);

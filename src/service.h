@@ -40,7 +40,7 @@ const char *service_strerror(int err);
  * servmsg
  */
 
-enum servmsg_state {
+enum servmsg_lifetime_state {
 	// raw
 	SM_RAW_UNINTERRUPTIBLE = 0,
 	SM_RAW_INTERRUPTIBLE,
@@ -55,34 +55,46 @@ enum servmsg_state {
 };
 
 struct servmsg {
+	// sockid of request should be dstid after init before using
 	struct spdnet_msg request;
+
+	// sockid of response should be srcid after init before using
 	struct spdnet_msg response;
-	struct spdnet_node *snode;
 
-	const void *src;
-	size_t src_len;
-	const void *dest;
-	size_t dest_len;
+	/* private: used by inner servhub */
 
+	// request convenient
 	const void *header;
 	size_t header_len;
-	// uri scheme, area always equal header
+	const void *area;
 	size_t area_len;
 	const void *service;
 	size_t service_len;
 
-	void *user_data;
-	int rc;
-	const char *errmsg;
+	// srcid & dstid
+	const void *srcid;
+	size_t srcid_len;
+	const void *dstid;
+	size_t dstid_len;
+
+	// snode which received the request
+	struct spdnet_node *snode;
+
+	// lifetime state
 	int state;
 
+	// errno and errmsg returned from handlers
+	int err;
+	const char *errmsg;
+
+	// msg list for servhub
 	struct zebra_list_head node;
+
+	// servhub never touch this filed
+	void *user_data;
 };
 
-void servmsg_init(struct servmsg *sm, struct spdnet_msg *msg,
-                  struct spdnet_node *snode);
-void servmsg_init_uninterruptible(struct servmsg *sm, struct spdnet_msg *msg,
-                                  struct spdnet_node *snode);
+void servmsg_init(struct servmsg *sm, struct spdnet_msg *request);
 void servmsg_close(struct servmsg *sm);
 
 int servmsg_interruptible(struct servmsg *sm);
