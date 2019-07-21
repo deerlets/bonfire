@@ -218,11 +218,12 @@ int servhub_init(struct servhub *hub,
                  const char *router_addr,
                  struct spdnet_nodepool *snodepool)
 {
-	assert(strlen(router_addr) < SPDNET_ADDRESS_SIZE);
+	assert(id && strlen(id) < SPDNET_SOCKID_SIZE);
+	assert(router_addr && strlen(router_addr) < SPDNET_ADDRESS_SIZE);
 	memset(hub, 0, sizeof(*hub));
 
-	hub->id = id;
-	hub->router_addr = router_addr;
+	strcpy(hub->id, id);
+	strcpy(hub->router_addr, router_addr);
 	hub->snodepool = snodepool;
 
 	hub->prepare_cb = NULL;

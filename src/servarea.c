@@ -21,9 +21,10 @@ static unsigned int calc_tag(const void *buf, size_t len)
 
 int servarea_init(struct servarea *sa, const char *name)
 {
+	assert(name && strlen(name) < SERVAREA_NAME_SIZE);
 	memset(sa, 0, sizeof(*sa));
 
-	sa->name = name;
+	strcpy(sa->name, name);
 	sa->servtab = (struct hlist_head *)calloc(
 		NR_SERVICE, sizeof(struct hlist_head));
 	if (sa->servtab == NULL)

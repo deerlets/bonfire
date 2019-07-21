@@ -131,8 +131,10 @@ struct service {
  * servarea
  */
 
+#define SERVAREA_NAME_SIZE 64
+
 struct servarea {
-	const char *name;
+	char name[SERVAREA_NAME_SIZE];
 	struct zebra_hlist_head *servtab;
 	struct zebra_list_head services;
 	struct zebra_list_head node;
@@ -157,8 +159,8 @@ servarea_find_handler(struct servarea *sa, const char *name, size_t len);
  */
 
 struct servhub {
-	const char *id;
-	const char *router_addr;
+	char id[SPDNET_SOCKID_SIZE];
+	char router_addr[SPDNET_ADDRESS_SIZE];
 	struct spdnet_nodepool *snodepool;
 	// default snode used by servhub
 	struct spdnet_node *snode;
