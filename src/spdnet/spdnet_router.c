@@ -59,7 +59,10 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	*len = MSG_CONTENT_SIZE(&msg);
 	memcpy(id, MSG_CONTENT_DATA(&msg), *len);
 	rc = z_recv_not_more(socket, MSG_CONTENT(&msg), 0);
-	if (rc == -1) goto finally;
+	if (rc == -1) {
+		z_clear(socket);
+		goto finally;
+	}
 #endif
 
 finally:
@@ -171,7 +174,10 @@ static int handle_msg_from_router(struct spdnet_router *router, zmq_msg_t *rid)
 	rc = z_recv_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 	rc = z_recv_not_more(socket, &meta, 0);
-	if (rc == -1) goto finally;
+	if (rc == -1) {
+		z_clear(socket);
+		goto finally;
+	}
 
 #ifdef SPDNET_DEBUG
 	char *__rid = calloc(1, zmq_msg_size(rid) + 1);
@@ -296,7 +302,10 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 	rc = z_recv_more(socket, &meta, 0);
 	if (rc == -1) goto finally;
 	rc = z_recv_not_more(socket, &meta, 0);
-	if (rc == -1) goto finally;
+	if (rc == -1) {
+		z_clear(socket);
+		goto finally;
+	}
 
 #ifdef SPDNET_DEBUG
 	char *__srcid = calloc(1, zmq_msg_size(srcid) + 1);
@@ -395,26 +404,40 @@ static int on_pollin(struct spdnet_router *router)
 #if defined(__WIN32)
 	// zmq_msg_gets always fails with srcid
 	const char *socket_type = zmq_msg_gets(&delimiter, "Socket-Type");
-	assert(socket_type);
+	if (!socket_type) {
+		z_clear(socket);
+		errno = SPDNET_ESOCKETTYPE;
+		rc = -1;
+		goto finally;
+	}
 
 	if (!strcmp(socket_type, "ROUTER"))
 		rc = handle_msg_from_router(router, &srcid);
 	else if (!strcmp(socket_type, "DEALER"))
 		rc = handle_msg_from_node(router, &srcid);
 	else {
+		z_clear(socket);
 		errno = SPDNET_ESOCKETTYPE;
 		rc = -1;
+		goto finally;
 	}
 #else
-	assert(zmq_msg_size(&delimiter) == 1);
+	if (zmq_msg_size(&delimiter) != 1) {
+		z_clear(socket);
+		errno = SPDNET_ESOCKETTYPE;
+		rc = -1;
+		goto finally;
+	}
 	uint8_t *type = zmq_msg_data(&delimiter);
 	if (*type == SPDNET_ROUTER)
 		rc = handle_msg_from_router(router, &srcid);
 	else if (*type == SPDNET_NODE)
 		rc = handle_msg_from_node(router, &srcid);
 	else {
+		z_clear(socket);
 		errno = SPDNET_ESOCKETTYPE;
 		rc = -1;
+		goto finally;
 	}
 #endif
 

@@ -243,6 +243,7 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	}
 	rc = z_recv_not_more(snode->socket, &meta_msg, flags);
 	if (rc == -1) {
+		z_clear(snode->socket);
 		zmq_msg_close(&meta_msg);
 		return -1;
 	}

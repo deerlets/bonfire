@@ -20,10 +20,26 @@ int spdnet_ctx_destroy(void *ctx)
  * zhelper
  */
 
+void z_clear(void *s)
+{
+	zmq_msg_t msg;
+
+	zmq_msg_init(&msg);
+
+	do {
+		if (zmq_msg_recv(&msg, s, ZMQ_DONTWAIT) == -1)
+			break;
+	} while (zmq_msg_more(&msg));
+
+	zmq_msg_close(&msg);
+}
+
 int z_recv_more(void *s, zmq_msg_t *msg, int flags)
 {
-	if (zmq_msg_recv(msg, s, flags) == -1)
+	if (zmq_msg_recv(msg, s, flags) == -1) {
+		errno = SPDNET_EIO;
 		return -1;
+	}
 
 	if (!zmq_msg_more(msg)) {
 		errno = SPDNET_EPROTOCOL;
@@ -35,14 +51,12 @@ int z_recv_more(void *s, zmq_msg_t *msg, int flags)
 
 int z_recv_not_more(void *s, zmq_msg_t *msg, int flags)
 {
-	if (zmq_msg_recv(msg, s, flags) == -1)
+	if (zmq_msg_recv(msg, s, flags) == -1) {
+		errno = SPDNET_EIO;
 		return -1;
+	}
 
 	if (zmq_msg_more(msg)) {
-		do {
-			if (zmq_msg_recv(msg, s, ZMQ_DONTWAIT) == -1)
-				break;
-		} while (zmq_msg_more(msg));
 		errno = SPDNET_EPROTOCOL;
 		return -1;
 	}

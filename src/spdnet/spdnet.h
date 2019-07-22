@@ -80,7 +80,8 @@ extern "C" {
 	XX(EINVAL, "invalid argument") \
 	XX(ESOCKETTYPE, "unsupported socket type") \
 	XX(EPROTOCOL, "protocol error") \
-	XX(EROUTING, "can't routing")
+	XX(EROUTING, "can't routing") \
+	XX(EIO, "recv or send error")
 
 typedef enum {
 	SPDNET_ERRNO_MIN = 10000,
@@ -167,6 +168,7 @@ int spdnet_ctx_destroy(void *ctx);
  * zhelper
  */
 
+void z_clear(void *s);
 int z_recv_more(void *s, spdnet_frame_t *frame, int flags);
 int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 
