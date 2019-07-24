@@ -1,9 +1,3 @@
-[submodule "deps/libzmq"]
-	path = deps/libzmq
-	url = https://github.com/zeromq/libzmq
 [submodule "deps/extlibc"]
 	path = deps/extlibc
 	url = https://github.com/deerlets/extlibc.git
-[submodule "deps/cmocka"]
-	path = deps/cmocka
-	url = https://git.cryptomilk.org/projects/cmocka.git
