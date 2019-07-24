@@ -10,8 +10,14 @@ A service discovery and registry framework written in pure C.
 - MacOS
 - Msys2
 
-## Build
+## Dependences
+
+- cmocka
+- libzmq
+
+## Build on Ubuntu
 ```
+apt-get install libcmocka-dev libzmq3-dev
 mkdir build && cd build
 cmake .. && make
 ```
