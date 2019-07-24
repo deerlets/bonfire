@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
+project(zebra)
+
 set(CMAKE_MACOSX_RPATH 1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -15,7 +17,7 @@ else ()
     message(STATUS "Build with -O3 for release")
 endif ()
 
-option(DEBUG_SPDNET "Debug spdnet" OFF)
+option(SPDNET_DEBUG "Debug spdnet" OFF)
 if (SPDNET_DEBUG)
     add_definitions(-DSPDNET_DEBUG)
 endif ()
@@ -25,37 +27,19 @@ if (HAVE_ZMQ_BUG)
     add_definitions(-DHAVE_ZMQ_BUG)
 endif ()
 
-# git submodule
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
-# Update submodules as needed
-    option(GIT_SUBMODULE "Check submodules during build" ON)
-    if(GIT_SUBMODULE)
-        message(STATUS "Submodule update")
-        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive
-                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
-        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
-            message(FATAL_ERROR "git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
-        endif()
-    endif()
-endif()
+# extlibc
+include_directories(src/extlibc)
+add_subdirectory(src/extlibc)
 
-# extlibc, only used extlist.h
-include_directories(deps/extlibc/src)
-#add_subdirectory(deps/extlibc)
-
-# zebra
-include_directories(include)
-if (EXISTS ${PROJECT_SOURCE_DIR}/lib)
-    link_directories(${PROJECT_SOURCE_DIR}/lib)
-endif ()
-
+# spdnet
 include_directories(src/spdnet)
 add_subdirectory(src/spdnet)
+
+# zebra
 include_directories(src)
 add_subdirectory(src)
 
+# tests
 option(BUILD_TESTS "Build all tests." OFF)
 if (BUILD_TESTS)
     enable_testing()
