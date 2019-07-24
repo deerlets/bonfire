@@ -18,3 +18,4 @@ disable-rules:
   - UnusedMethodParameter
   - BitwiseOperatorInConditional
   - ConstantConditionalOperator # switch, snprintf
+  - UselessParentheses

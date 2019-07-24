@@ -8,8 +8,9 @@
 const char *spdnet_strerror(int err) {
 	switch (err) {
 		SPDNET_ERRNO_MAP(SPDNET_STRERROR_GEN)
+	default:
+		return zmq_strerror(err);
 	}
-	return zmq_strerror(err);
 }
 #undef SPDNET_STRERROR_GEN
 

@@ -15,8 +15,9 @@ struct servhub *default_servhub(void)
 const char *service_strerror(int err) {
 	switch (err) {
 		SERVICE_ERRNO_MAP(SERVICE_STRERROR_GEN)
+	default:
+		return "unknown errno";
 	}
-	return "unknown errno";
 }
 #undef SERVICE_STRERROR_GEN
 
@@ -414,8 +415,8 @@ int servhub_service_call(struct servhub *hub, struct servmsg *sm)
 	if (MSG_SOCKID_SIZE(req) == 0)
 		return __servhub_service_call_local(hub, sm);
 
-	if ((MSG_SOCKID_SIZE(req) == strlen(hub->id) &&
-	    !memcmp(MSG_SOCKID_DATA(req), hub->id, strlen(hub->id))))
+	if (MSG_SOCKID_SIZE(req) == strlen(hub->id) &&
+	    !memcmp(MSG_SOCKID_DATA(req), hub->id, strlen(hub->id)))
 		return __servhub_service_call_local(hub, sm);
 
 	return __servhub_service_call(hub, sm);
