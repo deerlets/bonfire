@@ -103,11 +103,10 @@ void servmsg_handled(struct servmsg *sm, int err)
 	sm->err = err;
 }
 
-int servmsg_error(struct servmsg *sm, int err, const char *errmsg)
+void servmsg_set_error(struct servmsg *sm, int err, const char *errmsg)
 {
 	sm->err = err;
 	sm->errmsg = errmsg;
-	return err;
 }
 
 const char *servmsg_reqid(struct servmsg *sm)

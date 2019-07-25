@@ -99,7 +99,7 @@ void servmsg_pending(struct servmsg *sm);
 void servmsg_filtered(struct servmsg *sm);
 void servmsg_timeout(struct servmsg *sm);
 void servmsg_handled(struct servmsg *sm, int rc);
-int servmsg_error(struct servmsg *sm, int err, const char *errmsg);
+void servmsg_set_error(struct servmsg *sm, int err, const char *errmsg);
 
 const char *servmsg_reqid(struct servmsg *sm);
 int servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size);
