@@ -7,7 +7,7 @@
 #include "list.h"
 
 #define SERVAREA_DELIMITER "://"
-#define SERVICE_DELIMITER '/'
+#define SERVICE_DELIMITER '?'
 #define RESPONSE_SUBFIX "#reply"
 #define RESPONSE_SUBFIX_LEN (sizeof(RESPONSE_SUBFIX) - 1)
 
