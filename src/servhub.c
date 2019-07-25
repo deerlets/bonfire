@@ -16,17 +16,12 @@ const char *service_strerror(int err) {
 	switch (err) {
 		SERVICE_ERRNO_MAP(SERVICE_STRERROR_GEN)
 	default:
-		return "unknown errno";
+		return "Unknown errno";
 	}
 }
 #undef SERVICE_STRERROR_GEN
 
-static int on_blackhole(struct servmsg *sm)
-{
-	return SERVICE_ENOSERV;
-}
-
-static int on_services(struct servmsg *sm)
+static void on_services(struct servmsg *sm)
 {
 	struct servhub *hub = sm->snode->user_data;
 
@@ -63,11 +58,9 @@ static int on_services(struct servmsg *sm)
 	nr += sprintf(buf + nr, "]}");
 	servmsg_respcnt_reset_data(sm, buf, -1);
 	free(buf);
-	return 0;
 }
 
 static struct service services[] = {
-	INIT_SERVICE_PRIVATE("blackhole", on_blackhole, NULL),
 	INIT_SERVICE("services", on_services, NULL),
 	INIT_SERVICE(NULL, NULL, NULL),
 };
@@ -113,6 +106,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	if (!(sa = find_servarea(hub, sm->area, sm->area_len))) {
 		pthread_mutex_unlock(&hub->servareas_lock);
 		sm->err = SERVICE_ENOSERV;
+		sm->errmsg = service_strerror(sm->err);
 		sm->state = SM_HANDLED;
 		return;
 	}
@@ -121,16 +115,17 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	service_handler_func_t fn;
 	fn = servarea_find_handler(sa, sm->service, sm->service_len);
 	pthread_mutex_unlock(&hub->servareas_lock);
+	if (!fn) {
+		sm->err = SERVICE_ENOSERV;
+		sm->errmsg = service_strerror(sm->err);
+		sm->state = SM_HANDLED;
+		return;
+	}
 
 	// call handler
-	if (!fn) {
-		sm->err = SERVICE_ENOREQ;
+	fn(sm);
+	if (sm->state < SM_PENDING)
 		sm->state = SM_HANDLED;
-	} else {
-		sm->err = fn(sm);
-		if (sm->state < SM_PENDING)
-			sm->state = SM_HANDLED;
-	}
 }
 
 static void do_servmsg(struct servhub *hub)
@@ -329,18 +324,18 @@ void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode)
 	snode->recvmsg_cb = NULL;
 }
 
-service_prepare_func_t
-servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb)
+service_handler_func_t
+servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb)
 {
-	service_prepare_func_t last = hub->prepare_cb;
+	service_handler_func_t last = hub->prepare_cb;
 	hub->prepare_cb = prepare_cb;
 	return last;
 }
 
-service_prepare_func_t
-servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb)
+service_handler_func_t
+servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb)
 {
-	service_prepare_func_t last = hub->finished_cb;
+	service_handler_func_t last = hub->finished_cb;
 	hub->finished_cb = finished_cb;
 	return last;
 }

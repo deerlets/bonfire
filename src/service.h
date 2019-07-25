@@ -9,7 +9,7 @@
 #define SERVAREA_DELIMITER "://"
 #define SERVICE_DELIMITER '/'
 #define RESPONSE_SUBFIX "#reply"
-#define RESPONSE_SUBFIX_LEN strlen(RESPONSE_SUBFIX)
+#define RESPONSE_SUBFIX_LEN (sizeof(RESPONSE_SUBFIX) - 1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,9 +21,8 @@ extern "C" {
 
 #define SERVICE_ERRNO_MAP(XX) \
 	XX(EOK, "OK") \
-	XX(ETIMEOUT, "timeout") \
-	XX(ENOSERV, "service unknown") \
-	XX(ENOREQ, "request unknown")
+	XX(ENOSERV, "No service") \
+	XX(ETIMEOUT, "Timeout")
 
 typedef enum {
 #define XX(code, _) SERVICE_##code,
@@ -109,8 +108,7 @@ int servmsg_respcnt_reset_data(struct servmsg *sm, const void *data, int size);
  * service
  */
 
-typedef void (*service_prepare_func_t)(struct servmsg *sm);
-typedef int (*service_handler_func_t)(struct servmsg *sm);
+typedef void (*service_handler_func_t)(struct servmsg *sm);
 
 struct service {
 	const char *name;
@@ -165,8 +163,8 @@ struct servhub {
 	// default snode used by servhub
 	struct spdnet_node *snode;
 
-	service_prepare_func_t prepare_cb;
-	service_prepare_func_t finished_cb;
+	service_handler_func_t prepare_cb;
+	service_handler_func_t finished_cb;
 
 	struct zebra_list_head servareas;
 	pthread_mutex_t servareas_lock;
@@ -199,10 +197,10 @@ int servhub_unregister_servarea(struct servhub *hub,
                                 const char *sockid);
 void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode);
 void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode);
-service_prepare_func_t
-servhub_set_prepare(struct servhub *hub, service_prepare_func_t prepare_cb);
-service_prepare_func_t
-servhub_set_finished(struct servhub *hub, service_prepare_func_t finished_cb);
+service_handler_func_t
+servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb);
+service_handler_func_t
+servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb);
 void servhub_set_service_call_timeout(struct servhub *hub, long timeout);
 int servhub_service_call(struct servhub *hub, struct servmsg *sm);
 int servhub_loop(struct servhub *hub, long timeout);

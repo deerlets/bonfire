@@ -57,8 +57,8 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
 
 	// ...
 	sm->state = SM_RAW_INTERRUPTIBLE;
-	sm->err = 0;
-	sm->errmsg = NULL;
+	sm->err = SERVICE_EOK;
+	sm->errmsg = service_strerror(SERVICE_EOK);
 	INIT_LIST_HEAD(&sm->node);
 	sm->user_data = NULL;
 }

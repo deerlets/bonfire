@@ -8,22 +8,19 @@
 
 #define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
 
-static int on_hello(struct servmsg *sm)
+static void on_hello(struct servmsg *sm)
 {
-	return 0;
 }
 
-static int on_world(struct servmsg *sm)
+static void on_world(struct servmsg *sm)
 {
-	return 0;
 }
 
-static int on_zerox(struct servmsg *sm)
+static void on_zerox(struct servmsg *sm)
 {
 	char welcome[] = "Welcome to zerox.";
 
 	servmsg_respcnt_reset_data(sm, welcome, -1);
-	return 0;
 }
 
 static struct service services[] = {
