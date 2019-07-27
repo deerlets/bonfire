@@ -2,6 +2,7 @@
 #define __ZEBRA_SPDNET_H
 
 #include <stddef.h>
+#include <time.h>
 #include <pthread.h>
 #include <zmq.h>
 
