@@ -7,7 +7,7 @@ add_definitions(-DZEBRA_INTERNAL)
 
 add_library(zebra SHARED ${SRC})
 set_target_properties(zebra PROPERTIES PUBLIC_HEADER "${INC}")
-set_target_properties(zebra PROPERTIES VERSION 1.5.0 SOVERSION 1)
+set_target_properties(zebra PROPERTIES VERSION 1.6.0 SOVERSION 1)
 target_link_libraries(zebra pthread dl spdnet)
 
 install(TARGETS zebra
