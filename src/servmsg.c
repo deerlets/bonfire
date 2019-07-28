@@ -2,12 +2,39 @@
 #include <assert.h>
 #include <string.h>
 
-void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
+static void __servmsg_init(struct servmsg *sm)
 {
 	memset(sm, 0, sizeof(*sm));
-
-	// copy request
 	spdnet_msg_init(&sm->request);
+	spdnet_msg_init(&sm->response);
+
+	sm->header = NULL;
+	sm->header_len = 0;
+	sm->area = NULL;
+	sm->area_len = 0;
+	sm->service = NULL;
+	sm->service_len = 0;
+
+	// srcid & dstid
+	sm->srcid = NULL;
+	sm->srcid_len = 0;
+	sm->dstid = NULL;
+	sm->dstid_len = 0;
+
+	// snode which received the request
+	sm->snode = NULL;
+
+	// ...
+	sm->state = SM_RAW_INTERRUPTIBLE;
+	sm->err = SERVICE_EOK;
+	sm->errmsg = service_strerror(SERVICE_EOK);
+	INIT_LIST_HEAD(&sm->node);
+	sm->user_data = NULL;
+}
+
+void servmsg_set_request(struct servmsg *sm, struct spdnet_msg *request)
+{
+	// copy request
 	spdnet_msg_move(&sm->request, request);
 
 	void *header = MSG_HEADER_DATA(&sm->request);
@@ -15,7 +42,6 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
 
 	// init response
 	// TODO: need performance optimization
-	spdnet_msg_init_data(&sm->response, NULL, 0, NULL, 0, NULL, 0);
 	zmq_msg_close(MSG_HEADER(&sm->response));
 	zmq_msg_init_size(MSG_HEADER(&sm->response),
 	                  hdr_len + RESPONSE_SUBFIX_LEN);
@@ -45,22 +71,23 @@ void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
 				- (char *)sm->service;
 		}
 	}
+}
 
-	// srcid & dstid
-	sm->srcid = NULL;
-	sm->srcid_len = 0;
-	sm->dstid = NULL;
-	sm->dstid_len = 0;
+void servmsg_init(struct servmsg *sm, struct spdnet_msg *request)
+{
+	__servmsg_init(sm);
+	servmsg_set_request(sm, request);
+}
 
-	// snode which received the request
-	sm->snode = NULL;
+void servmsg_init2(struct servmsg *sm, const char *req_sockid,
+                   const char *req_header, const char *req_content)
+{
+	__servmsg_init(sm);
 
-	// ...
-	sm->state = SM_RAW_INTERRUPTIBLE;
-	sm->err = SERVICE_EOK;
-	sm->errmsg = service_strerror(SERVICE_EOK);
-	INIT_LIST_HEAD(&sm->node);
-	sm->user_data = NULL;
+	struct spdnet_msg msg;
+	SPDNET_MSG_INIT_DATA(&msg, req_sockid, req_header, req_content);
+	servmsg_set_request(sm, &msg);
+	spdnet_msg_close(&msg);
 }
 
 void servmsg_close(struct servmsg *sm)
@@ -96,11 +123,10 @@ void servmsg_timeout(struct servmsg *sm)
 	sm->state = SM_TIMEOUT;
 }
 
-void servmsg_handled(struct servmsg *sm, int err)
+void servmsg_handled(struct servmsg *sm)
 {
 	assert(sm->state <= SM_PENDING);
 	sm->state = SM_HANDLED;
-	sm->err = err;
 }
 
 void servmsg_set_error(struct servmsg *sm, int err, const char *errmsg)

@@ -236,7 +236,6 @@ int servhub_init(struct servhub *hub,
 	hub->servmsg_handled = 0;
 
 	hub->pid = 0;
-	hub->service_call_timeout = 1000;
 
 	hub->user_data = NULL;
 
@@ -340,13 +339,58 @@ servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb)
 	return last;
 }
 
-void servhub_set_service_call_timeout(struct servhub *hub, long timeout)
+struct async_struct {
+	struct servmsg *sm;
+	servcall_cb cb;
+	void *arg;
+	struct spdnet_nodepool *snodepool;
+};
+
+static void async_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
-	hub->service_call_timeout = timeout;
+	struct async_struct *as = snode->user_data;
+	int flag = 0;
+
+	if (msg)
+		spdnet_frame_move(MSG_CONTENT(&as->sm->response),
+		                  MSG_CONTENT(msg));
+	else
+		flag = 1;
+
+	as->cb(as->sm, as->arg, flag);
+
+	snode->user_data = NULL;
+	spdnet_nodepool_put(as->snodepool, snode);
+
+	free(as);
+}
+
+void servhub_servcall(struct servhub *hub, struct servmsg *sm,
+                      servcall_cb cb, void *arg, long timeout)
+{
+	int rc;
+	struct spdnet_node *snode = spdnet_nodepool_get(hub->snodepool);
+	assert(snode);
+
+	rc = spdnet_connect(snode, hub->router_addr);
+	assert(rc == 0);
+
+	rc = spdnet_sendmsg(snode, &sm->request);
+	assert(rc == 0);
+
+	struct async_struct *as = malloc(sizeof(*as));
+	assert(as);
+	as->sm = sm;
+	as->cb = cb;
+	as->arg = arg;
+	as->snodepool = hub->snodepool;
+	assert(snode->user_data == NULL);
+	snode->user_data = as;
+	spdnet_recvmsg_async(snode, async_cb, timeout);
 }
 
 static int
-__servhub_service_call_local(struct servhub *hub, struct servmsg *sm)
+__servhub_servcall_local(struct servhub *hub, struct servmsg *sm)
 {
 	sm->dstid = MSG_SOCKID_DATA(&sm->request);
 	sm->dstid_len = MSG_SOCKID_SIZE(&sm->request);
@@ -365,7 +409,7 @@ __servhub_service_call_local(struct servhub *hub, struct servmsg *sm)
 }
 
 static int
-__servhub_service_call(struct servhub *hub, struct servmsg *sm)
+__servhub_servcall_local2(struct servhub *hub, struct servmsg *sm)
 {
 	int rc;
 	struct spdnet_node snode;
@@ -382,7 +426,7 @@ __servhub_service_call(struct servhub *hub, struct servmsg *sm)
 	item.fd = 0;
 	item.events = ZMQ_POLLIN;
 	item.revents = 0;
-	if (zmq_poll(&item, 1, hub->service_call_timeout) != 1) {
+	if (zmq_poll(&item, 1, 100) != 1) {
 		rc = -1;
 	} else {
 		rc = spdnet_recvmsg(&snode, &sm->response, 0);
@@ -393,7 +437,7 @@ errout:
 	return rc;
 }
 
-int servhub_service_call(struct servhub *hub, struct servmsg *sm)
+int servhub_servcall_local(struct servhub *hub, struct servmsg *sm)
 {
 	struct spdnet_msg *req = &sm->request;
 
@@ -404,17 +448,10 @@ int servhub_service_call(struct servhub *hub, struct servmsg *sm)
 			spdnet_frame_init_size(MSG_SOCKID(req), strlen(hub->id));
 			memcpy(MSG_SOCKID_DATA(req), hub->id, strlen(hub->id));
 		}
-		return __servhub_service_call(hub, sm);
+		return __servhub_servcall_local2(hub, sm);
 	}
 
-	if (MSG_SOCKID_SIZE(req) == 0)
-		return __servhub_service_call_local(hub, sm);
-
-	if (MSG_SOCKID_SIZE(req) == strlen(hub->id) &&
-	    !memcmp(MSG_SOCKID_DATA(req), hub->id, strlen(hub->id)))
-		return __servhub_service_call_local(hub, sm);
-
-	return __servhub_service_call(hub, sm);
+	return __servhub_servcall_local(hub, sm);
 }
 
 int servhub_loop(struct servhub *hub, long timeout)

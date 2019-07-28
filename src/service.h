@@ -92,13 +92,15 @@ struct servmsg {
 };
 
 void servmsg_init(struct servmsg *sm, struct spdnet_msg *request);
+void servmsg_init2(struct servmsg *sm, const char *req_sockid,
+                   const char *req_header, const char *req_content);
 void servmsg_close(struct servmsg *sm);
 
 int servmsg_interruptible(struct servmsg *sm);
 void servmsg_pending(struct servmsg *sm);
 void servmsg_filtered(struct servmsg *sm);
 void servmsg_timeout(struct servmsg *sm);
-void servmsg_handled(struct servmsg *sm, int rc);
+void servmsg_handled(struct servmsg *sm);
 void servmsg_set_error(struct servmsg *sm, int err, const char *errmsg);
 
 const char *servmsg_reqid(struct servmsg *sm);
@@ -176,7 +178,6 @@ struct servhub {
 	int servmsg_timeout;
 	int servmsg_handled;
 
-	int service_call_timeout;
 	pthread_t pid;
 
 	void *user_data;
@@ -187,6 +188,7 @@ int servhub_init(struct servhub *hub,
                  const char *router_addr,
                  struct spdnet_nodepool *snodepool);
 int servhub_close(struct servhub *hub);
+
 int servhub_register_servarea(struct servhub *hub,
                               const char *area_name,
                               struct service *services,
@@ -195,15 +197,25 @@ int servhub_register_servarea(struct servhub *hub,
 int servhub_unregister_servarea(struct servhub *hub,
                                 const char *area_name,
                                 const char *sockid);
+
 void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode);
 void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode);
+
 service_handler_func_t
 servhub_set_prepare(struct servhub *hub, service_handler_func_t prepare_cb);
 service_handler_func_t
 servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb);
-void servhub_set_service_call_timeout(struct servhub *hub, long timeout);
-int servhub_service_call(struct servhub *hub, struct servmsg *sm);
+
+typedef void (*servcall_cb)(struct servmsg *sm, void *arg, int flag);
+void servhub_servcall(struct servhub *hub, struct servmsg *sm,
+                      servcall_cb cb, void *arg, long timeout);
+int servhub_servcall_local(struct servhub *hub, struct servmsg *sm);
+
 int servhub_loop(struct servhub *hub, long timeout);
+
+/*
+ * default servhub
+ */
 
 struct servhub *default_servhub(void);
 
