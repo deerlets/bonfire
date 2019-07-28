@@ -179,7 +179,8 @@ static void do_servmsg(struct servhub *hub)
 	}
 }
 
-static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
+static void
+recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg, void *arg)
 {
 	struct servhub *hub = snode->user_data;
 
@@ -206,7 +207,7 @@ static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 	hub->servmsg_total++;
 	hub->servmsg_doing++;
 
-	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+	spdnet_recvmsg_async(snode, recvmsg_cb, NULL, 0);
 }
 
 int servhub_init(struct servhub *hub,
@@ -270,7 +271,7 @@ int servhub_register_servarea(struct servhub *hub,
 		spdnet_setid(snode, sockid, strlen(sockid));
 		spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
 		spdnet_connect(snode, hub->router_addr);
-		spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+		spdnet_recvmsg_async(snode, recvmsg_cb, NULL, 0);
 		snode->user_data = hub;
 		if (__snode) *__snode = snode;
 	}
@@ -314,7 +315,7 @@ void servhub_mandate_snode(struct servhub *hub, struct spdnet_node *snode)
 {
 	snode->user_data = hub;
 	spdnet_nodepool_add(hub->snodepool, snode);
-	spdnet_recvmsg_async(snode, recvmsg_cb, 0);
+	spdnet_recvmsg_async(snode, recvmsg_cb, NULL, 0);
 }
 
 void servhub_recall_snode(struct servhub *hub, struct spdnet_node *snode)
@@ -346,9 +347,10 @@ struct async_struct {
 	struct spdnet_nodepool *snodepool;
 };
 
-static void async_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
+static void
+async_cb(struct spdnet_node *snode, struct spdnet_msg *msg, void *arg)
 {
-	struct async_struct *as = snode->user_data;
+	struct async_struct *as = arg;
 	int flag = 0;
 
 	if (msg)
@@ -359,9 +361,7 @@ static void async_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
 
 	as->cb(as->sm, as->arg, flag);
 
-	snode->user_data = NULL;
 	spdnet_nodepool_put(as->snodepool, snode);
-
 	free(as);
 }
 
@@ -384,9 +384,7 @@ void servhub_servcall(struct servhub *hub, struct servmsg *sm,
 	as->cb = cb;
 	as->arg = arg;
 	as->snodepool = hub->snodepool;
-	assert(snode->user_data == NULL);
-	snode->user_data = as;
-	spdnet_recvmsg_async(snode, async_cb, timeout);
+	spdnet_recvmsg_async(snode, async_cb, as, timeout);
 }
 
 static int

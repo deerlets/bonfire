@@ -258,9 +258,11 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 }
 
 void spdnet_recvmsg_async(struct spdnet_node *snode,
-                          spdnet_recvmsg_cb recvmsg_cb, long timeout)
+                          spdnet_recvmsg_cb recvmsg_cb,
+                          void *recvmsg_arg, long timeout)
 {
 	snode->recvmsg_cb = recvmsg_cb;
+	snode->recvmsg_arg = recvmsg_arg;
 	if (timeout) snode->recvmsg_timeout = time(NULL) + timeout/1000;
 	else snode->recvmsg_timeout = 0;
 }

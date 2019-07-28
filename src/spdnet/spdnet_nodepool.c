@@ -199,9 +199,11 @@ static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
 	                         recvmsg_timeout_node) {
 		if (pos->recvmsg_cb) {
 			spdnet_recvmsg_cb callback = pos->recvmsg_cb;
+			void *arg = pos->recvmsg_arg;
 			pos->recvmsg_cb = NULL;
+			pos->recvmsg_arg = NULL;
 			pos->recvmsg_timeout = 0;
-			callback(pos, NULL);
+			callback(pos, NULL, arg);
 		}
 	}
 
@@ -213,9 +215,11 @@ static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
 		if (pos->recvmsg_cb) {
 			// snode maybe released in callback, so do callback last
 			spdnet_recvmsg_cb callback = pos->recvmsg_cb;
+			void *arg = pos->recvmsg_arg;
 			pos->recvmsg_cb = NULL;
+			pos->recvmsg_arg = NULL;
 			pos->recvmsg_timeout = 0;
-			callback(pos, &msg);
+			callback(pos, &msg, arg);
 		} else {
 			// it's our responsibility to release snode
 			spdnet_nodepool_put(pool, pos);

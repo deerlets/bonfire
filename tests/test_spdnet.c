@@ -88,7 +88,8 @@ static void test_spdnet_basic(void **status)
  * spdnet nodepool
  */
 
-static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg)
+static void
+recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg, void *arg)
 {
 	spdnet_nodepool_put((struct spdnet_nodepool *)snode->user_data, snode);
 }
@@ -108,7 +109,7 @@ static void test_spdnet_nodepool(void **status)
 	assert_true(rc == 0);
 	rc = spdnet_sendmsg(p, &msg);
 	assert_true(rc == 0);
-	spdnet_recvmsg_async(p, recvmsg_cb, 3000);
+	spdnet_recvmsg_async(p, recvmsg_cb, NULL, 3000);
 	assert_true(rc == 0);
 	spdnet_msg_close(&msg);
 

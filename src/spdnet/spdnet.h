@@ -184,8 +184,8 @@ int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 #define SPDNET_OTHER -1
 
 struct spdnet_node;
-typedef void (*spdnet_recvmsg_cb)(struct spdnet_node *snode,
-                                  struct spdnet_msg *msg);
+typedef void (*spdnet_recvmsg_cb)(
+	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg);
 
 struct spdnet_node {
 	char id[SPDNET_SOCKID_SIZE];
@@ -202,6 +202,7 @@ struct spdnet_node {
 
 	/* mainly used by spdnet_nodepool */
 	spdnet_recvmsg_cb recvmsg_cb;
+	void *recvmsg_arg;
 	time_t recvmsg_timeout;
 	int count;
 	int eof;
@@ -230,7 +231,8 @@ int spdnet_send(struct spdnet_node *snode, const void *buf,
                 size_t size, int flags);
 int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags);
 void spdnet_recvmsg_async(struct spdnet_node *snode,
-                          spdnet_recvmsg_cb recvmsg_cb, long timeout);
+                          spdnet_recvmsg_cb recvmsg_cb,
+                          void *arg, long timeout);
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
 
 /*
