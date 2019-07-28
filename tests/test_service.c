@@ -26,7 +26,7 @@ static void on_zerox(struct servmsg *sm)
 static struct service services[] = {
 	INIT_SERVICE("hello", on_hello, NULL),
 	INIT_SERVICE("world", on_world, NULL),
-	INIT_SERVICE("zerox", on_zerox, NULL),
+	INIT_SERVICE("zerox/t", on_zerox, NULL),
 	INIT_SERVICE(NULL, NULL, NULL),
 };
 
