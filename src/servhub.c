@@ -236,6 +236,7 @@ int servhub_init(struct servhub *hub,
 	hub->servmsg_timeout = 0;
 	hub->servmsg_handled = 0;
 
+	hub->spdnet_alive_interval = 20;
 	hub->pid = 0;
 
 	hub->user_data = NULL;
@@ -269,7 +270,7 @@ int servhub_register_servarea(struct servhub *hub,
 	if (sockid) {
 		struct spdnet_node *snode = spdnet_nodepool_get(hub->snodepool);
 		spdnet_setid(snode, sockid, strlen(sockid));
-		spdnet_setalive(snode, SPDNET_ALIVE_INTERVAL);
+		spdnet_setalive(snode, hub->spdnet_alive_interval);
 		spdnet_connect(snode, hub->router_addr);
 		spdnet_recvmsg_async(snode, recvmsg_cb, NULL, 0);
 		snode->user_data = hub;

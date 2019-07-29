@@ -178,6 +178,7 @@ struct servhub {
 	int servmsg_timeout;
 	int servmsg_handled;
 
+	long spdnet_alive_interval;
 	pthread_t pid;
 
 	void *user_data;
