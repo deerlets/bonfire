@@ -209,7 +209,7 @@ servhub_set_finished(struct servhub *hub, service_handler_func_t finished_cb);
 typedef void (*servcall_cb)(struct servmsg *sm, void *arg, int flag);
 void servhub_servcall(struct servhub *hub, struct servmsg *sm,
                       servcall_cb cb, void *arg, long timeout);
-int servhub_servcall_local(struct servhub *hub, struct servmsg *sm);
+int servhub_servcall_local(struct servhub *hub, struct servmsg *sm, long timeout);
 
 int servhub_loop(struct servhub *hub, long timeout);
 
