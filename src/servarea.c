@@ -38,7 +38,6 @@ int servarea_init(struct servarea *sa, const char *name)
 int servarea_close(struct servarea *sa)
 {
 	assert(sa->servtab);
-	free(sa->servtab);
 
 	struct service *pos, *n;
 	list_for_each_entry_safe(pos, n, &sa->services, node) {
@@ -46,6 +45,7 @@ int servarea_close(struct servarea *sa)
 		list_del_init(&pos->node);
 	}
 
+	free(sa->servtab);
 	return 0;
 }
 
