@@ -152,7 +152,6 @@ int spdnet_register(struct spdnet_node *snode)
 
 int spdnet_unregister(struct spdnet_node *snode)
 {
-	assert(snode->id_len);
 	int rc;
 	struct spdnet_msg msg;
 
