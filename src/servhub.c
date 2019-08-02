@@ -408,7 +408,9 @@ __servhub_servcall_local(struct servhub *hub, struct servmsg *sm)
 }
 
 static int
-__servhub_servcall_local2(struct servhub *hub, struct servmsg *sm, long timeout)
+__servhub_servcall_local_across_thread(struct servhub *hub,
+                                       struct servmsg *sm,
+                                       long timeout)
 {
 	int rc;
 	struct spdnet_node snode;
@@ -440,14 +442,14 @@ int servhub_servcall_local(struct servhub *hub, struct servmsg *sm, long timeout
 {
 	struct spdnet_msg *req = &sm->request;
 
-	// Across thread access
+	// Access across thread
 	if (pthread_self() != hub->pid) {
 		if (MSG_SOCKID_SIZE(req) == 0) {
 			spdnet_frame_close(MSG_SOCKID(req));
 			spdnet_frame_init_size(MSG_SOCKID(req), strlen(hub->id));
 			memcpy(MSG_SOCKID_DATA(req), hub->id, strlen(hub->id));
 		}
-		return __servhub_servcall_local2(hub, sm, timeout);
+		return __servhub_servcall_local_across_thread(hub, sm, timeout);
 	}
 
 	return __servhub_servcall_local(hub, sm);
