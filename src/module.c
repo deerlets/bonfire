@@ -181,9 +181,23 @@ struct module *find_module(const char *name)
 	return NULL;
 }
 
-struct list_head *get_modules()
+size_t get_modules_count()
 {
-	return &modules;
+	size_t i = 0;
+	struct module *pos;
+	list_for_each_entry(pos, &modules, node) {
+		i++;
+	}
+	return i;
+}
+
+void get_modules(struct module *buf[])
+{
+	int i = 0;
+	struct module *pos;
+	list_for_each_entry(pos, &modules, node) {
+		buf[i++] = pos;
+	}
 }
 
 void module_set_name(struct module *m, const char *name)

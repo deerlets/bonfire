@@ -77,7 +77,8 @@ int load_modules_from_dir(const char *dirname);
 int unload_all_modules(void);
 
 struct module *find_module(const char *name);
-struct zebra_list_head *get_modules();
+size_t get_modules_count();
+void get_modules(struct module *buf[]);
 
 void module_set_name(struct module *m, const char *name);
 void module_set_info(struct module *m, const char *alias, const char *desc);
