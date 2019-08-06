@@ -236,6 +236,8 @@ int servhub_init(struct servhub *hub,
 	hub->servmsg_timeout = 0;
 	hub->servmsg_handled = 0;
 
+	timer_loop_init(&hub->tm_loop);
+
 	hub->spdnet_alive_interval = 20;
 	hub->pid = 0;
 
@@ -248,6 +250,8 @@ int servhub_init(struct servhub *hub,
 
 int servhub_close(struct servhub *hub)
 {
+	timer_loop_close(&hub->tm_loop);
+
 	servhub_unregister_servarea(hub, SERVAREA_NAME, SERVAREA_NAME);
 
 	struct servarea *pos, *n;
@@ -462,7 +466,15 @@ int servhub_loop(struct servhub *hub, long timeout)
 	else
 		assert(hub->pid == pthread_self());
 
+	struct timeval next;
+	timer_loop_run(&hub->tm_loop, &next);
+	assert(next.tv_sec >= 0 || next.tv_usec >= 0);
+	long next_timeout = next.tv_sec * 1000 + next.tv_usec / 1000;
+
+	if (next_timeout < timeout)
+		timeout = next_timeout;
 	spdnet_nodepool_loop(hub->snodepool, timeout);
 	do_servmsg(hub);
+
 	return 0;
 }

@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <spdnet.h>
 #include "list.h"
+#include "timer.h"
 
 #define SERVAREA_DELIMITER "://"
 #define SERVICE_DELIMITER '?'
@@ -161,6 +162,7 @@ servarea_find_handler(struct servarea *sa, const char *name, size_t len);
 struct servhub {
 	char id[SPDNET_SOCKID_SIZE];
 	char router_addr[SPDNET_ADDRESS_SIZE];
+
 	struct spdnet_nodepool *snodepool;
 	// default snode used by servhub
 	struct spdnet_node *snode;
@@ -177,6 +179,8 @@ struct servhub {
 	int servmsg_filtered;
 	int servmsg_timeout;
 	int servmsg_handled;
+
+	struct timer_loop tm_loop;
 
 	long spdnet_alive_interval;
 	pthread_t pid;
