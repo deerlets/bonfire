@@ -97,13 +97,6 @@ const char *spdnet_strerror(int err);
 #ifdef SPDNET_INTERNAL
 	#include <extlist.h>
 	#define spdnet_list_head list_head
-
-	#ifdef SPDNET_DEBUG
-	#include <stdio.h>
-	#define LOG_DEBUG(format, ...) fprintf(stderr, format, ##__VA_ARGS__)
-	#else
-	#define LOG_DEBUG(format, ...)
-	#endif
 #else
 	struct spdnet_list_head { void *prev, *next; };
 #endif

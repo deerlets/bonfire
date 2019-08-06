@@ -1,8 +1,9 @@
 #include "spdnet.h"
 #include <errno.h>
 #include <assert.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int
 spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
@@ -190,9 +191,10 @@ static int handle_msg_from_router(struct spdnet_router *router, zmq_msg_t *rid)
 	memcpy(__dstid, zmq_msg_data(&dstid), zmq_msg_size(&dstid));
 	memcpy(__header, zmq_msg_data(&header), zmq_msg_size(&header));
 	memcpy(__content, zmq_msg_data(&content), zmq_msg_size(&content));
-	LOG_DEBUG("[%s]: rid=%s, srcid=%s, dstid=%s, header=%s, content=%s\n",
-	          router->snode.id, __rid, __srcid,
-	          __dstid, __header, __content);
+	fprintf(stderr, "[%s]: rid=%s, srcid=%s, "
+	        "dstid=%s, header=%s, content=%s\n",
+	        router->snode.id, __rid, __srcid,
+	        __dstid, __header, __content);
 	free(__rid);
 	free(__srcid);
 	free(__dstid);
@@ -316,8 +318,8 @@ static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 	memcpy(__dstid, zmq_msg_data(&dstid), zmq_msg_size(&dstid));
 	memcpy(__header, zmq_msg_data(&header), zmq_msg_size(&header));
 	memcpy(__content, zmq_msg_data(&content), zmq_msg_size(&content));
-	LOG_DEBUG("[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
-	          router->snode.id, __srcid, __dstid, __header, __content);
+	fprintf(stderr, "[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
+	        router->snode.id, __srcid, __dstid, __header, __content);
 	free(__srcid);
 	free(__dstid);
 	free(__header);
