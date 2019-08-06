@@ -13,7 +13,7 @@ extern "C" {
 struct timer;
 struct timer_loop;
 
-typedef int (*timer_handler_func_t)(struct timer *timer);
+typedef void (*timer_handler_func_t)(struct timer *timer);
 
 struct timer {
 	timer_handler_func_t handler;
