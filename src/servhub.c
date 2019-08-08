@@ -380,7 +380,11 @@ void servhub_servcall(struct servhub *hub, struct servmsg *sm,
 	rc = spdnet_connect(snode, hub->router_addr);
 	assert(rc == 0);
 
-	rc = spdnet_sendmsg(snode, &sm->request);
+	struct spdnet_msg tmp;
+	spdnet_msg_init(&tmp);
+	spdnet_msg_copy(&tmp, &sm->request);
+	rc = spdnet_sendmsg(snode, &tmp);
+	spdnet_msg_close(&tmp);
 	assert(rc == 0);
 
 	struct async_struct *as = malloc(sizeof(*as));
