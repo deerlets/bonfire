@@ -80,21 +80,6 @@ void servarea_register_services(struct servarea *sa, struct service *services)
 }
 
 struct service *
-__servarea_find_service(struct servarea *sa, const char *name)
-{
-	unsigned int tag = calc_tag(name, strlen(name));
-
-	struct hlist_head *head = &sa->servtab[tag_hash_fn(tag)];
-	struct service *pos;
-	hlist_for_each_entry(pos, head, hash_node) {
-		if (strcmp(pos->name, name) == 0)
-			return pos;
-	}
-
-	return NULL;
-}
-
-struct service *
 servarea_find_service(struct servarea *sa, const char *name, size_t len)
 {
 	unsigned int tag = calc_tag(name, len);
@@ -107,21 +92,5 @@ servarea_find_service(struct servarea *sa, const char *name, size_t len)
 			return pos;
 	}
 
-	return NULL;
-}
-
-service_handler_func_t
-__servarea_find_handler(struct servarea *sa, const char *name)
-{
-	struct service *p = __servarea_find_service(sa, name);
-	if (p) return p->handler;
-	return NULL;
-}
-
-service_handler_func_t
-servarea_find_handler(struct servarea *sa, const char *name, size_t len)
-{
-	struct service *p = servarea_find_service(sa, name, len);
-	if (p) return p->handler;
 	return NULL;
 }

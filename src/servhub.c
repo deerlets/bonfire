@@ -111,11 +111,11 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 		return;
 	}
 
-	// find handler
-	service_handler_func_t fn;
-	fn = servarea_find_handler(sa, sm->service, sm->service_len);
+	// find service
+	struct service *serv;
+	serv = servarea_find_service(sa, sm->service, sm->service_len);
 	pthread_mutex_unlock(&hub->servareas_lock);
-	if (!fn) {
+	if (!serv->handler) {
 		sm->err = SERVICE_ENOSERV;
 		sm->errmsg = service_strerror(sm->err);
 		sm->state = SM_HANDLED;
@@ -123,7 +123,7 @@ static void handle_msg(struct servhub *hub, struct servmsg *sm)
 	}
 
 	// call handler
-	fn(sm);
+	serv->handler(sm);
 	if (sm->state < SM_PENDING)
 		sm->state = SM_HANDLED;
 }

@@ -37,18 +37,15 @@ static void test_servarea(void **status)
 	servarea_register_services(&sa, services);
 
 	struct service *serv;
-	serv = __servarea_find_service(&sa, "hello");
+	serv = servarea_find_service(&sa, "hello", 5);
 	assert_true(serv);
 	assert_string_equal(serv->name, "hello");
-
 	assert_true(serv->handler == on_hello);
-	assert_true(__servarea_find_handler(&sa, "hello") == on_hello);
 
 	for (size_t i = 0; i < sizeof(services)/sizeof(struct service) - 1; i++)
 		servarea_unregister_service(&sa, services + i);
 
-	assert_true(__servarea_find_service(&sa, "hello") == NULL);
-	assert_true(__servarea_find_handler(&sa, "hello") == NULL);
+	assert_true(servarea_find_service(&sa, "hello", 5) == NULL);
 
 	servarea_close(&sa);
 }

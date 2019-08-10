@@ -147,13 +147,7 @@ void servarea_register_service(struct servarea *sa, struct service *service);
 void servarea_unregister_service(struct servarea *sa, struct service *service);
 void servarea_register_services(struct servarea *sa, struct service *services);
 struct service *
-__servarea_find_service(struct servarea *sa, const char *name);
-struct service *
 servarea_find_service(struct servarea *sa, const char *name, size_t len);
-service_handler_func_t
-__servarea_find_handler(struct servarea *sa, const char *name);
-service_handler_func_t
-servarea_find_handler(struct servarea *sa, const char *name, size_t len);
 
 /*
  * servhub
