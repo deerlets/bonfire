@@ -430,16 +430,7 @@ __servhub_servcall_local_across_thread(struct servhub *hub,
 	rc = spdnet_sendmsg(&snode, &sm->request);
 	if (rc) goto errout;
 
-	zmq_pollitem_t item;
-	item.socket = spdnet_node_get_socket(&snode);
-	item.fd = 0;
-	item.events = ZMQ_POLLIN;
-	item.revents = 0;
-	if (zmq_poll(&item, 1, timeout) != 1) {
-		rc = -1;
-	} else {
-		rc = spdnet_recvmsg(&snode, &sm->response, 0);
-	}
+	rc = spdnet_recvmsg_timeout(&snode, &sm->response, 0, timeout);
 
 errout:
 	spdnet_node_close(&snode);

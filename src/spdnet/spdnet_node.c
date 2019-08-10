@@ -256,6 +256,21 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	return 0;
 }
 
+int spdnet_recvmsg_timeout(struct spdnet_node *snode,
+                           struct spdnet_msg *msg,
+                           int flags, int timeout)
+{
+	zmq_pollitem_t item;
+	item.socket = spdnet_node_get_socket(snode);
+	item.fd = 0;
+	item.events = ZMQ_POLLIN;
+	item.revents = 0;
+	if (zmq_poll(&item, 1, timeout) != 1)
+		return -1;
+
+	return spdnet_recvmsg(snode, msg, flags);
+}
+
 void spdnet_recvmsg_async(struct spdnet_node *snode,
                           spdnet_recvmsg_cb recvmsg_cb,
                           void *recvmsg_arg, long timeout)
