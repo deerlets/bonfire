@@ -1,16 +1,32 @@
-#include "task.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #ifdef __unix
 #include <sys/prctl.h>
 #endif
+#include "task.h"
+
+struct task {
+	pthread_t t_id;
+	char t_name[TASK_NAME_LEN];
+	int t_state;
+	int t_control;
+
+	int t_type;
+	union {
+		task_run_func_t run_fn;
+		task_timeout_func_t timeout_fn;
+	} t_fn;
+	void *t_arg;
+	long t_timeout;
+};
 
 static void *task_routine(void *arg)
 {
-	struct task *t = (struct task *)arg;
+	task_t *t = (task_t *)arg;
 #ifdef __unix
 	prctl(PR_SET_NAME, t->t_name, NULL, NULL, NULL);
 #endif
@@ -43,8 +59,10 @@ static void *task_routine(void *arg)
 	return NULL;
 }
 
-int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg)
+task_t *task_new(const char *name, task_run_func_t fn, void *arg)
 {
+	task_t *t = malloc(sizeof(*t));
+	if (!t) return NULL;
 	memset(t, 0, sizeof(*t));
 
 	t->t_id = 0;
@@ -57,42 +75,35 @@ int task_init(struct task *t, const char *name, task_run_func_t fn, void *arg)
 	t->t_arg = arg;
 	t->t_timeout = 0;
 
-	INIT_LIST_HEAD(&t->t_node);
-	return 0;
+	return t;
 }
 
-int task_init_timeout(struct task *t, const char *name, task_timeout_func_t fn,
-                      void *arg, long timeout)
+task_t *task_new_timeout(const char *name, task_timeout_func_t fn,
+                         void *arg, long timeout)
 {
-	memset(t, 0, sizeof(*t));
-
-	t->t_id = 0;
-	snprintf(t->t_name, TASK_NAME_LEN, "%s", name);
-	t->t_state = TASK_S_PENDING;
-	t->t_control = TASK_C_NONE;
+	task_t *t = task_new(name, NULL, arg);
+	if (!t) return NULL;
 
 	t->t_type = TASK_T_TIMEOUT;
 	t->t_fn.timeout_fn = fn;
-	t->t_arg = arg;
 	t->t_timeout = timeout;
 
-	INIT_LIST_HEAD(&t->t_node);
-	return 0;
+	return t;
 }
 
-int task_close(struct task *t)
+int task_destroy(task_t *t)
 {
 	if (t->t_state != TASK_S_STOPPED)
 		return -1;
 	return 0;
 }
 
-int task_start(struct task *t)
+int task_start(task_t *t)
 {
 	return pthread_create(&t->t_id, NULL, task_routine, t);
 }
 
-int task_stop(struct task *t)
+int task_stop(task_t *t)
 {
 	t->t_control = TASK_C_STOP;
 	pthread_join(t->t_id, NULL);
@@ -101,7 +112,7 @@ int task_stop(struct task *t)
 }
 
 #ifndef __APPLE__
-void task_suspend(struct task *t)
+void task_suspend(task_t *t)
 {
 	assert(t->t_state == TASK_S_RUNNING);
 	t->t_control = TASK_C_SUSPEND;
@@ -109,14 +120,14 @@ void task_suspend(struct task *t)
 #endif
 
 #ifndef __APPLE__
-void task_resume(struct task *t)
+void task_resume(task_t *t)
 {
 	assert(t->t_state == TASK_S_PENDING);
 	t->t_control = TASK_C_RESUME;
 }
 #endif
 
-int task_state(struct task *t)
+int task_state(task_t *t)
 {
 	return t->t_state;
 }

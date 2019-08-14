@@ -13,23 +13,22 @@ static int loop_test(void *arg)
 
 static void test_task(void **status)
 {
-	struct task task;
-	task_init(&task, "task_test", loop_test, NULL);
-	assert_true(task.t_state == TASK_S_PENDING);
-	task_start(&task);
+	task_t *task = task_new("task_test", loop_test, NULL);
+	assert_true(task_state(task) == TASK_S_PENDING);
+	task_start(task);
 	sleep(1);
-	assert_true(task.t_state == TASK_S_RUNNING);
+	assert_true(task_state(task) == TASK_S_RUNNING);
 #ifndef __APPLE__
-	task_suspend(&task);
+	task_suspend(task);
 	sleep(2);
-	assert_true(task.t_state == TASK_S_PENDING);
-	task_resume(&task);
+	assert_true(task_state(task) == TASK_S_PENDING);
+	task_resume(task);
 	sleep(6);
-	assert_true(task.t_state == TASK_S_RUNNING);
+	assert_true(task_state(task) == TASK_S_RUNNING);
 #endif
-	task_stop(&task);
-	assert_true(task.t_state == TASK_S_STOPPED);
-	task_close(&task);
+	task_stop(task);
+	assert_true(task_state(task) == TASK_S_STOPPED);
+	task_destroy(task);
 }
 
 int main(void)

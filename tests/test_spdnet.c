@@ -20,11 +20,12 @@ static void test_spdnet_basic(void **status)
 {
 	void *ctx = spdnet_ctx_new();
 	void *router = spdnet_router_new("router_inner", ctx);
-	struct task router_task;
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
-	task_init_timeout(&router_task, "router_task",
-	                  (task_timeout_func_t)spdnet_router_loop, router, 500);
-	task_start(&router_task);
+	task_t *router_task = task_new_timeout(
+		"router_task",
+		(task_timeout_func_t)spdnet_router_loop,
+		router, 500);
+	task_start(router_task);
 
 	int rc;
 	void *service, *requester;
@@ -82,8 +83,8 @@ static void test_spdnet_basic(void **status)
 	spdnet_node_destroy(requester);
 	spdnet_node_destroy(service);
 
-	task_stop(&router_task);
-	task_close(&router_task);
+	task_stop(router_task);
+	task_destroy(router_task);
 	spdnet_router_destroy(router);
 	spdnet_ctx_destroy(ctx);
 }
@@ -136,11 +137,11 @@ static void test_spdnet_router(void **status)
 	assert_true(inner);
 	rc = spdnet_router_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
-	struct task inner_task;
-	task_init_timeout(&inner_task, "router-inner-task",
-	                  (task_timeout_func_t)spdnet_router_loop,
-	                  inner, 1000);
-	task_start(&inner_task);
+	task_t *inner_task = task_new_timeout(
+		"router-inner-task",
+		(task_timeout_func_t)spdnet_router_loop,
+		inner, 1000);
+	task_start(inner_task);
 	sleep(1);
 
 	// router outer
@@ -154,11 +155,11 @@ static void test_spdnet_router(void **status)
 	                             inner_id, &inner_len);
 	assert_true(rc == 0);
 	spdnet_router_set_gateway(outer, inner_id, inner_len, SPDNET_ROUTER);
-	struct task outer_task;
-	task_init_timeout(&outer_task, "router-outer-task",
-	                  (task_timeout_func_t)spdnet_router_loop,
-	                  outer, 1000);
-	task_start(&outer_task);
+	task_t *outer_task = task_new_timeout(
+		"router-outer-task",
+		(task_timeout_func_t)spdnet_router_loop,
+		outer, 1000);
+	task_start(outer_task);
 	sleep(1);
 
 	struct spdnet_msg msg;
@@ -205,8 +206,10 @@ static void test_spdnet_router(void **status)
 	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 5+6);
 	sleep(1);
 
-	task_stop(&inner_task);
-	task_stop(&outer_task);
+	task_stop(inner_task);
+	task_destroy(inner_task);
+	task_stop(outer_task);
+	task_destroy(outer_task);
 	spdnet_msg_close(&msg);
 	spdnet_node_destroy(requester);
 	spdnet_node_destroy(service);
