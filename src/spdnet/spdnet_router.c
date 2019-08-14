@@ -14,7 +14,7 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	struct spdnet_node *snode;
 
 	SPDNET_MSG_INIT_DATA(&msg, buf, "hello", "world");
-	snode = spdnet_node_new(SPDNET_NODE, ctx);
+	snode = spdnet_node_new(ctx);
 	spdnet_setid(snode, buf, strlen(buf));
 
 	rc = spdnet_connect(snode, addr);
@@ -459,7 +459,7 @@ void *spdnet_router_new(const char *id, void *ctx)
 	memset(router, 0, sizeof(*router));
 	router->ctx = ctx;
 
-	router->snode = spdnet_node_new(ZMQ_ROUTER, ctx);
+	router->snode = __spdnet_node_new(ZMQ_ROUTER, ctx);
 	if (!router->snode) {
 		free(router);
 		return NULL;
@@ -554,7 +554,7 @@ spdnet_router_associate(void *__router, const char *addr, void *id, size_t *len)
 	return 0;
 }
 
-int spdnet_router_set_gateway(void *__router, void *id, size_t len, int type)
+int spdnet_router_set_gateway(void *__router, void *id, size_t len)
 {
 	struct spdnet_router *router = __router;
 	const char *gw = SPDNET_ROUTER_DEFAULT_GATEWAY;
@@ -564,10 +564,12 @@ int spdnet_router_set_gateway(void *__router, void *id, size_t len, int type)
 
 	if (!item) {
 		item = malloc(sizeof(*item));
-		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw), id, len, type);
+		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw),
+		                         id, len, SPDNET_ROUTER);
 		list_add(&item->node, &router->routing_table);
 	} else
-		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw), id, len, type);
+		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw),
+		                         id, len, SPDNET_ROUTER);
 
 	return 0;
 }

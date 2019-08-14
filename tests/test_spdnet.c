@@ -31,14 +31,14 @@ static void test_spdnet_basic(void **status)
 	void *service, *requester;
 	struct spdnet_msg msg;
 
-	service = spdnet_node_new(SPDNET_NODE, ctx);
+	service = spdnet_node_new(ctx);
 	spdnet_setid(service, "service", strlen("service"));
 	rc = spdnet_connect(service, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	rc = spdnet_register(service);
 	assert_true(rc == 0);
 
-	requester = spdnet_node_new(SPDNET_NODE, ctx);
+	requester = spdnet_node_new(ctx);
 	rc = spdnet_connect(requester, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "I'm xiedd.");
@@ -154,7 +154,7 @@ static void test_spdnet_router(void **status)
 	rc = spdnet_router_associate(outer, INNER_ROUTER_ADDRESS,
 	                             inner_id, &inner_len);
 	assert_true(rc == 0);
-	spdnet_router_set_gateway(outer, inner_id, inner_len, SPDNET_ROUTER);
+	spdnet_router_set_gateway(outer, inner_id, inner_len);
 	task_t *outer_task = task_new_timeout(
 		"router-outer-task",
 		(task_timeout_func_t)spdnet_router_loop,
@@ -165,9 +165,9 @@ static void test_spdnet_router(void **status)
 	struct spdnet_msg msg;
 	void *requester, *service;
 	spdnet_msg_init(&msg);
-	requester = spdnet_node_new(SPDNET_NODE, ctx);
+	requester = spdnet_node_new(ctx);
 	spdnet_setid(requester, "requester", strlen("requester"));
-	service = spdnet_node_new(SPDNET_NODE, ctx);
+	service = spdnet_node_new(ctx);
 	spdnet_setid(service, "service", strlen("service"));
 
 	rc = spdnet_connect(requester, OUTER_ROUTER_ADDRESS);

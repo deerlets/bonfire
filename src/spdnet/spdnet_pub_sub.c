@@ -2,7 +2,7 @@
 
 void *spdnet_publish_new(const char *addr, void *ctx)
 {
-	void *pub = spdnet_node_new(SPDNET_PUB, ctx);
+	void *pub = __spdnet_node_new(SPDNET_PUB, ctx);
 	if (!pub) return NULL;
 
 	if (spdnet_bind(pub, addr)) {
@@ -20,7 +20,7 @@ int spdnet_publish_destroy(void *pub)
 
 void *spdnet_subscribe_new(const char *addr, void *ctx)
 {
-	void *sub = spdnet_node_new(SPDNET_SUB, ctx);
+	void *sub = __spdnet_node_new(SPDNET_SUB, ctx);
 	if (!sub) return NULL;
 
 	if (spdnet_connect(sub, addr)) {

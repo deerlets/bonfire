@@ -4,11 +4,11 @@
 #include "spdnet-internal.h"
 
 static struct spdnet_node *
-spdnet_nodepool_new_node(struct spdnet_nodepool *pool, int type)
+spdnet_nodepool_new_node(struct spdnet_nodepool *pool)
 {
 	assert(pool->nr_snode <= pool->water_mark);
 
-	struct spdnet_node *snode = spdnet_node_new(type, pool->ctx);
+	struct spdnet_node *snode = spdnet_node_new(pool->ctx);
 	snode->count = 1;
 
 	pthread_mutex_lock(&pool->snodes_lock);
@@ -86,7 +86,7 @@ void *spdnet_nodepool_get(void *__pool)
 	}
 	pthread_mutex_unlock(&pool->snodes_lock);
 
-	return spdnet_nodepool_new_node(pool, SPDNET_NODE);
+	return spdnet_nodepool_new_node(pool);
 }
 
 void spdnet_nodepool_put(void *__pool, void *__snode)
@@ -150,7 +150,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 				int type = pos->type;
 				list_del(&pos->node);
 				spdnet_node_destroy(pos);
-				pos = spdnet_node_new(type, pool->ctx);
+				pos = __spdnet_node_new(type, pool->ctx);
 				pos->count = 0;
 				list_add(&pos->node, &pool->snodes);
 			}

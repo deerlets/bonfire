@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "spdnet-internal.h"
 
-void *spdnet_node_new(int type, void *ctx)
+void *__spdnet_node_new(int type, void *ctx)
 {
 	struct spdnet_node *snode = malloc(sizeof(*snode));
 	if (!snode) return NULL;
@@ -41,6 +41,11 @@ void *spdnet_node_new(int type, void *ctx)
 	INIT_LIST_HEAD(&snode->recvmsg_timeout_node);
 
 	return snode;
+}
+
+void *spdnet_node_new(void *ctx)
+{
+	return __spdnet_node_new(SPDNET_NODE, ctx);
 }
 
 int spdnet_node_destroy(void *__snode)

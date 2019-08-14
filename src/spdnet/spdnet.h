@@ -174,16 +174,10 @@ int spdnet_ctx_destroy(void *ctx);
  * spdnet_node
  */
 
-#define SPDNET_ROUTER ZMQ_ROUTER
-#define SPDNET_NODE ZMQ_DEALER
-#define SPDNET_SUB ZMQ_SUB
-#define SPDNET_PUB ZMQ_PUB
-#define SPDNET_OTHER -1
-
 typedef void (*spdnet_recvmsg_cb)(
 	void *snode, struct spdnet_msg *msg, void *arg);
 
-void *spdnet_node_new(int type, void *ctx);
+void *spdnet_node_new(void *ctx);
 int spdnet_node_destroy(void *snode);
 
 void *spdnet_node_get_socket(void *snode);
@@ -218,7 +212,7 @@ int spdnet_router_destroy(void *router);
 int spdnet_router_bind(void *router, const char *addr);
 int
 spdnet_router_associate(void *router, const char *addr, void *id, size_t *len);
-int spdnet_router_set_gateway(void *router, void *id, size_t len, int type);
+int spdnet_router_set_gateway(void *router, void *id, size_t len);
 int spdnet_router_msg_routerd(void *router);
 int spdnet_router_msg_dropped(void *router);
 int spdnet_router_loop(void *router, long timeout);
