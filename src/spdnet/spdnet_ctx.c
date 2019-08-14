@@ -1,11 +1,11 @@
-#include "spdnet.h"
 #include <zmq.h>
+#include "spdnet.h"
 
 /*
  * spdnet_ctx
  */
 
-void *spdnet_ctx_create(void)
+void *spdnet_ctx_new(void)
 {
 	return zmq_ctx_new();
 }

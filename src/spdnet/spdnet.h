@@ -1,14 +1,5 @@
-#ifndef __ZEBRA_SPDNET_H
-#define __ZEBRA_SPDNET_H
-
-#include <stddef.h>
-#include <time.h>
-#include <pthread.h>
-#include <zmq.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef __SPDNET_SPDNET_H
+#define __SPDNET_SPDNET_H
 
 /*
  * spdnet protocol - node to router:
@@ -53,9 +44,17 @@ extern "C" {
  *     frame 4: header
  *     frame 5: delimiter
  *     frame 6: content
+
  *     frame 7: delimiter
  *     frame 8: meta
  */
+
+#include <stddef.h> // size_t
+#include <stdint.h> // int64_t
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define SPDNET_SOCKID_NONE "--none--"
 #define SPDNET_SOCKID_NONE_LEN (sizeof(SPDNET_SOCKID_NONE)-1)
@@ -77,6 +76,10 @@ extern "C" {
 #define SPDNET_SOCKID_SIZE 64
 #define SPDNET_ADDRESS_SIZE 64
 
+/*
+ * spdnet errno & errmsg
+ */
+
 #define SPDNET_ERRNO_MAP(XX) \
 	XX(EINVAL, "invalid argument") \
 	XX(ESOCKETTYPE, "unsupported socket type") \
@@ -94,18 +97,27 @@ typedef enum {
 
 const char *spdnet_strerror(int err);
 
-#ifdef SPDNET_INTERNAL
-	#include <extlist.h>
-	#define spdnet_list_head list_head
-#else
-	struct spdnet_list_head { void *prev, *next; };
-#endif
-
 /*
  * spdnet_msg
  */
 
-typedef zmq_msg_t spdnet_frame_t;
+#ifndef __SPDNET_SPDNET_INTERNAL_H
+typedef struct spdnet_frame_t
+{
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))
+	__declspec(align (8)) unsigned char _[64];
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_ARM_ARMV7VE))
+	__declspec(align (4)) unsigned char _[64];
+#elif defined(__GNUC__) || defined(__INTEL_COMPILER) \
+	|| (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
+	|| (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+	unsigned char _[64] __attribute__ ((aligned (sizeof (void *))));
+#else
+	unsigned char _[64];
+#endif
+} spdnet_frame_t;
+#endif
+
 typedef struct spdnet_meta {
 	int node_type;
 	int ttl;
@@ -155,16 +167,8 @@ spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name);
  * spdnet_ctx
  */
 
-void *spdnet_ctx_create(void);
+void *spdnet_ctx_new(void);
 int spdnet_ctx_destroy(void *ctx);
-
-/*
- * zhelper
- */
-
-void z_clear(void *s);
-int z_recv_more(void *s, spdnet_frame_t *frame, int flags);
-int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 
 /*
  * spdnet_node
@@ -176,159 +180,72 @@ int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 #define SPDNET_PUB ZMQ_PUB
 #define SPDNET_OTHER -1
 
-struct spdnet_node;
 typedef void (*spdnet_recvmsg_cb)(
-	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg);
+	void *snode, struct spdnet_msg *msg, void *arg);
 
-struct spdnet_node {
-	char id[SPDNET_SOCKID_SIZE];
-	size_t id_len;
+void *spdnet_node_new(int type, void *ctx);
+int spdnet_node_destroy(void *snode);
 
-	int type;
-	time_t alive_interval;
-	time_t alive_timeout;
+void *spdnet_node_get_socket(void *snode);
+int spdnet_setid(void *snode, const void *id, size_t len);
+void spdnet_setalive(void *snode, int64_t alive);
 
-	char addr[SPDNET_ADDRESS_SIZE];
-	void *socket;
+int spdnet_bind(void *snode, const char *addr);
+int spdnet_connect(void *snode, const char *addr);
+int spdnet_disconnect(void *snode);
 
-	void *user_data;
+int spdnet_register(void *snode);
+int spdnet_unregister(void *snode);
+int spdnet_expose(void *snode);
+int spdnet_alive(void *snode);
 
-	/* mainly used by spdnet_nodepool */
-	spdnet_recvmsg_cb recvmsg_cb;
-	void *recvmsg_arg;
-	time_t recvmsg_timeout;
-	int count;
-	int eof;
-	struct spdnet_list_head node;
-	struct spdnet_list_head pollin_node;
-	struct spdnet_list_head pollout_node;
-	struct spdnet_list_head pollerr_node;
-	struct spdnet_list_head recvmsg_timeout_node;
-};
+int spdnet_recv(void *snode, void *buf, size_t size, int flags);
+int spdnet_send(void *snode, const void *buf, size_t size, int flags);
 
-int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx);
-int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket);
-int spdnet_node_close(struct spdnet_node *snode);
-
-void *spdnet_node_get_socket(struct spdnet_node *snode);
-int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len);
-void spdnet_setalive(struct spdnet_node *snode, time_t alive);
-
-int spdnet_bind(struct spdnet_node *snode, const char *addr);
-int spdnet_connect(struct spdnet_node *snode, const char *addr);
-int spdnet_disconnect(struct spdnet_node *snode);
-
-int spdnet_register(struct spdnet_node *snode);
-int spdnet_unregister(struct spdnet_node *snode);
-int spdnet_expose(struct spdnet_node *snode);
-int spdnet_alive(struct spdnet_node *snode);
-
-int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags);
-int spdnet_send(struct spdnet_node *snode, const void *buf,
-                size_t size, int flags);
-
-int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags);
-int spdnet_recvmsg_timeout(struct spdnet_node *snode,
-                           struct spdnet_msg *msg,
+int spdnet_recvmsg(void *snode, struct spdnet_msg *msg, int flags);
+int spdnet_recvmsg_timeout(void *snode, struct spdnet_msg *msg,
                            int flags, int timeout);
-void spdnet_recvmsg_async(struct spdnet_node *snode,
-                          spdnet_recvmsg_cb recvmsg_cb,
+void spdnet_recvmsg_async(void *snode, spdnet_recvmsg_cb recvmsg_cb,
                           void *arg, long timeout);
-int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
-
-/*
- * spdnet publish & subscribe
- */
-
-int spdnet_publish_init(struct spdnet_node *pub, const char *addr, void *ctx);
-int spdnet_publish_close(struct spdnet_node *pub);
-int spdnet_subscribe_init(struct spdnet_node *sub, const char *addr, void *ctx);
-int spdnet_subscribe_close(struct spdnet_node *sub);
-int spdnet_subscribe_set_filter(struct spdnet_node *sub,
-                                const void *prefix, size_t len);
-
-/*
- * spdnet_nodepool
- */
-
-struct spdnet_nodepool {
-	void *ctx;
-	int water_mark;
-	int nr_snode;
-
-	struct spdnet_list_head snodes;
-	pthread_mutex_t snodes_lock;
-	pthread_mutex_t snodes_del_lock;
-
-	struct spdnet_list_head pollins;
-	struct spdnet_list_head pollouts;
-	struct spdnet_list_head pollerrs;
-	struct spdnet_list_head recvmsg_timeouts;
-};
-
-int spdnet_nodepool_init(struct spdnet_nodepool *pool,
-                         int water_mark, void *ctx);
-int spdnet_nodepool_close(struct spdnet_nodepool *pool);
-struct spdnet_node *
-spdnet_nodepool_find(struct spdnet_nodepool *pool, const void *id, size_t len);
-struct spdnet_node *spdnet_nodepool_get(struct spdnet_nodepool *pool);
-void spdnet_nodepool_put(struct spdnet_nodepool *pool,
-                         struct spdnet_node *snode);
-void spdnet_nodepool_add(struct spdnet_nodepool *pool,
-                         struct spdnet_node *snode);
-void spdnet_nodepool_del(struct spdnet_nodepool *pool,
-                         struct spdnet_node *snode);
-int spdnet_nodepool_loop(struct spdnet_nodepool *pool, long timeout);
+int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
 
 /*
  * spdnet_router
  */
 
-struct spdnet_routing_item {
-	char id[SPDNET_SOCKID_SIZE];
-	size_t len;
+void *spdnet_router_new(const char *id, void *ctx);
+int spdnet_router_destroy(void *router);
+int spdnet_router_bind(void *router, const char *addr);
+int
+spdnet_router_associate(void *router, const char *addr, void *id, size_t *len);
+int spdnet_router_set_gateway(void *router, void *id, size_t len, int type);
+int spdnet_router_msg_routerd(void *router);
+int spdnet_router_msg_dropped(void *router);
+int spdnet_router_loop(void *router, long timeout);
 
-	char nexthop_id[SPDNET_SOCKID_SIZE];
-	size_t nexthop_len;
-	int nexthop_type;
+/*
+ * spdnet publish & subscribe
+ */
 
-	time_t atime;
+void *spdnet_publish_new(const char *addr, void *ctx);
+int spdnet_publish_destroy(void *pub);
+void *spdnet_subscribe_new(const char *addr, void *ctx);
+int spdnet_subscribe_close(void *sub);
+int spdnet_subscribe_set_filter(void *sub, const void *prefix, size_t len);
 
-	struct spdnet_list_head node;
-};
+/*
+ * spdnet_nodepool
+ */
 
-#define INIT_SPDNET_ROUTING_ITEM( \
-	item, _id, _len, _nexthop_id, _nexthop_len, _nexthop_type) \
-	do { \
-		memset(item, 0, sizeof(*item)); \
-		item->len = _len; \
-		memcpy(item->id, _id, item->len); \
-		item->nexthop_len = _nexthop_len; \
-		memcpy(item->nexthop_id, _nexthop_id, item->nexthop_len); \
-		item->nexthop_type = _nexthop_type; \
-		item->atime = time(NULL); \
-		INIT_LIST_HEAD(&item->node); \
-	} while (0);
-
-struct spdnet_router {
-	void *ctx;
-	struct spdnet_node snode;
-	struct spdnet_list_head routing_table;
-
-	int nr_msg_routerd;
-	int nr_msg_dropped;
-};
-
-int spdnet_router_init(struct spdnet_router *router, const char *id, void *ctx);
-int spdnet_router_close(struct spdnet_router *router);
-int spdnet_router_bind(struct spdnet_router *router, const char *addr);
-int spdnet_router_associate(struct spdnet_router *router,
-                            const char *addr, void *id, size_t *len);
-int spdnet_router_set_gateway(struct spdnet_router *router,
-                              void *id, size_t len, int type);
-int spdnet_router_msg_routerd(struct spdnet_router *router);
-int spdnet_router_msg_dropped(struct spdnet_router *router);
-int spdnet_router_loop(struct spdnet_router *router, long timeout);
+void *spdnet_nodepool_new(int water_mark, void *ctx);
+int spdnet_nodepool_destroy(void *pool);
+void *spdnet_nodepool_find(void *pool, const void *id, size_t len);
+void *spdnet_nodepool_get(void *pool);
+void spdnet_nodepool_put(void *pool, void *snode);
+void spdnet_nodepool_add(void *pool, void *snode);
+void spdnet_nodepool_del(void *pool, void *snode);
+int spdnet_nodepool_alive_count(void *pool);
+int spdnet_nodepool_loop(void *pool, long timeout);
 
 #ifdef __cplusplus
 }

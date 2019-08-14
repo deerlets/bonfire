@@ -1,43 +1,43 @@
-#include "spdnet.h"
+#include "spdnet-internal.h"
 
-int spdnet_publish_init(struct spdnet_node *pub, const char *addr, void *ctx)
+void *spdnet_publish_new(const char *addr, void *ctx)
 {
-	if (spdnet_node_init(pub, SPDNET_PUB, ctx))
-		return -1;
+	void *pub = spdnet_node_new(SPDNET_PUB, ctx);
+	if (!pub) return NULL;
 
 	if (spdnet_bind(pub, addr)) {
-		spdnet_node_close(pub);
-		return -1;
+		spdnet_node_destroy(pub);
+		return NULL;
 	}
 
-	return 0;
+	return pub;
 }
 
-int spdnet_publish_close(struct spdnet_node *pub)
+int spdnet_publish_destroy(void *pub)
 {
-	return spdnet_node_close(pub);
+	return spdnet_node_destroy(pub);
 }
 
-int spdnet_subscribe_init(struct spdnet_node *sub, const char *addr, void *ctx)
+void *spdnet_subscribe_new(const char *addr, void *ctx)
 {
-	if (spdnet_node_init(sub, SPDNET_SUB, ctx))
-		return -1;
+	void *sub = spdnet_node_new(SPDNET_SUB, ctx);
+	if (!sub) return NULL;
 
 	if (spdnet_connect(sub, addr)) {
-		spdnet_node_close(sub);
-		return -1;
+		spdnet_node_destroy(sub);
+		return NULL;
 	}
 
-	return 0;
+	return sub;
 }
 
-int spdnet_subscribe_close(struct spdnet_node *sub)
+int spdnet_subscribe_destroy(void *sub)
 {
-	return spdnet_node_close(sub);
+	return spdnet_node_destroy(sub);
 }
 
-int spdnet_subscribe_set_filter(struct spdnet_node *sub,
-                                const void *prefix, size_t len)
+int spdnet_subscribe_set_filter(void *__sub, const void *prefix, size_t len)
 {
+	struct spdnet_node *sub = __sub;
 	return zmq_setsockopt(sub->socket, ZMQ_SUBSCRIBE, prefix, len);
 }

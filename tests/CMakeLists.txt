@@ -29,13 +29,13 @@ add_test(test-module ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-module)
 #
 
 add_executable(test-spdnet test_spdnet.c)
-target_link_libraries(test-spdnet cmocka zebra)
+target_link_libraries(test-spdnet cmocka spdnet cx)
 add_test(test-spdnet ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-spdnet)
 
 #
 # zebra
 #
 
-add_executable(test-service test_service.c)
-target_link_libraries(test-service cmocka zebra)
-add_test(test-service ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-service)
+#add_executable(test-service test_service.c)
+#target_link_libraries(test-service cmocka zebra)
+#add_test(test-service ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-service)

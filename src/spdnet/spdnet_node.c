@@ -1,12 +1,14 @@
-#include "spdnet.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <zmq.h>
+#include "spdnet-internal.h"
 
-int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
+void *spdnet_node_new(int type, void *ctx)
 {
+	struct spdnet_node *snode = malloc(sizeof(*snode));
+	if (!snode) return NULL;
+
 	memset(snode, 0, sizeof(*snode));
 
 	memset(snode->id, 0, sizeof(snode->id));
@@ -18,8 +20,10 @@ int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 
 	memset(snode->addr, 0, sizeof(snode->addr));
 	snode->socket = zmq_socket(ctx, type);
-	if (snode->socket == NULL)
-		return -1;
+	if (snode->socket == NULL) {
+		free(snode);
+		return NULL;
+	}
 	int linger = 1000;
 	zmq_setsockopt(snode->socket, ZMQ_LINGER, &linger, sizeof(linger));
 
@@ -35,56 +39,31 @@ int spdnet_node_init(struct spdnet_node *snode, int type, void *ctx)
 	INIT_LIST_HEAD(&snode->pollout_node);
 	INIT_LIST_HEAD(&snode->pollerr_node);
 	INIT_LIST_HEAD(&snode->recvmsg_timeout_node);
-	return 0;
+
+	return snode;
 }
 
-int spdnet_node_init_socket(struct spdnet_node *snode, int type, void *socket)
+int spdnet_node_destroy(void *__snode)
 {
-	memset(snode, 0, sizeof(*snode));
-
-	memset(snode->id, 0, sizeof(snode->id));
-	snode->id_len = 0;
-	zmq_getsockopt(socket, ZMQ_IDENTITY, snode->id, &snode->id_len);
-
-	snode->type = type;
-	snode->alive_interval = 0;
-	snode->alive_timeout = 0;
-
-	memset(snode->addr, 0, sizeof(snode->addr));
-	snode->socket = socket;
-	int linger = 1000;
-	zmq_setsockopt(snode->socket, ZMQ_LINGER, &linger, sizeof(linger));
-
-	snode->user_data = NULL;
-
-	/* mainly used by spdnet_nodepool */
-	snode->recvmsg_cb = NULL;
-	snode->recvmsg_timeout = 0;
-	snode->count = 1;
-	snode->eof = 0;
-	INIT_LIST_HEAD(&snode->node);
-	INIT_LIST_HEAD(&snode->pollin_node);
-	INIT_LIST_HEAD(&snode->pollout_node);
-	INIT_LIST_HEAD(&snode->pollerr_node);
-	INIT_LIST_HEAD(&snode->recvmsg_timeout_node);
-	return 0;
-}
-
-int spdnet_node_close(struct spdnet_node *snode)
-{
+	struct spdnet_node *snode = __snode;
 	assert(snode != NULL);
+
 	if (zmq_close(snode->socket) == -1)
 		return -1;
+
+	free(snode);
 	return 0;
 }
 
-void *spdnet_node_get_socket(struct spdnet_node *snode)
+void *spdnet_node_get_socket(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	return snode->socket;
 }
 
-int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len)
+int spdnet_setid(void *__snode, const void *id, size_t len)
 {
+	struct spdnet_node *snode = __snode;
 	assert(id);
 	assert(len <= SPDNET_SOCKID_SIZE);
 
@@ -94,8 +73,9 @@ int spdnet_setid(struct spdnet_node *snode, const void *id, size_t len)
 	return zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len);
 }
 
-void spdnet_setalive(struct spdnet_node *snode, time_t alive)
+void spdnet_setalive(void *__snode, int64_t alive)
 {
+	struct spdnet_node *snode = __snode;
 	assert(snode->type == SPDNET_NODE);
 
 	if (alive < SPDNET_MIN_ALIVE_INTERVAL)
@@ -106,14 +86,16 @@ void spdnet_setalive(struct spdnet_node *snode, time_t alive)
 	snode->alive_timeout = time(NULL) + snode->alive_interval;
 }
 
-int spdnet_bind(struct spdnet_node *snode, const char *addr)
+int spdnet_bind(void *__snode, const char *addr)
 {
+	struct spdnet_node *snode = __snode;
 	snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
 	return zmq_bind(snode->socket, addr);
 }
 
-int spdnet_connect(struct spdnet_node *snode, const char *addr)
+int spdnet_connect(void *__snode, const char *addr)
 {
+	struct spdnet_node *snode = __snode;
 	int rc;
 
 	if (addr != snode->addr)
@@ -126,8 +108,9 @@ int spdnet_connect(struct spdnet_node *snode, const char *addr)
 	return rc;
 }
 
-int spdnet_disconnect(struct spdnet_node *snode)
+int spdnet_disconnect(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	if (snode->type == SPDNET_NODE)
 		spdnet_unregister(snode);
 	if (strlen(snode->addr))
@@ -135,11 +118,12 @@ int spdnet_disconnect(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_register(struct spdnet_node *snode)
+int spdnet_register(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	int rc;
-	struct spdnet_msg msg;
 
+	struct spdnet_msg msg;
 	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
 	                     SPDNET_REGISTER_MSG, SPDNET_REGISTER_MSG_LEN,
 	                     NULL, 0);
@@ -150,11 +134,12 @@ int spdnet_register(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_unregister(struct spdnet_node *snode)
+int spdnet_unregister(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	int rc;
-	struct spdnet_msg msg;
 
+	struct spdnet_msg msg;
 	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
 	                     SPDNET_UNREGISTER_MSG, SPDNET_UNREGISTER_MSG_LEN,
 	                     NULL, 0);
@@ -165,12 +150,13 @@ int spdnet_unregister(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_expose(struct spdnet_node *snode)
+int spdnet_expose(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	assert(snode->id_len);
 	int rc;
-	struct spdnet_msg msg;
 
+	struct spdnet_msg msg;
 	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
 	                     SPDNET_EXPOSE_MSG, SPDNET_EXPOSE_MSG_LEN,
 	                     NULL, 0);
@@ -181,13 +167,14 @@ int spdnet_expose(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_alive(struct spdnet_node *snode)
+int spdnet_alive(void *__snode)
 {
+	struct spdnet_node *snode = __snode;
 	assert(snode->type == SPDNET_NODE);
 	assert(snode->id_len);
 	int rc;
-	struct spdnet_msg msg;
 
+	struct spdnet_msg msg;
 	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
 	                     SPDNET_ALIVE_MSG, SPDNET_ALIVE_MSG_LEN, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
@@ -197,19 +184,21 @@ int spdnet_alive(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags)
+int spdnet_recv(void *__snode, void *buf, size_t size, int flags)
 {
+	struct spdnet_node *snode = __snode;
 	return zmq_recv(snode->socket, buf, size, flags);
 }
 
-int spdnet_send(struct spdnet_node *snode,
-                const void *buf, size_t size, int flags)
+int spdnet_send(void *__snode, const void *buf, size_t size, int flags)
 {
+	struct spdnet_node *snode = __snode;
 	return zmq_send(snode->socket, buf, size, flags);
 }
 
-int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
+int spdnet_recvmsg(void *__snode, struct spdnet_msg *msg, int flags)
 {
+	struct spdnet_node *snode = __snode;
 	int rc = 0;
 
 	// sockid
@@ -256,10 +245,11 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags)
 	return 0;
 }
 
-int spdnet_recvmsg_timeout(struct spdnet_node *snode,
-                           struct spdnet_msg *msg,
+int spdnet_recvmsg_timeout(void *__snode, struct spdnet_msg *msg,
                            int flags, int timeout)
 {
+	struct spdnet_node *snode = __snode;
+
 	zmq_pollitem_t item;
 	item.socket = spdnet_node_get_socket(snode);
 	item.fd = 0;
@@ -271,22 +261,24 @@ int spdnet_recvmsg_timeout(struct spdnet_node *snode,
 	return spdnet_recvmsg(snode, msg, flags);
 }
 
-void spdnet_recvmsg_async(struct spdnet_node *snode,
-                          spdnet_recvmsg_cb recvmsg_cb,
+void spdnet_recvmsg_async(void *__snode, spdnet_recvmsg_cb recvmsg_cb,
                           void *recvmsg_arg, long timeout)
 {
+	struct spdnet_node *snode = __snode;
+
 	snode->recvmsg_cb = recvmsg_cb;
 	snode->recvmsg_arg = recvmsg_arg;
 	if (timeout) snode->recvmsg_timeout = time(NULL) + timeout/1000;
 	else snode->recvmsg_timeout = 0;
 }
 
-int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
+int spdnet_sendmsg(void *__snode, struct spdnet_msg *msg)
 {
 #ifdef HAVE_ZMQ_BUG
 	usleep(10000);
 #endif
 
+	struct spdnet_node *snode = __snode;
 	int rc = 0;
 
 	// sockid

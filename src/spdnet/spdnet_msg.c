@@ -1,8 +1,8 @@
-#include "spdnet.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <zmq.h>
+#include "spdnet-internal.h"
 
 #define SPDNET_STRERROR_GEN(name, msg) case SPDNET_ ## name: return msg;
 const char *spdnet_strerror(int err) {
@@ -152,7 +152,7 @@ int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 	return 0;
 }
 
-zmq_msg_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name)
+spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name)
 {
 	if (!strcmp(frame_name, "sockid"))
 		return &msg->__sockid;

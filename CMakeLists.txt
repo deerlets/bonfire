@@ -36,8 +36,8 @@ include_directories(src/spdnet)
 add_subdirectory(src/spdnet)
 
 # zebra
-include_directories(src)
-add_subdirectory(src)
+#include_directories(src)
+#add_subdirectory(src)
 
 # tests
 option(BUILD_TESTS "Build all tests." OFF)
