@@ -181,7 +181,8 @@ void *spdnet_node_new(void *ctx);
 int spdnet_node_destroy(void *snode);
 
 void *spdnet_node_get_socket(void *snode);
-int spdnet_setid(void *snode, const void *id, size_t len);
+void spdnet_getid(void *snode, void *id, size_t *len);
+void spdnet_setid(void *snode, const void *id, size_t len);
 void spdnet_setalive(void *snode, int64_t alive);
 
 int spdnet_bind(void *snode, const char *addr);

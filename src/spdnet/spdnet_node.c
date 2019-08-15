@@ -66,7 +66,17 @@ void *spdnet_node_get_socket(void *__snode)
 	return snode->socket;
 }
 
-int spdnet_setid(void *__snode, const void *id, size_t len)
+void spdnet_getid(void *__snode, void *id, size_t *len)
+{
+	struct spdnet_node *snode = __snode;
+	assert(id);
+	assert(len);
+
+	*len = snode->id_len;
+	memcpy(id, snode->id, snode->id_len);
+}
+
+void spdnet_setid(void *__snode, const void *id, size_t len)
 {
 	struct spdnet_node *snode = __snode;
 	assert(id);
@@ -75,7 +85,7 @@ int spdnet_setid(void *__snode, const void *id, size_t len)
 	memcpy(snode->id, id, len);
 	snode->id_len = len;
 
-	return zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len);
+	assert(zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len) == 0);
 }
 
 void spdnet_setalive(void *__snode, int64_t alive)
