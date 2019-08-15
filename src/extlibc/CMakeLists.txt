@@ -6,6 +6,7 @@ file(GLOB INC *.h)
 add_library(cx SHARED ${SRC})
 set_target_properties(cx PROPERTIES PUBLIC_HEADER "${INC}")
 set_target_properties(cx PROPERTIES VERSION 0.0.2 SOVERSION 0)
+target_link_libraries(cx dl pthread)
 
 install(TARGETS cx
     RUNTIME DESTINATION bin

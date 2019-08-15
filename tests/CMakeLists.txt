@@ -33,9 +33,9 @@ target_link_libraries(test-spdnet cmocka spdnet cx)
 add_test(test-spdnet ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-spdnet)
 
 #
-# zebra
+# bonfire
 #
 
-#add_executable(test-service test_service.c)
-#target_link_libraries(test-service cmocka zebra)
-#add_test(test-service ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-service)
+add_executable(test-bonfire test_bonfire.c)
+target_link_libraries(test-bonfire cmocka bonfire)
+add_test(test-bonfire ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-bonfire)

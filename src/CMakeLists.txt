@@ -1,17 +1,15 @@
 cmake_minimum_required(VERSION 2.8)
 
-file(GLOB SRC *.c)
+file(GLOB SRC *.cpp)
 file(GLOB INC *.h)
 
-add_definitions(-DZEBRA_INTERNAL)
+add_library(bonfire SHARED ${SRC})
+set_target_properties(bonfire PROPERTIES PUBLIC_HEADER "${INC}")
+set_target_properties(bonfire PROPERTIES VERSION 2.0.0 SOVERSION 2)
+target_link_libraries(bonfire spdnet cx)
 
-add_library(zebra SHARED ${SRC})
-set_target_properties(zebra PROPERTIES PUBLIC_HEADER "${INC}")
-set_target_properties(zebra PROPERTIES VERSION 1.6.0 SOVERSION 1)
-target_link_libraries(zebra pthread dl spdnet cx)
-
-install(TARGETS zebra
+install(TARGETS bonfire
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
-    PUBLIC_HEADER DESTINATION include/zebra)
+    PUBLIC_HEADER DESTINATION include/bonfire)

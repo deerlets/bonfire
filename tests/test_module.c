@@ -14,13 +14,14 @@ static void test_module(void **status)
 	assert_true(mod == NULL);
 	assert_true(mod_errno() == MOD_EOPEN);
 
-	mod = load_module("mock_module.zo", "myint=1");
+	mod = load_module("../lib/mock_module.zo", "myint=1");
 	assert_true(mod);
 	param_get_int("myint", &value, mod->param);
 	assert_true(value == 1);
 	unload_module(mod);
 
-	mod = load_module("mock_module.zo", "myint=1 mystr=\"hello world\"");
+	mod = load_module("../lib/mock_module.zo",
+	                  "myint=1 mystr=\"hello world\"");
 	assert_true(mod);
 	param_get_int("myint", &value, mod->param);
 	assert_true(value == 1);

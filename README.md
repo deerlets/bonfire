@@ -1,6 +1,6 @@
-# Zebra
+# Bonfire
 
-[![Build Status](https://travis-ci.com/deerlets/zebra.svg?branch=master)](https://travis-ci.com/deerlets/zebra)
+[![Build Status](https://travis-ci.com/deerlets/bonfire.svg?branch=master)](https://travis-ci.com/deerlets/bonfire)
 
 A service discovery and registry framework written in pure C.
 
