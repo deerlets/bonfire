@@ -49,7 +49,7 @@ static void test_bonfire(void **status)
 	// server init
 	struct bonfire_server *server =
 		bonfire_server_new(ROUTER_ADDRESS, SERVER_SOCKID);
-	task_t *bonfire_server_task = task_new_timeout(
+	struct task *bonfire_server_task = task_new_timeout(
 		"bonfire-server-task",
 		(task_timeout_func_t)bonfire_server_loop,
 		server, 500);

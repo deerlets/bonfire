@@ -21,7 +21,7 @@ static void test_spdnet_basic(void **status)
 	void *ctx = spdnet_ctx_new();
 	void *router = spdnet_router_new("router_inner", ctx);
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
-	task_t *router_task = task_new_timeout(
+	struct task *router_task = task_new_timeout(
 		"router_task",
 		(task_timeout_func_t)spdnet_router_loop,
 		router, 500);
@@ -137,7 +137,7 @@ static void test_spdnet_router(void **status)
 	assert_true(inner);
 	rc = spdnet_router_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
-	task_t *inner_task = task_new_timeout(
+	struct task *inner_task = task_new_timeout(
 		"router-inner-task",
 		(task_timeout_func_t)spdnet_router_loop,
 		inner, 1000);
@@ -155,7 +155,7 @@ static void test_spdnet_router(void **status)
 	                             inner_id, &inner_len);
 	assert_true(rc == 0);
 	spdnet_router_set_gateway(outer, inner_id, inner_len);
-	task_t *outer_task = task_new_timeout(
+	struct task *outer_task = task_new_timeout(
 		"router-outer-task",
 		(task_timeout_func_t)spdnet_router_loop,
 		outer, 1000);

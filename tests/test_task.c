@@ -13,7 +13,7 @@ static int loop_test(void *arg)
 
 static void test_task(void **status)
 {
-	task_t *task = task_new("task_test", loop_test, NULL);
+	struct task *task = task_new("task_test", loop_test, NULL);
 	assert_true(task_state(task) == TASK_S_PENDING);
 	task_start(task);
 	sleep(1);
