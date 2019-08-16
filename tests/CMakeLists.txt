@@ -37,5 +37,5 @@ add_test(test-spdnet ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-spdnet)
 #
 
 add_executable(test-bonfire test_bonfire.c)
-target_link_libraries(test-bonfire cmocka bonfire)
+target_link_libraries(test-bonfire cmocka bonfire cx)
 add_test(test-bonfire ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-bonfire)

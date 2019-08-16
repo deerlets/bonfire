@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <spdnet.h>
-#include <timer.h>
 #include "bonfire.h"
 
 #include <string>
@@ -50,9 +49,6 @@ struct bonfire {
 	int msg_doing;
 	int msg_filtered;
 	int msg_handled;
-
-	// timer
-	struct timer_loop tm_loop;
 };
 
 static void to_json(json &j, const struct bonfire_service &sv)
@@ -219,16 +215,11 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	bf->msg_filtered = 0;
 	bf->msg_handled = 0;
 
-	// timer loop
-	timer_loop_init(&bf->tm_loop);
-
 	return bf;
 }
 
 void bonfire_destroy(struct bonfire *bf)
 {
-	timer_loop_close(&bf->tm_loop);
-
 	spdnet_nodepool_put(bf->snodepool, bf->snode);
 	spdnet_nodepool_destroy(bf->snodepool);
 	spdnet_ctx_destroy(bf->ctx);
@@ -238,13 +229,6 @@ void bonfire_destroy(struct bonfire *bf)
 
 void bonfire_loop(struct bonfire *bf, long timeout)
 {
-	struct timeval next;
-	timer_loop_run(&bf->tm_loop, &next);
-	assert(next.tv_sec >= 0 || next.tv_usec >= 0);
-	long next_timeout = next.tv_sec * 1000 + next.tv_usec / 1000;
-
-	if (next_timeout < timeout)
-		timeout = next_timeout;
 	spdnet_nodepool_loop(bf->snodepool, timeout);
 	do_all_msg(bf);
 }
