@@ -139,7 +139,8 @@ int bonfire_servsync(struct bonfire *bf);
 
 struct bonfire_server;
 
-void *bonfire_server_new(const char *listen_addr, const char *local_id);
+struct bonfire_server *
+bonfire_server_new(const char *listen_addr, const char *local_id);
 void bonfire_server_destroy(struct bonfire_server *server);
 int bonfire_server_loop(struct bonfire_server *server, long timeout);
 void bonfire_server_set_gateway(struct bonfire_server *server,

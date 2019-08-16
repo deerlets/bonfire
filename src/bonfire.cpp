@@ -551,7 +551,8 @@ static struct bonfire_service_info services[] = {
 	INIT_SERVICE(NULL, NULL, NULL),
 };
 
-void *bonfire_server_new(const char *listen_addr, const char *local_id)
+struct bonfire_server *
+bonfire_server_new(const char *listen_addr, const char *local_id)
 {
 	struct bonfire_server *server = new struct bonfire_server;
 	assert(strlen(listen_addr) < SPDNET_ADDRESS_SIZE);
