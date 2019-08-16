@@ -85,7 +85,8 @@ static void handle_msg(struct bonfire *bf, struct bonfire_msg *bm)
 
 static void do_all_msg(struct bonfire *bf)
 {
-	for (auto it = bf->bonfire_msgs.begin(); it != bf->bonfire_msgs.end(); ++it) {
+	for (auto it = bf->bonfire_msgs.begin();
+	     it != bf->bonfire_msgs.end(); ++it) {
 		struct bonfire_msg *bm = *it;
 
 		// stage 1: handle raw
@@ -314,10 +315,14 @@ static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	struct async_struct *as = (struct async_struct *)arg;
 	int flag = BONFIRE_SERVCALL_OK;
 
-	if (!msg)
+	if (!msg) {
 		flag = BONFIRE_SERVCALL_TIMEOUT;
-
-	as->cb(MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg), as->arg, flag);
+		as->cb(NULL, 0, as->arg, flag);
+	} else {
+		as->cb(MSG_CONTENT_DATA(msg),
+		       MSG_CONTENT_SIZE(msg),
+		       as->arg, flag);
+	}
 
 	spdnet_nodepool_put(as->snodepool, snode);
 	delete as;
