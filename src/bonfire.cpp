@@ -178,7 +178,6 @@ struct bonfire *bonfire_new(const char *remote_addr,
                             const char *local_id)
 {
 	struct bonfire *bf = new struct bonfire;
-	if (!bf) return NULL;
 
 	assert(strlen(remote_addr) < SPDNET_ADDRESS_SIZE);
 	assert(strlen(remote_id) < SPDNET_SOCKID_SIZE);
@@ -202,6 +201,13 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	             bf->local_sockid.size());
 	assert(spdnet_connect(bf->snode, bf->remote_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
+
+	// default service
+	struct bonfire_service bs = {
+		.uri = BONFIRE_SERVICE_INFO,
+		.sockid = remote_id,
+	};
+	bf->services.insert(std::make_pair(bs.uri, bs));
 
 	// bonfire_msg
 	bf->msg_arg = 0;
@@ -285,12 +291,18 @@ int bonfire_servcall(struct bonfire *bf,
                      char **result,
                      long timeout)
 {
+	// find service
+	auto it = bf->services.find(header);
+	if (it == bf->services.end())
+		return BONFIRE_SERVCALL_NOSERV;
+
+	// call remote service
 	void *snode = spdnet_nodepool_get(bf->snodepool);
 	assert(snode);
 	assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
 
 	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, bf->remote_sockid.c_str(), header, content);
+	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(), header, content);
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	if (spdnet_recvmsg_timeout(snode, &tmp, 0, timeout)) {
 		spdnet_msg_close(&tmp);
@@ -362,7 +374,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 {
 	char *result = NULL;
 
-	if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO, NULL, &result, 5000))
+	if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO, NULL, &result, 3000))
 		return -1;
 
 	try {
@@ -399,7 +411,7 @@ static int push_local_service_to_remote(struct bonfire *bf)
 
 		if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
 		                     cnt.dump().c_str(),
-		                     &result, 5000))
+		                     &result, 3000))
 			return -1;
 
 		try {
@@ -494,8 +506,11 @@ static void on_service_info(struct bonfire_msg *bm)
 	json cnt = {{"services", json::array()}};
 	int i = 0;
 
+	for (auto &item : server->bf->local_services)
+		cnt["services"][i++] = item.second;
+
 	for (auto &item : server->bf->services)
-		cnt["services"][i++] = item;
+		cnt["services"][i++] = item.second;
 
 	pack(bm, SERVICE_EOK, cnt);
 }
@@ -538,12 +553,6 @@ static void on_service_del(struct bonfire_msg *bm)
 	auto it = server->bf->services.find(uri);
 	if (it == server->bf->services.end()) {
 		pack(bm, SERVICE_ENONEXIST, nullptr);
-		return;
-	}
-
-	string sockid((char *)bm->srcid, bm->srcid_len);
-	if (it->second.sockid != sockid) {
-		pack(bm, SERVICE_EPERM, nullptr);
 		return;
 	}
 

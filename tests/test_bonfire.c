@@ -59,7 +59,7 @@ static void test_bonfire(void **status)
 		ROUTER_ADDRESS, SERVER_SOCKID, CLIENT_SOCKID);
 
 	bonfire_set_local_services(bf, services);
-	bonfire_servsync(bf);
+	assert_true(bonfire_servsync(bf) == 0);
 	bonfire_servcall_async(bf, "test://zerox/t", "hello", zerox_cb, bf, 0);
 
 	while (!exit_flag)
