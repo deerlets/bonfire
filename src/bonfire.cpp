@@ -606,3 +606,16 @@ int bonfire_server_loop(struct bonfire_server *server, long timeout)
 	bonfire_loop(server->bf, 0);
 	return 0;
 }
+
+void bonfire_server_set_gateway(struct bonfire_server *server,
+                                const char *gateway_addr)
+{
+	char gateway_id[SPDNET_SOCKID_SIZE];
+	size_t gateway_len;
+
+	spdnet_router_associate(server->router,
+	                        gateway_addr,
+	                        gateway_id,
+	                        &gateway_len);
+	spdnet_router_set_gateway(server->router, gateway_id, gateway_len);
+}
