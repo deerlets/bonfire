@@ -227,10 +227,11 @@ void bonfire_destroy(struct bonfire *bf)
 	delete bf;
 }
 
-void bonfire_loop(struct bonfire *bf, long timeout)
+int bonfire_loop(struct bonfire *bf, long timeout)
 {
 	spdnet_nodepool_loop(bf->snodepool, timeout);
 	do_all_msg(bf);
+	return 0;
 }
 
 void bonfire_set_msg_arg(struct bonfire *bf, void *arg)

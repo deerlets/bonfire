@@ -98,7 +98,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
                             const char *remote_id,
                             const char *local_id);
 void bonfire_destroy(struct bonfire *bf);
-void bonfire_loop(struct bonfire *bf, long timeout);
+int bonfire_loop(struct bonfire *bf, long timeout);
 
 void bonfire_set_msg_arg(struct bonfire *bf, void *arg);
 
@@ -144,7 +144,7 @@ bonfire_server_new(const char *listen_addr, const char *local_id);
 void bonfire_server_destroy(struct bonfire_server *server);
 int bonfire_server_loop(struct bonfire_server *server, long timeout);
 void bonfire_server_set_gateway(struct bonfire_server *server,
-                                const char *gateway_id);
+                                const char *gateway_addr);
 
 #ifdef __cplusplus
 }
