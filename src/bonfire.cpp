@@ -279,6 +279,33 @@ void bonfire_set_local_services(struct bonfire *bf,
 	}
 }
 
+int bonfire_servcall(struct bonfire *bf,
+                     const char *header,
+                     const char *content,
+                     char **result,
+                     long timeout)
+{
+	void *snode = spdnet_nodepool_get(bf->snodepool);
+	assert(snode);
+	assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
+
+	struct spdnet_msg tmp;
+	SPDNET_MSG_INIT_DATA(&tmp, bf->remote_sockid.c_str(), header, content);
+	assert(spdnet_sendmsg(snode, &tmp) == 0);
+	if (spdnet_recvmsg_timeout(snode, &tmp, 0, timeout)) {
+		spdnet_msg_close(&tmp);
+		spdnet_nodepool_put(bf->snodepool, snode);
+		return -1;
+	}
+
+	string cnt((char *)MSG_CONTENT_DATA(&tmp), MSG_CONTENT_SIZE(&tmp));
+	if (result) *result = strdup(cnt.c_str());
+
+	spdnet_msg_close(&tmp);
+	spdnet_nodepool_put(bf->snodepool, snode);
+	return 0;
+}
+
 struct async_struct {
 	bonfire_servcall_cb cb;
 	void *arg;
@@ -299,12 +326,12 @@ static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	delete as;
 }
 
-void bonfire_servcall(struct bonfire *bf,
-                      const char *header,
-                      const char *content,
-                      bonfire_servcall_cb cb,
-                      void *arg,
-                      long timeout)
+void bonfire_servcall_async(struct bonfire *bf,
+                            const char *header,
+                            const char *content,
+                            bonfire_servcall_cb cb,
+                            void *arg,
+                            long timeout)
 {
 	// find service
 	auto it = bf->services.find(header);
@@ -331,39 +358,11 @@ void bonfire_servcall(struct bonfire *bf,
 	spdnet_recvmsg_async(snode, async_cb, as, timeout);
 }
 
-int bonfire_servcall_sync(struct bonfire *bf,
-                          const char *header,
-                          const char *content,
-                          char **result,
-                          long timeout)
-{
-	void *snode = spdnet_nodepool_get(bf->snodepool);
-	assert(snode);
-	assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
-
-	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, bf->remote_sockid.c_str(), header, content);
-	assert(spdnet_sendmsg(snode, &tmp) == 0);
-	if (spdnet_recvmsg_timeout(snode, &tmp, 0, timeout)) {
-		spdnet_msg_close(&tmp);
-		spdnet_nodepool_put(bf->snodepool, snode);
-		return -1;
-	}
-
-	string cnt((char *)MSG_CONTENT_DATA(&tmp), MSG_CONTENT_SIZE(&tmp));
-	assert(result);
-	*result = strdup(cnt.c_str());
-
-	spdnet_msg_close(&tmp);
-	spdnet_nodepool_put(bf->snodepool, snode);
-	return 0;
-}
-
 static int pull_service_from_remote(struct bonfire *bf)
 {
 	char *result = NULL;
 
-	if (bonfire_servcall_sync(bf, BONFIRE_SERVICE_INFO, NULL, &result, 5000))
+	if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO, NULL, &result, 5000))
 		return -1;
 
 	try {
@@ -398,9 +397,9 @@ static int push_local_service_to_remote(struct bonfire *bf)
 
 		json cnt = item.second;
 
-		if (bonfire_servcall_sync(bf, BONFIRE_SERVICE_ADD,
-		                          cnt.dump().c_str(),
-		                          &result, 5000))
+		if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
+		                     cnt.dump().c_str(),
+		                     &result, 5000))
 			return -1;
 
 		try {

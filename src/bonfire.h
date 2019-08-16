@@ -111,6 +111,12 @@ void bonfire_set_msg_finished(struct bonfire *bf,
 void bonfire_set_local_services(struct bonfire *bf,
                                 struct bonfire_service_info *services);
 
+int bonfire_servcall(struct bonfire *bf,
+                     const char *header,
+                     const char *content,
+                     char **result, // if not null, user should free it
+                     long timeout);
+
 #define BONFIRE_SERVCALL_OK 0
 #define BONFIRE_SERVCALL_NOSERV 1
 #define BONFIRE_SERVCALL_TIMEOUT 2
@@ -118,18 +124,12 @@ void bonfire_set_local_services(struct bonfire *bf,
 typedef
 void (*bonfire_servcall_cb)(const void *resp, size_t len, void *arg, int flag);
 
-void bonfire_servcall(struct bonfire *bf,
-                      const char *header,
-                      const char *content,
-                      bonfire_servcall_cb cb,
-                      void *arg,
-                      long timeout);
-
-int bonfire_servcall_sync(struct bonfire *bf,
-                          const char *header,
-                          const char *content,
-                          char **result, // free by user
-                          long timeout);
+void bonfire_servcall_async(struct bonfire *bf,
+                            const char *header,
+                            const char *content,
+                            bonfire_servcall_cb cb,
+                            void *arg,
+                            long timeout);
 
 int bonfire_servsync(struct bonfire *bf);
 
