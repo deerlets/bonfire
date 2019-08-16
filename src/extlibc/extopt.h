@@ -35,7 +35,7 @@ struct opt {
 };
 
 #define INIT_OPT_STRING(optshort, key, val, desc) \
-	{ optshort, key, .value.s = val, OPT_STRING_STATIC, desc }
+	{ optshort, key, .value.s = (char *)val, OPT_STRING_STATIC, desc }
 #define INIT_OPT_INT(optshort, key, val, desc) \
 	{ optshort, key, .value.i = val, OPT_INTEGER, desc }
 #define INIT_OPT_BOOL(optshort, key, val, desc) \
