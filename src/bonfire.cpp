@@ -4,6 +4,9 @@
 #include <spdnet.h>
 #include "bonfire.h"
 
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <string>
 #include <list>
 #include <map>
@@ -489,6 +492,40 @@ static inline void pack(struct bonfire_msg *bm, int err, json cnt)
 	bonfire_msg_write_response(bm, resp.dump().c_str(), -1);
 }
 
+#define BONFIRE_SERVER_CACHE_FILE "bonfire-server.json"
+
+static void load_config(struct bonfire_server *server)
+{
+	std::ifstream ifs(BONFIRE_SERVER_CACHE_FILE);
+
+	try {
+		json j = json::parse(ifs);
+		for (auto it = j["services"].begin();
+		     it != j["services"].end(); ++it) {
+			struct bonfire_service bs = *it;
+			server->bf->services.insert(std::make_pair(bs.uri, bs));
+		}
+	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
+	}
+
+	ifs.close();
+}
+
+static void save_config(struct bonfire_server *server)
+{
+	std::ofstream ofs(BONFIRE_SERVER_CACHE_FILE);
+
+	json cnt = {{"services", json::array()}};
+	int i = 0;
+
+	for (auto &item : server->bf->services)
+		cnt["services"][i++] = item.second;
+
+	ofs << std::setw(4) << cnt << std::endl;
+	ofs.close();
+}
+
 static void on_service_info(struct bonfire_msg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
@@ -524,6 +561,7 @@ static void on_service_add(struct bonfire_msg *bm)
 	}
 
 	server->bf->services.insert(std::make_pair(bs.uri, bs));
+	save_config(server);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
@@ -547,6 +585,7 @@ static void on_service_del(struct bonfire_msg *bm)
 	}
 
 	server->bf->services.erase(it);
+	save_config(server);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
@@ -586,6 +625,9 @@ bonfire_server_new(const char *listen_addr, const char *local_id)
 	assert(server->bf);
 	bonfire_set_msg_arg(server->bf, server);
 	bonfire_set_local_services(server->bf, services);
+
+	// load config
+	load_config(server);
 
 	return server;
 }
