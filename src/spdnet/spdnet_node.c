@@ -53,6 +53,8 @@ int spdnet_node_destroy(void *__snode)
 	struct spdnet_node *snode = __snode;
 	assert(snode != NULL);
 
+	spdnet_disconnect(snode);
+
 	if (zmq_close(snode->socket) == -1)
 		return -1;
 
