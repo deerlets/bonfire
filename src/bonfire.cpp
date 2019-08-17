@@ -203,10 +203,9 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
 
 	// default service
-	struct bonfire_service bs = {
-		.uri = BONFIRE_SERVICE_INFO,
-		.sockid = remote_id,
-	};
+	struct bonfire_service bs;
+	bs.uri = BONFIRE_SERVICE_INFO;
+	bs.sockid = remote_id;
 	bf->services.insert(std::make_pair(bs.uri, bs));
 
 	// bonfire_msg
