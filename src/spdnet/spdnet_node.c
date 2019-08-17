@@ -122,6 +122,9 @@ int spdnet_connect(void *__snode, const char *addr)
 	if (rc == 0 && snode->type == SPDNET_NODE)
 		rc = spdnet_register(snode);
 
+	snode->alive_interval = SPDNET_ALIVE_INTERVAL;
+	snode->alive_timeout = time(NULL) + SPDNET_ALIVE_INTERVAL;
+
 	return rc;
 }
 
@@ -132,6 +135,10 @@ int spdnet_disconnect(void *__snode)
 		spdnet_unregister(snode);
 	if (strlen(snode->addr))
 		return zmq_disconnect(snode->socket, snode->addr);
+
+	snode->alive_interval = 0;
+	snode->alive_timeout = 0;
+
 	return 0;
 }
 
@@ -188,7 +195,6 @@ int spdnet_alive(void *__snode)
 {
 	struct spdnet_node *snode = __snode;
 	assert(snode->type == SPDNET_NODE);
-	assert(snode->id_len);
 	int rc;
 
 	struct spdnet_msg msg;
