@@ -1,8 +1,6 @@
 #ifndef __BONFIRE_BONFIRE_H
 #define __BONFIRE_BONFIRE_H
 
-#include <spdnet.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -11,68 +9,21 @@ extern "C" {
  * bonfire_msg
  */
 
-#define BONFIRE_RESPONSE_SUBFIX "#reply"
-#define BONFIRE_RESPONSE_SUBFIX_LEN (sizeof(BONFIRE_RESPONSE_SUBFIX) - 1)
-
-enum bonfire_msg_lifetime_state {
-	// raw
-	BM_RAW = 0,
-
-	// intermediate
-	BM_PENDING = 0x10,
-
-	// result
-	BM_FILTERED = 0x20,
-	BM_HANDLED,
-};
-
-struct bonfire_msg {
-	// sockid of request should be dstid after init before using
-	struct spdnet_msg request;
-
-	// sockid of response should be srcid after init before using
-	struct spdnet_msg response;
-
-	// bonfire'll init it with msg_arg but never touch it any more
-	void *user_arg;
-
-	// bonfire never touch user_data
-	void *user_data;
-
-	/* private: used by bonfire cli */
-
-	// request convenient
-	const void *header;
-	size_t header_len;
-
-	// srcid & dstid
-	const void *srcid;
-	size_t srcid_len;
-	const void *dstid;
-	size_t dstid_len;
-
-	// snode which received the request
-	void *snode;
-
-	// lifetime state
-	int state;
-};
-
-void bonfire_msg_init(struct bonfire_msg *bm, struct spdnet_msg *request);
-void bonfire_msg_init2(struct bonfire_msg *bm,
-                       const char *req_sockid,
-                       const char *req_header,
-                       const char *req_content);
-void bonfire_msg_close(struct bonfire_msg *bm);
+struct bonfire_msg;
 
 void bonfire_msg_pending(struct bonfire_msg *bm);
 void bonfire_msg_filtered(struct bonfire_msg *bm);
 void bonfire_msg_handled(struct bonfire_msg *bm);
 
-void
-bonfire_msg_get_reqid(struct bonfire_msg *bm, const void *sockid, size_t *len);
-void
-bonfire_msg_write_response(struct bonfire_msg *bm, const void *data, int size);
+void *bonfire_msg_get_user_arg(struct bonfire_msg *bm);
+void bonfire_msg_set_user_arg(struct bonfire_msg *bm, void *arg);
+
+void bonfire_msg_get_request(struct bonfire_msg *bm, void **data, size_t *size);
+
+void bonfire_msg_write_response(struct bonfire_msg *bm, const char *data);
+void bonfire_msg_write_response_size(struct bonfire_msg *bm,
+                                     const void *data,
+                                     size_t size);
 
 /*
  * bonfire service

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
 file(GLOB SRC *.cpp)
-file(GLOB INC *.h)
+file(GLOB INC bonfire.h)
 
 add_library(bonfire SHARED ${SRC})
 set_target_properties(bonfire PROPERTIES PUBLIC_HEADER "${INC}")

@@ -24,7 +24,7 @@ static void on_zerox(struct bonfire_msg *bm)
 {
 	char welcome[] = "Welcome to zerox.";
 
-	bonfire_msg_write_response(bm, welcome, -1);
+	bonfire_msg_write_response(bm, welcome);
 }
 
 static struct bonfire_service_info services[] = {

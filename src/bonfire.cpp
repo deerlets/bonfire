@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <spdnet.h>
-#include "bonfire.h"
 
 #include <iostream>
 #include <fstream>
@@ -11,6 +10,8 @@
 #include <list>
 #include <map>
 #include <nlohmann/json.hpp>
+
+#include "bonfire-internal.h"
 
 using string = std::string;
 using json = nlohmann::json;
@@ -72,7 +73,8 @@ static void from_json(const json &j, bonfire_service &sv)
 
 static void handle_msg(struct bonfire *bf, struct bonfire_msg *bm)
 {
-	string header((char *)bm->header, bm->header_len);
+	string header((char *)MSG_HEADER_DATA(&bm->request),
+	              MSG_HEADER_SIZE(&bm->request));
 
 	auto it = bf->local_services.find(header);
 	if (it == bf->local_services.end()) {
@@ -117,8 +119,7 @@ static void do_all_msg(struct bonfire *bf)
 			if (bf->msg_finished_cb)
 				bf->msg_finished_cb(bm);
 
-			if (bm->srcid)
-				spdnet_sendmsg(bm->snode, &bm->response);
+			spdnet_sendmsg(bm->snode, &bm->response);
 		}
 
 		if (bm->state == BM_FILTERED)
@@ -139,27 +140,34 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 {
 	struct bonfire *bf = (struct bonfire *)arg;
 
+	const void *srcid = MSG_SOCKID_DATA(msg);
+	size_t srcid_len = MSG_SOCKID_SIZE(msg);
+
+	char dstid[SPDNET_SOCKID_SIZE];
+	size_t dstid_len;
+	spdnet_getid(snode, dstid, &dstid_len);
+
 	struct bonfire_msg *bm = new struct bonfire_msg;
-	bonfire_msg_init(bm, msg);
+	bonfire_msg_init(bm);
+
+	// request
+	spdnet_msg_close(&bm->request);
+	spdnet_msg_init_data(&bm->request, dstid, dstid_len,
+	                     MSG_HEADER_DATA(msg), MSG_HEADER_SIZE(msg),
+	                     MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg));
+
+	// response
+	// TODO: need performance optimization
+	string resp_header((char *)MSG_HEADER_DATA(msg), MSG_HEADER_SIZE(msg));
+	resp_header += BONFIRE_RESPONSE_SUBFIX;
+	spdnet_msg_close(&bm->response);
+	spdnet_msg_init_data(&bm->response,
+	                     srcid, srcid_len,
+	                     resp_header.c_str(), -1,
+	                     NULL, 0);
 
 	// user arg
 	bm->user_arg = bf->msg_arg;
-
-	// set sockid of bm->response to srcid
-	spdnet_frame_copy(MSG_SOCKID(&bm->response), MSG_SOCKID(&bm->request));
-	bm->srcid = MSG_SOCKID_DATA(&bm->response);
-	bm->srcid_len = MSG_SOCKID_SIZE(&bm->response);
-
-	// set sockid of bm->request to dstid
-	char id[SPDNET_SOCKID_SIZE];
-	size_t len;
-	spdnet_getid(snode, id, &len);
-
-	spdnet_frame_close(MSG_SOCKID(&bm->request));
-	spdnet_frame_init_size(MSG_SOCKID(&bm->request), len);
-	memcpy(MSG_SOCKID_DATA(&bm->request), id, len);
-	bm->dstid = MSG_SOCKID_DATA(&bm->request);
-	bm->dstid_len = MSG_SOCKID_SIZE(&bm->request);
 
 	// save snode
 	bm->snode = snode;
@@ -488,7 +496,7 @@ static inline void pack(struct bonfire_msg *bm, int err, json cnt)
 		{"errmsg", service_strerror(err)},
 		{"result", cnt}
 	};
-	bonfire_msg_write_response(bm, resp.dump().c_str(), -1);
+	bonfire_msg_write_response(bm, resp.dump().c_str());
 }
 
 #define BONFIRE_SERVER_CACHE_FILE "bonfire-server.json"
