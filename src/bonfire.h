@@ -6,30 +6,26 @@ extern "C" {
 #endif
 
 /*
- * bonfire_msg
+ * bmsg
  */
 
-struct bonfire_msg;
+struct bmsg;
 
-void bonfire_msg_pending(struct bonfire_msg *bm);
-void bonfire_msg_filtered(struct bonfire_msg *bm);
-void bonfire_msg_handled(struct bonfire_msg *bm);
+void bmsg_pending(struct bmsg *bm);
+void bmsg_filtered(struct bmsg *bm);
+void bmsg_handled(struct bmsg *bm);
 
-void *bonfire_msg_get_user_arg(struct bonfire_msg *bm);
-void bonfire_msg_set_user_arg(struct bonfire_msg *bm, void *arg);
-
-void bonfire_msg_get_request(struct bonfire_msg *bm, void **data, size_t *size);
-
-void bonfire_msg_write_response(struct bonfire_msg *bm, const char *data);
-void bonfire_msg_write_response_size(struct bonfire_msg *bm,
-                                     const void *data,
-                                     size_t size);
+void *bmsg_get_user_arg(struct bmsg *bm);
+void bmsg_set_user_arg(struct bmsg *bm, void *arg);
+void bmsg_get_request(struct bmsg *bm, void **data, size_t *size);
+void bmsg_write_response(struct bmsg *bm, const char *data);
+void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 
 /*
  * bonfire service
  */
 
-typedef void (*service_handler_func_t)(struct bonfire_msg *bm);
+typedef void (*service_handler_func_t)(struct bmsg *bm);
 
 struct bonfire_service_info {
 	const char *uri;

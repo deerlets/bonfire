@@ -12,19 +12,19 @@
 
 static int exit_flag;
 
-static void on_hello(struct bonfire_msg *bm)
+static void on_hello(struct bmsg *bm)
 {
 }
 
-static void on_world(struct bonfire_msg *bm)
+static void on_world(struct bmsg *bm)
 {
 }
 
-static void on_zerox(struct bonfire_msg *bm)
+static void on_zerox(struct bmsg *bm)
 {
 	char welcome[] = "Welcome to zerox.";
 
-	bonfire_msg_write_response(bm, welcome);
+	bmsg_write_response(bm, welcome);
 }
 
 static struct bonfire_service_info services[] = {

@@ -41,8 +41,8 @@ struct bonfire {
 	std::map<string, struct bonfire_service> services;
 	std::map<string, struct bonfire_service> local_services;
 
-	// bonfire_msg
-	std::list<struct bonfire_msg *> bonfire_msgs;
+	// bmsg
+	std::list<struct bmsg *> bmsgs;
 
 	void *msg_arg;
 	service_handler_func_t msg_filtered_cb;
@@ -71,28 +71,28 @@ static void from_json(const json &j, bonfire_service &sv)
 	j.at("load_level").get_to(sv.load_level);
 }
 
-static void handle_msg(struct bonfire *bf, struct bonfire_msg *bm)
+static void handle_msg(struct bonfire *bf, struct bmsg *bm)
 {
 	string header((char *)MSG_HEADER_DATA(&bm->request),
 	              MSG_HEADER_SIZE(&bm->request));
 
 	auto it = bf->local_services.find(header);
 	if (it == bf->local_services.end()) {
-		bonfire_msg_filtered(bm);
+		bmsg_filtered(bm);
 		return;
 	}
 
 	// call handler
 	it->second.handler(bm);
 	if (bm->state == BM_RAW)
-		bonfire_msg_handled(bm);
+		bmsg_handled(bm);
 }
 
 static void do_all_msg(struct bonfire *bf)
 {
-	for (auto it = bf->bonfire_msgs.begin();
-	     it != bf->bonfire_msgs.end(); ++it) {
-		struct bonfire_msg *bm = *it;
+	for (auto it = bf->bmsgs.begin();
+	     it != bf->bmsgs.end(); ++it) {
+		struct bmsg *bm = *it;
 
 		// stage 1: handle raw
 		if (bm->state == BM_RAW) {
@@ -128,9 +128,9 @@ static void do_all_msg(struct bonfire *bf)
 			bf->msg_handled++;
 		bf->msg_doing--;
 
-		// stage 4: release bonfire_msg
-		bf->bonfire_msgs.erase(it++);
-		bonfire_msg_close(bm);
+		// stage 4: release bmsg
+		bf->bmsgs.erase(it++);
+		bmsg_close(bm);
 		delete bm;
 
 	}
@@ -147,8 +147,8 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	size_t dstid_len;
 	spdnet_getid(snode, dstid, &dstid_len);
 
-	struct bonfire_msg *bm = new struct bonfire_msg;
-	bonfire_msg_init(bm);
+	struct bmsg *bm = new struct bmsg;
+	bmsg_init(bm);
 
 	// request
 	spdnet_msg_close(&bm->request);
@@ -172,8 +172,8 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	// save snode
 	bm->snode = snode;
 
-	// insert to bonfire_msgs of bonfire
-	bf->bonfire_msgs.push_back(bm);
+	// insert to bmsgs of bonfire
+	bf->bmsgs.push_back(bm);
 	bf->msg_total++;
 	bf->msg_doing++;
 
@@ -216,7 +216,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	bs.sockid = remote_id;
 	bf->services.insert(std::make_pair(bs.uri, bs));
 
-	// bonfire_msg
+	// bmsg
 	bf->msg_arg = 0;
 	bf->msg_prepare_cb = 0;
 	bf->msg_finished_cb = 0;
@@ -489,14 +489,14 @@ static inline json unpack(struct spdnet_msg *msg)
 	                   + MSG_CONTENT_SIZE(msg));
 }
 
-static inline void pack(struct bonfire_msg *bm, int err, json cnt)
+static inline void pack(struct bmsg *bm, int err, json cnt)
 {
 	json resp = {
 		{"errno", err},
 		{"errmsg", service_strerror(err)},
 		{"result", cnt}
 	};
-	bonfire_msg_write_response(bm, resp.dump().c_str());
+	bmsg_write_response(bm, resp.dump().c_str());
 }
 
 #define BONFIRE_SERVER_CACHE_FILE "bonfire-server.json"
@@ -533,7 +533,7 @@ static void save_config(struct bonfire_server *server)
 	ofs.close();
 }
 
-static void on_service_info(struct bonfire_msg *bm)
+static void on_service_info(struct bmsg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
 
@@ -549,7 +549,7 @@ static void on_service_info(struct bonfire_msg *bm)
 	pack(bm, SERVICE_EOK, cnt);
 }
 
-static void on_service_add(struct bonfire_msg *bm)
+static void on_service_add(struct bmsg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
 	struct bonfire_service bs;
@@ -572,7 +572,7 @@ static void on_service_add(struct bonfire_msg *bm)
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
-static void on_service_del(struct bonfire_msg *bm)
+static void on_service_del(struct bmsg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
 	string uri;

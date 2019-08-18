@@ -10,7 +10,7 @@ extern "C" {
 
 #define BONFIRE_RESPONSE_SUBFIX "#reply"
 
-enum bonfire_msg_lifetime_state {
+enum bmsg_lifetime_state {
 	// raw
 	BM_RAW = 0,
 
@@ -22,7 +22,7 @@ enum bonfire_msg_lifetime_state {
 	BM_HANDLED,
 };
 
-struct bonfire_msg {
+struct bmsg {
 	// sockid of request should be dstid after init before using
 	struct spdnet_msg request;
 
@@ -44,8 +44,8 @@ struct bonfire_msg {
 	int state;
 };
 
-void bonfire_msg_init(struct bonfire_msg *bm);
-void bonfire_msg_close(struct bonfire_msg *bm);
+void bmsg_init(struct bmsg *bm);
+void bmsg_close(struct bmsg *bm);
 
 #ifdef __cplusplus
 }
