@@ -57,9 +57,15 @@ void bmsg_set_user_arg(struct bmsg *bm, void *arg)
 	bm->user_arg = arg;
 }
 
-void bmsg_get_request(struct bmsg *bm, void **data, size_t *size)
+void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size)
 {
-	*data = MSG_CONTENT_DATA(&bm->request);
+	*header = MSG_HEADER_DATA(&bm->request);
+	*size = MSG_HEADER_SIZE(&bm->request);
+}
+
+void bmsg_get_request_content(struct bmsg *bm, void **content, size_t *size)
+{
+	*content = MSG_CONTENT_DATA(&bm->request);
 	*size = MSG_CONTENT_SIZE(&bm->request);
 }
 

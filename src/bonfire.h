@@ -17,7 +17,8 @@ void bmsg_handled(struct bmsg *bm);
 
 void *bmsg_get_user_arg(struct bmsg *bm);
 void bmsg_set_user_arg(struct bmsg *bm, void *arg);
-void bmsg_get_request(struct bmsg *bm, void **data, size_t *size);
+void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size);
+void bmsg_get_request_content(struct bmsg *bm, void **content, size_t *size);
 void bmsg_write_response(struct bmsg *bm, const char *data);
 void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 
