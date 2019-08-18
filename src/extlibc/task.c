@@ -95,6 +95,8 @@ int task_destroy(struct task *t)
 {
 	if (t->t_state != TASK_S_STOPPED)
 		return -1;
+
+	free(t);
 	return 0;
 }
 
