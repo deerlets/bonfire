@@ -174,16 +174,17 @@ int spdnet_ctx_destroy(void *ctx);
  * spdnet_node
  */
 
-typedef void (*spdnet_recvmsg_cb)(
-	void *snode, struct spdnet_msg *msg, void *arg);
+#define SPDNET_PUB 1
+#define SPDNET_SUB 2
+#define SPDNET_NODE 5
 
-void *spdnet_node_new(void *ctx);
+void *spdnet_node_new(void *ctx, int type);
 int spdnet_node_destroy(void *snode);
 
-void *spdnet_node_get_socket(void *snode);
-void spdnet_getid(void *snode, void *id, size_t *len);
-void spdnet_setid(void *snode, const void *id, size_t len);
-void spdnet_setalive(void *snode, int64_t alive);
+void *spdnet_get_socket(void *__snode);
+void spdnet_get_id(void *snode, void *id, size_t *len);
+void spdnet_set_id(void *snode, const void *id, size_t len);
+void spdnet_set_alive(void *snode, int64_t alive);
 
 int spdnet_bind(void *snode, const char *addr);
 int spdnet_connect(void *snode, const char *addr);
@@ -197,6 +198,9 @@ int spdnet_alive(void *snode);
 int spdnet_recv(void *snode, void *buf, size_t size, int flags);
 int spdnet_send(void *snode, const void *buf, size_t size, int flags);
 
+typedef void (*spdnet_recvmsg_cb)(
+	void *snode, struct spdnet_msg *msg, void *arg);
+
 int spdnet_recvmsg(void *snode, struct spdnet_msg *msg, int flags);
 int spdnet_recvmsg_timeout(void *snode, struct spdnet_msg *msg,
                            int flags, int timeout);
@@ -208,7 +212,7 @@ int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
  * spdnet_router
  */
 
-void *spdnet_router_new(const char *id, void *ctx);
+void *spdnet_router_new(void *ctx, const char *id);
 int spdnet_router_destroy(void *router);
 int spdnet_router_bind(void *router, const char *addr);
 int
@@ -219,20 +223,10 @@ int spdnet_router_msg_dropped(void *router);
 int spdnet_router_loop(void *router, long timeout);
 
 /*
- * spdnet publish & subscribe
- */
-
-void *spdnet_publish_new(const char *addr, void *ctx);
-int spdnet_publish_destroy(void *pub);
-void *spdnet_subscribe_new(const char *addr, void *ctx);
-int spdnet_subscribe_close(void *sub);
-int spdnet_subscribe_set_filter(void *sub, const void *prefix, size_t len);
-
-/*
  * spdnet_nodepool
  */
 
-void *spdnet_nodepool_new(int water_mark, void *ctx);
+void *spdnet_nodepool_new(void *ctx, int water_mark);
 int spdnet_nodepool_destroy(void *pool);
 void *spdnet_nodepool_find(void *pool, const void *id, size_t len);
 void *spdnet_nodepool_get(void *pool);

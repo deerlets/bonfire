@@ -142,7 +142,7 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 
 	char dstid[SPDNET_SOCKID_SIZE];
 	size_t dstid_len;
-	spdnet_getid(snode, dstid, &dstid_len);
+	spdnet_get_id(snode, dstid, &dstid_len);
 
 	struct bmsg *bm = bmsg_new();
 
@@ -195,14 +195,14 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	assert(bf->ctx);
 
 	// snodepool
-	bf->snodepool = spdnet_nodepool_new(50, bf->ctx);
+	bf->snodepool = spdnet_nodepool_new(bf->ctx, 50);
 	assert(bf->snodepool);
 
 	// snode
 	bf->snode = spdnet_nodepool_get(bf->snodepool);
 	assert(bf->snode);
-	spdnet_setid(bf->snode, bf->local_sockid.c_str(),
-	             bf->local_sockid.size());
+	spdnet_set_id(bf->snode, bf->local_sockid.c_str(),
+	              bf->local_sockid.size());
 	assert(spdnet_connect(bf->snode, bf->remote_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
 
@@ -742,7 +742,7 @@ bonfire_server_new(const char *listen_addr, const char *local_id)
 	server->router_addr = listen_addr;
 	server->router_id = string("bonfire-router-") + local_id;
 	server->router = spdnet_router_new(
-		server->router_id.c_str(), server->ctx);
+		server->ctx, server->router_id.c_str());
 	assert(server->router);
 	if (spdnet_router_bind(server->router,
 	                       server->router_addr.c_str()) != 0) {

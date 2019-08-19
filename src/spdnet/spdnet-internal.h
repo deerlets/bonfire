@@ -5,10 +5,10 @@
 #include <zmq.h>
 #include "list.h"
 
-#define SPDNET_ROUTER 6 // ZMQ_ROUTER
-#define SPDNET_NODE 5 // ZMQ_DEALER
-#define SPDNET_SUB 2 // ZMQ_SUB
 #define SPDNET_PUB 1 // ZMQ_PUB
+#define SPDNET_SUB 2 // ZMQ_SUB
+#define SPDNET_NODE 5 // ZMQ_DEALER
+#define SPDNET_ROUTER 6 // ZMQ_ROUTER
 #define SPDNET_OTHER -1
 
 typedef zmq_msg_t spdnet_frame_t;
@@ -43,8 +43,6 @@ struct spdnet_node {
 	struct list_head pollerr_node;
 	struct list_head recvmsg_timeout_node;
 };
-
-void *__spdnet_node_new(int type, void *ctx);
 
 struct spdnet_nodepool {
 	void *ctx;

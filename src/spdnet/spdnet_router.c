@@ -14,8 +14,8 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	struct spdnet_node *snode;
 
 	SPDNET_MSG_INIT_DATA(&msg, buf, "hello", "world");
-	snode = spdnet_node_new(ctx);
-	spdnet_setid(snode, buf, strlen(buf));
+	snode = spdnet_node_new(ctx, SPDNET_NODE);
+	spdnet_set_id(snode, buf, strlen(buf));
 
 	rc = spdnet_connect(snode, addr);
 	if (rc == -1) goto finally;
@@ -35,7 +35,7 @@ spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
 	strcpy(id, value);
 	*len = strlen(value);
 #else
-	void *socket = spdnet_node_get_socket(snode);
+	void *socket = spdnet_get_socket(snode);
 	// sockid
 	rc = z_recv_more(socket, MSG_SOCKID(&msg), 0);
 	if (rc == -1) goto finally;
@@ -107,7 +107,7 @@ static void routing_msg(struct spdnet_router *router,
                         zmq_msg_t *meta)
 {
 	int rc;
-	void *socket = spdnet_node_get_socket(router->snode);
+	void *socket = spdnet_get_socket(router->snode);
 
 	rc = zmq_send(socket, dst_routing->nexthop_id,
 	              dst_routing->nexthop_len, ZMQ_SNDMORE);
@@ -145,7 +145,7 @@ static void routing_msg(struct spdnet_router *router,
 static int handle_msg_from_router(struct spdnet_router *router, zmq_msg_t *rid)
 {
 	int rc, err;
-	void *socket = spdnet_node_get_socket(router->snode);
+	void *socket = spdnet_get_socket(router->snode);
 	zmq_msg_t srcid, dstid, header, content, meta;
 	zmq_msg_init(&srcid);
 	zmq_msg_init(&dstid);
@@ -280,7 +280,7 @@ finally:
 static int handle_msg_from_node(struct spdnet_router *router, zmq_msg_t *srcid)
 {
 	int rc, err;
-	void *socket = spdnet_node_get_socket(router->snode);
+	void *socket = spdnet_get_socket(router->snode);
 	zmq_msg_t dstid, header, content, meta;
 	zmq_msg_init(&dstid);
 	zmq_msg_init(&header);
@@ -392,7 +392,7 @@ finally:
 static int on_pollin(struct spdnet_router *router)
 {
 	int rc, err;
-	void *socket = spdnet_node_get_socket(router->snode);
+	void *socket = spdnet_get_socket(router->snode);
 	zmq_msg_t srcid, delimiter;
 	zmq_msg_init(&srcid);
 	zmq_msg_init(&delimiter);
@@ -451,7 +451,7 @@ finally:
 	return rc;
 }
 
-void *spdnet_router_new(const char *id, void *ctx)
+void *spdnet_router_new(void *ctx, const char *id)
 {
 	struct spdnet_router *router = malloc(sizeof(*router));
 	if (!router) return NULL;
@@ -459,7 +459,7 @@ void *spdnet_router_new(const char *id, void *ctx)
 	memset(router, 0, sizeof(*router));
 	router->ctx = ctx;
 
-	router->snode = __spdnet_node_new(ZMQ_ROUTER, ctx);
+	router->snode = spdnet_node_new(ctx, ZMQ_ROUTER);
 	if (!router->snode) {
 		free(router);
 		return NULL;
@@ -467,7 +467,7 @@ void *spdnet_router_new(const char *id, void *ctx)
 
 	if (id && *id) {
 		assert(strlen(id) <= SPDNET_SOCKID_SIZE);
-		spdnet_setid(router->snode, id, strlen(id));
+		spdnet_set_id(router->snode, id, strlen(id));
 	}
 
 	INIT_LIST_HEAD(&router->routing_table);
@@ -592,7 +592,7 @@ int spdnet_router_loop(void *__router, long timeout)
 	int rc;
 
 	zmq_pollitem_t items[] = {
-		{ spdnet_node_get_socket(router->snode), 0, ZMQ_POLLIN, 0 },
+		{ spdnet_get_socket(router->snode), 0, ZMQ_POLLIN, 0 },
 	};
 
 	rc = zmq_poll(items, 1, timeout);

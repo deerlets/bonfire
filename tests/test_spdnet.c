@@ -11,6 +11,7 @@
 
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"
 #define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:18339"
+#define PUB_SUB_ADDRESS "tcp://127.0.0.1:18330"
 
 /*
  * basic
@@ -19,7 +20,7 @@
 static void test_spdnet_basic(void **status)
 {
 	void *ctx = spdnet_ctx_new();
-	void *router = spdnet_router_new("router_inner", ctx);
+	void *router = spdnet_router_new(ctx, "router_inner");
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
 	struct task *router_task = task_new_timeout(
 		"router_task",
@@ -31,14 +32,14 @@ static void test_spdnet_basic(void **status)
 	void *service, *requester;
 	struct spdnet_msg msg;
 
-	service = spdnet_node_new(ctx);
-	spdnet_setid(service, "service", strlen("service"));
+	service = spdnet_node_new(ctx, SPDNET_NODE);
+	spdnet_set_id(service, "service", strlen("service"));
 	rc = spdnet_connect(service, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	rc = spdnet_register(service);
 	assert_true(rc == 0);
 
-	requester = spdnet_node_new(ctx);
+	requester = spdnet_node_new(ctx, SPDNET_NODE);
 	rc = spdnet_connect(requester, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "I'm xiedd.");
@@ -75,7 +76,7 @@ static void test_spdnet_basic(void **status)
 	assert_true(spdnet_router_msg_routerd(router) == 5);
 	assert_true(spdnet_router_msg_dropped(router) == 0);
 
-	zmq_send(spdnet_node_get_socket(requester), "service", 7, 0);
+	zmq_send(spdnet_get_socket(requester), "service", 7, 0);
 	sleep(1);
 	assert_true(spdnet_router_msg_routerd(router) == 5);
 	assert_true(spdnet_router_msg_dropped(router) == 1);
@@ -102,7 +103,7 @@ static void test_spdnet_nodepool(void **status)
 {
 	int rc;
 	void *ctx = spdnet_ctx_new();
-	void *snodepool = spdnet_nodepool_new(1, ctx);
+	void *snodepool = spdnet_nodepool_new(ctx, 1);
 
 	struct spdnet_msg msg;
 	SPDNET_MSG_INIT_DATA(&msg, "gene", "info", NULL);
@@ -133,7 +134,7 @@ static void test_spdnet_router(void **status)
 	void *ctx = spdnet_ctx_new();
 
 	// router inner
-	void *inner = spdnet_router_new("router-inner", ctx);
+	void *inner = spdnet_router_new(ctx, "router-inner");
 	assert_true(inner);
 	rc = spdnet_router_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
@@ -147,7 +148,7 @@ static void test_spdnet_router(void **status)
 	// router outer
 	char inner_id[SPDNET_SOCKID_SIZE];
 	size_t inner_len;
-	void *outer = spdnet_router_new(NULL, ctx);
+	void *outer = spdnet_router_new(ctx, NULL);
 	assert_true(outer);
 	rc = spdnet_router_bind(outer, OUTER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
@@ -165,10 +166,10 @@ static void test_spdnet_router(void **status)
 	struct spdnet_msg msg;
 	void *requester, *service;
 	spdnet_msg_init(&msg);
-	requester = spdnet_node_new(ctx);
-	spdnet_setid(requester, "requester", strlen("requester"));
-	service = spdnet_node_new(ctx);
-	spdnet_setid(service, "service", strlen("service"));
+	requester = spdnet_node_new(ctx, SPDNET_NODE);
+	spdnet_set_id(requester, "requester", strlen("requester"));
+	service = spdnet_node_new(ctx, SPDNET_NODE);
+	spdnet_set_id(service, "service", strlen("service"));
 
 	rc = spdnet_connect(requester, OUTER_ROUTER_ADDRESS);
 	assert_true(rc == 0);

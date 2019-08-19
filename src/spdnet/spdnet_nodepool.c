@@ -8,7 +8,7 @@ spdnet_nodepool_new_node(struct spdnet_nodepool *pool)
 {
 	assert(pool->nr_snode <= pool->water_mark);
 
-	struct spdnet_node *snode = spdnet_node_new(pool->ctx);
+	struct spdnet_node *snode = spdnet_node_new(pool->ctx, SPDNET_NODE);
 	snode->count = 1;
 
 	pthread_mutex_lock(&pool->snodes_lock);
@@ -18,7 +18,7 @@ spdnet_nodepool_new_node(struct spdnet_nodepool *pool)
 	return snode;
 }
 
-void *spdnet_nodepool_new(int water_mark, void *ctx)
+void *spdnet_nodepool_new(void *ctx, int water_mark)
 {
 	struct spdnet_nodepool *pool = malloc(sizeof(*pool));
 	if (!pool) return NULL;
@@ -150,7 +150,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 				int type = pos->type;
 				list_del(&pos->node);
 				spdnet_node_destroy(pos);
-				pos = __spdnet_node_new(type, pool->ctx);
+				pos = spdnet_node_new(pool->ctx, type);
 				pos->count = 0;
 				list_add(&pos->node, &pool->snodes);
 			}
@@ -161,7 +161,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 			list_add(&pos->recvmsg_timeout_node,
 			         &pool->recvmsg_timeouts);
 		else if (pos->count != 0) {
-			items[item_index].socket = spdnet_node_get_socket(pos);
+			items[item_index].socket = spdnet_get_socket(pos);
 			items[item_index].fd = 0;
 			items[item_index].events = ZMQ_POLLIN;
 			items[item_index].revents = 0;
@@ -175,7 +175,7 @@ static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
 	list_for_each_entry(pos, &pool->pollins, pollin_node) {
 		if (pos->alive_timeout && pos->alive_timeout <= time(NULL)) {
 			assert(spdnet_alive(pos) == 0);
-			spdnet_setalive(pos, pos->alive_interval);
+			spdnet_set_alive(pos, pos->alive_interval);
 		}
 	}
 

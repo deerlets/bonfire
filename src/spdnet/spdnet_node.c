@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "spdnet-internal.h"
 
-void *__spdnet_node_new(int type, void *ctx)
+void *spdnet_node_new(void *ctx, int type)
 {
 	struct spdnet_node *snode = malloc(sizeof(*snode));
 	if (!snode) return NULL;
@@ -43,11 +43,6 @@ void *__spdnet_node_new(int type, void *ctx)
 	return snode;
 }
 
-void *spdnet_node_new(void *ctx)
-{
-	return __spdnet_node_new(SPDNET_NODE, ctx);
-}
-
 int spdnet_node_destroy(void *__snode)
 {
 	struct spdnet_node *snode = __snode;
@@ -62,13 +57,13 @@ int spdnet_node_destroy(void *__snode)
 	return 0;
 }
 
-void *spdnet_node_get_socket(void *__snode)
+void *spdnet_get_socket(void *__snode)
 {
 	struct spdnet_node *snode = __snode;
 	return snode->socket;
 }
 
-void spdnet_getid(void *__snode, void *id, size_t *len)
+void spdnet_get_id(void *__snode, void *id, size_t *len)
 {
 	struct spdnet_node *snode = __snode;
 	assert(id);
@@ -78,7 +73,7 @@ void spdnet_getid(void *__snode, void *id, size_t *len)
 	memcpy(id, snode->id, snode->id_len);
 }
 
-void spdnet_setid(void *__snode, const void *id, size_t len)
+void spdnet_set_id(void *__snode, const void *id, size_t len)
 {
 	struct spdnet_node *snode = __snode;
 	assert(id);
@@ -90,7 +85,7 @@ void spdnet_setid(void *__snode, const void *id, size_t len)
 	assert(zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len) == 0);
 }
 
-void spdnet_setalive(void *__snode, int64_t alive)
+void spdnet_set_alive(void *__snode, int64_t alive)
 {
 	struct spdnet_node *snode = __snode;
 	assert(snode->type == SPDNET_NODE);
@@ -274,7 +269,7 @@ int spdnet_recvmsg_timeout(void *__snode, struct spdnet_msg *msg,
 	struct spdnet_node *snode = __snode;
 
 	zmq_pollitem_t item;
-	item.socket = spdnet_node_get_socket(snode);
+	item.socket = spdnet_get_socket(snode);
 	item.fd = 0;
 	item.events = ZMQ_POLLIN;
 	item.revents = 0;
