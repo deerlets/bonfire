@@ -295,7 +295,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 
 		if (j["errno"] != 0)
 			return -1;
-		json s = j["result"]["services"];
+		json s = j["result"];
 		std::map<string, struct bonfire_service> services;
 		for (auto it = s.begin(); it != s.end(); ++it) {
 			struct bonfire_service bs = *it;
@@ -654,14 +654,14 @@ static void on_service_info(struct bmsg *bm)
 		return;
 	}
 
-	json cnt = {{"services", json::array()}};
+	json cnt = json::array();
 	int i = 0;
 
 	for (auto &item : server->bf->local_services)
-		cnt["services"][i++] = item.second;
+		cnt[i++] = item.second;
 
 	for (auto &item : server->bf->services)
-		cnt["services"][i++] = item.second;
+		cnt[i++] = item.second;
 
 	pack(bm, SERVICE_EOK, cnt);
 }
