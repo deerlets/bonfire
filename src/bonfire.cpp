@@ -128,9 +128,7 @@ static void do_all_msg(struct bonfire *bf)
 
 		// stage 4: release bmsg
 		bf->bmsgs.erase(it++);
-		bmsg_close(bm);
-		delete bm;
-
+		bmsg_destroy(bm);
 	}
 }
 
@@ -145,8 +143,7 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	size_t dstid_len;
 	spdnet_getid(snode, dstid, &dstid_len);
 
-	struct bmsg *bm = new struct bmsg;
-	bmsg_init(bm);
+	struct bmsg *bm = bmsg_new();
 
 	// request
 	spdnet_msg_close(&bm->request);

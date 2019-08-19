@@ -5,9 +5,9 @@
 
 using json = nlohmann::json;
 
-void bmsg_init(struct bmsg *bm)
+struct bmsg *bmsg_new()
 {
-	memset(bm, 0, sizeof(*bm));
+	struct bmsg *bm = new struct bmsg;
 
 	// request & response
 	spdnet_msg_init(&bm->request);
@@ -21,12 +21,15 @@ void bmsg_init(struct bmsg *bm)
 
 	// snode which received the request
 	bm->snode = NULL;
+
+	return bm;
 }
 
-void bmsg_close(struct bmsg *bm)
+void bmsg_destroy(struct bmsg *bm)
 {
 	spdnet_msg_close(&bm->request);
 	spdnet_msg_close(&bm->response);
+	delete bm;
 }
 
 void bmsg_pending(struct bmsg *bm)

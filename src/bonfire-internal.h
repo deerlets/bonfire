@@ -44,8 +44,8 @@ struct bmsg {
 	int state;
 };
 
-void bmsg_init(struct bmsg *bm);
-void bmsg_close(struct bmsg *bm);
+struct bmsg *bmsg_new();
+void bmsg_destroy(struct bmsg *bm);
 
 #ifdef __cplusplus
 }
