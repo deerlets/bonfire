@@ -21,8 +21,7 @@ using json = nlohmann::json;
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
 
 struct bonfire_service {
-	string uri;
-	string desc;
+	string header;
 	string sockid;
 	int load_level;
 	service_handler_func_t handler;
@@ -57,16 +56,14 @@ struct bonfire {
 
 static void to_json(json &j, const struct bonfire_service &sv)
 {
-	j["uri"] = sv.uri;
-	j["desc"] = sv.desc;
+	j["header"] = sv.header;
 	j["sockid"] = sv.sockid;
 	j["load_level"] = sv.load_level;
 }
 
 static void from_json(const json &j, bonfire_service &sv)
 {
-	j.at("uri").get_to(sv.uri);
-	j.at("desc").get_to(sv.desc);
+	j.at("header").get_to(sv.header);
 	j.at("sockid").get_to(sv.sockid);
 	j.at("load_level").get_to(sv.load_level);
 }
@@ -212,9 +209,9 @@ struct bonfire *bonfire_new(const char *remote_addr,
 
 	// default service
 	struct bonfire_service bs;
-	bs.uri = BONFIRE_SERVICE_INFO;
+	bs.header = BONFIRE_SERVICE_INFO;
 	bs.sockid = remote_id;
-	bf->services.insert(std::make_pair(bs.uri, bs));
+	bf->services.insert(std::make_pair(bs.header, bs));
 
 	// bmsg
 	bf->msg_arg = 0;
@@ -267,16 +264,15 @@ void bonfire_set_local_services(struct bonfire *bf,
 {
 	bf->local_services.clear();
 
-	while (services && services->uri != NULL) {
+	while (services && services->header != NULL) {
 		struct bonfire_service bs = {
-			.uri = services->uri,
-			.desc = services->desc,
+			.header = services->header,
 			.sockid = bf->local_sockid,
 			.load_level = 0,
 			.handler = services->handler,
 		};
 
-		bf->local_services.insert(std::make_pair(bs.uri, bs));
+		bf->local_services.insert(std::make_pair(bs.header, bs));
 		services++;
 	}
 }
@@ -292,7 +288,7 @@ int bonfire_servcall(struct bonfire *bf,
 	if (it == bf->services.end()) {
 		assert(string(header) != BONFIRE_SERVICE_INFO);
 
-		json j = {{"uri", header}};
+		json j = {{"header", header}};
 		char *result = NULL;
 
 		if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO,
@@ -308,7 +304,7 @@ int bonfire_servcall(struct bonfire *bf,
 				return BONFIRE_SERVCALL_NOSERV;
 
 			struct bonfire_service bs = j["result"];
-			bf->services.insert(std::make_pair(bs.uri, bs));
+			bf->services.insert(std::make_pair(bs.header, bs));
 			it = bf->services.find(header);
 			assert(it != bf->services.end());
 		} catch (json::exception &ex) {
@@ -397,7 +393,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 		if (j["errno"]) goto errout;
 
 		struct bonfire_service bs = j["result"];
-		bf->services.insert(std::make_pair(bs.uri, bs));
+		bf->services.insert(std::make_pair(bs.header, bs));
 
 		// call remote service
 		void *snode = spdnet_nodepool_get(bf->snodepool);
@@ -434,7 +430,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	if (it == bf->services.end()) {
 		assert(string(header) != BONFIRE_SERVICE_INFO);
 
-		json j = {{"uri", header}};
+		json j = {{"header", header}};
 		async_struct *as = new async_struct(
 			bf, cb, arg, header, content);
 		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
@@ -476,7 +472,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 		std::map<string, struct bonfire_service> services;
 		for (auto it = s.begin(); it != s.end(); ++it) {
 			struct bonfire_service bs = *it;
-			services.insert(std::make_pair(bs.uri, bs));
+			services.insert(std::make_pair(bs.header, bs));
 		}
 		bf->services = services;
 	} catch (json::exception &ex) {
@@ -493,7 +489,7 @@ static int push_local_service_to_remote(struct bonfire *bf)
 	char *result = NULL;
 
 	for (auto &item : bf->local_services) {
-		if (bf->services.find(item.second.uri) != bf->services.end())
+		if (bf->services.find(item.second.header) != bf->services.end())
 			continue;
 
 		json cnt = item.second;
@@ -600,7 +596,8 @@ static void load_config(struct bonfire_server *server)
 		for (auto it = j["services"].begin();
 		     it != j["services"].end(); ++it) {
 			struct bonfire_service bs = *it;
-			server->bf->services.insert(std::make_pair(bs.uri, bs));
+			server->bf->services.insert(
+				std::make_pair(bs.header, bs));
 		}
 	} catch (json::exception &ex) {
 		std::cerr << ex.what() << std::endl;
@@ -631,14 +628,14 @@ static void on_service_info(struct bmsg *bm)
 		json cnt;
 		if (MSG_CONTENT_SIZE(&bm->request))
 			cnt = unpack(&bm->request);
-		if (cnt.find("uri") != cnt.end()) {
-			auto it = server->bf->services.find(cnt["uri"]);
+		if (cnt.find("header") != cnt.end()) {
+			auto it = server->bf->services.find(cnt["header"]);
 			if (it != server->bf->services.end()) {
 				pack(bm, SERVICE_EOK, json(it->second));
 				return;
 			}
 
-			auto lit = server->bf->local_services.find(cnt["uri"]);
+			auto lit = server->bf->local_services.find(cnt["header"]);
 			if (lit != server->bf->local_services.end()) {
 				pack(bm, SERVICE_EOK, json(lit->second));
 				return;
@@ -678,13 +675,13 @@ static void on_service_add(struct bmsg *bm)
 		return;
 	}
 
-	if (server->bf->services.find(bs.uri) !=
+	if (server->bf->services.find(bs.header) !=
 	    server->bf->services.end()) {
 		pack(bm, SERVICE_EEXIST, nullptr);
 		return;
 	}
 
-	server->bf->services.insert(std::make_pair(bs.uri, bs));
+	server->bf->services.insert(std::make_pair(bs.header, bs));
 	save_config(server);
 	pack(bm, SERVICE_EOK, nullptr);
 }
@@ -692,18 +689,18 @@ static void on_service_add(struct bmsg *bm)
 static void on_service_del(struct bmsg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
-	string uri;
+	string header;
 
 	try {
 		json cnt = unpack(&bm->request);
-		uri = cnt["uri"];
+		header = cnt["header"];
 	} catch (json::exception &ex) {
 		std::cerr << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}
 
-	auto it = server->bf->services.find(uri);
+	auto it = server->bf->services.find(header);
 	if (it == server->bf->services.end()) {
 		pack(bm, SERVICE_ENONEXIST, nullptr);
 		return;
@@ -715,10 +712,10 @@ static void on_service_del(struct bmsg *bm)
 }
 
 static struct bonfire_service_info services[] = {
-	INIT_SERVICE(BONFIRE_SERVICE_INFO, on_service_info, ""),
-	INIT_SERVICE(BONFIRE_SERVICE_ADD, on_service_add, ""),
-	INIT_SERVICE(BONFIRE_SERVICE_DEL, on_service_del, ""),
-	INIT_SERVICE(NULL, NULL, NULL),
+	INIT_SERVICE(BONFIRE_SERVICE_INFO, on_service_info),
+	INIT_SERVICE(BONFIRE_SERVICE_ADD, on_service_add),
+	INIT_SERVICE(BONFIRE_SERVICE_DEL, on_service_del),
+	INIT_SERVICE(NULL, NULL),
 };
 
 struct bonfire_server *

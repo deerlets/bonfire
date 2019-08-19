@@ -28,10 +28,10 @@ static void on_zerox(struct bmsg *bm)
 }
 
 static struct bonfire_service_info services[] = {
-	INIT_SERVICE("test://hello", on_hello, ""),
-	INIT_SERVICE("test://world", on_world, ""),
-	INIT_SERVICE("test://zerox/t", on_zerox, ""),
-	INIT_SERVICE(NULL, NULL, NULL),
+	INIT_SERVICE("test://hello", on_hello),
+	INIT_SERVICE("test://world", on_world),
+	INIT_SERVICE("test://zerox/t", on_zerox),
+	INIT_SERVICE(NULL, NULL),
 };
 
 void zerox_cb(const void *resp, size_t len, void *arg, int flag)

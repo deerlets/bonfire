@@ -29,12 +29,11 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 typedef void (*service_handler_func_t)(struct bmsg *bm);
 
 struct bonfire_service_info {
-	const char *uri;
+	const char *header;
 	service_handler_func_t handler;
-	const char *desc;
 };
 
-#define INIT_SERVICE(uri, handler, desc) { uri, handler, desc }
+#define INIT_SERVICE(header, handler) { header, handler }
 
 /*
  * bonfire cli
