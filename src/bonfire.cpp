@@ -216,6 +216,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
 
 	// bmsg
 	bf->msg_arg = 0;
+	bf->msg_filtered_cb = 0;
 	bf->msg_prepare_cb = 0;
 	bf->msg_finished_cb = 0;
 
@@ -300,7 +301,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 		}
 		bf->services = services;
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 		if (result) free(result);
 		return -1;
 	}
@@ -329,7 +330,7 @@ static int push_local_service_to_remote(struct bonfire *bf)
 			if (j["errno"] != 0)
 				return -1;
 		} catch (json::exception &ex) {
-			std::cerr << ex.what() << std::endl;
+			std::cerr << __func__ << ":" << ex.what() << std::endl;
 			if (result) free(result);
 			return -1;
 		}
@@ -380,7 +381,7 @@ int bonfire_servcall(struct bonfire *bf,
 			free(result);
 			result = NULL;
 
-			if (j["errno"])
+			if (j["errno"] != 0)
 				return BONFIRE_SERVCALL_NOSERV;
 
 			struct bonfire_service bs = j["result"];
@@ -388,7 +389,7 @@ int bonfire_servcall(struct bonfire *bf,
 			it = bf->services.find(header);
 			assert(it != bf->services.end());
 		} catch (json::exception &ex) {
-			std::cerr << ex.what() << std::endl;
+			std::cerr << __func__ << ":" << ex.what() << std::endl;
 			if (result) free(result);
 			return BONFIRE_SERVCALL_NOSERV;
 		}
@@ -470,7 +471,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 
 	try {
 		json j = json::parse((char *)resp, (char *)resp + len);
-		if (j["errno"]) goto errout;
+		if (j["errno"] != 0) goto errout;
 
 		struct bonfire_service bs = j["result"];
 		bf->services.insert(std::make_pair(bs.header, bs));
@@ -489,7 +490,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 
 		spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 	}
 
 	return;
@@ -601,7 +602,7 @@ static void load_config(struct bonfire_server *server)
 				std::make_pair(bs.header, bs));
 		}
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 	}
 
 	ifs.close();
@@ -646,7 +647,7 @@ static void on_service_info(struct bmsg *bm)
 			return;
 		}
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}
@@ -671,7 +672,7 @@ static void on_service_add(struct bmsg *bm)
 	try {
 		bs = unpack(&bm->request);
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}
@@ -696,7 +697,7 @@ static void on_service_del(struct bmsg *bm)
 		json cnt = unpack(&bm->request);
 		header = cnt["header"];
 	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}

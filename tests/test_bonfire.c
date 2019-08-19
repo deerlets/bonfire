@@ -8,7 +8,8 @@
 
 #define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
 #define SERVER_SOCKID "server-sockid"
-#define CLIENT_SOCKID "client-sockid"
+#define HELLO_CLIENT_SOCKID "hello-client-sockid"
+#define ZEROX_CLIENT_SOCKID "zerox-client-sockid"
 
 static int exit_flag;
 
@@ -20,6 +21,12 @@ static void on_world(struct bmsg *bm)
 {
 }
 
+static struct bonfire_service_info services_hello[] = {
+	INIT_SERVICE("test://hello", on_hello),
+	INIT_SERVICE("test://world", on_world),
+	INIT_SERVICE(NULL, NULL),
+};
+
 static void on_zerox(struct bmsg *bm)
 {
 	char welcome[] = "Welcome to zerox.";
@@ -27,14 +34,12 @@ static void on_zerox(struct bmsg *bm)
 	bmsg_write_response(bm, welcome);
 }
 
-static struct bonfire_service_info services[] = {
-	INIT_SERVICE("test://hello", on_hello),
-	INIT_SERVICE("test://world", on_world),
+static struct bonfire_service_info services_zerox[] = {
 	INIT_SERVICE("test://zerox/t", on_zerox),
 	INIT_SERVICE(NULL, NULL),
 };
 
-void zerox_cb(const void *resp, size_t len, void *arg, int flag)
+void hello_to_zerox_cb(const void *resp, size_t len, void *arg, int flag)
 {
 	assert_true(flag == BONFIRE_SERVCALL_OK);
 
@@ -55,17 +60,41 @@ static void test_bonfire(void **status)
 		server, 500);
 	task_start(bonfire_server_task);
 
-	struct bonfire *bf = bonfire_new(
-		ROUTER_ADDRESS, SERVER_SOCKID, CLIENT_SOCKID);
+	// hello client init
+	struct bonfire *bf_hello = bonfire_new(
+		ROUTER_ADDRESS, SERVER_SOCKID, HELLO_CLIENT_SOCKID);
+	bonfire_set_local_services(bf_hello, services_hello);
+	assert_true(bonfire_servsync(bf_hello) == 0);
 
-	bonfire_set_local_services(bf, services);
-	assert_true(bonfire_servsync(bf) == 0);
-	bonfire_servcall_async(bf, "test://zerox/t", "hello", zerox_cb, bf);
+	// zerox client init
+	struct bonfire *bf_zerox = bonfire_new(
+		ROUTER_ADDRESS, SERVER_SOCKID, ZEROX_CLIENT_SOCKID);
+	bonfire_set_local_services(bf_zerox, services_zerox);
+	assert_true(bonfire_servsync(bf_zerox) == 0);
+	struct task *bf_zerox_task = task_new_timeout(
+		"bf_zerox_task",
+		(task_timeout_func_t)bonfire_loop,
+		bf_zerox, 500);
+	task_start(bf_zerox_task);
 
+	// wait for zerox to sync services
+	sleep(1);
+	//if (bonfire_servcall(bf_hello, "test://zerox/t", "hello", NULL) == 0)
+	//	exit_flag = 1;
+	bonfire_servcall_async(bf_hello, "test://zerox/t", "hello",
+	                       hello_to_zerox_cb, bf_hello);
+
+	// hello client loop
 	while (!exit_flag)
-		bonfire_loop(bf, 1000);
+		bonfire_loop(bf_hello, 1000);
 
-	bonfire_destroy(bf);
+	// hello client fini
+	bonfire_destroy(bf_hello);
+
+	// zerox client fini
+	task_stop(bf_zerox_task);
+	task_destroy(bf_zerox_task);
+	bonfire_destroy(bf_zerox);
 
 	// server fini
 	task_stop(bonfire_server_task);
