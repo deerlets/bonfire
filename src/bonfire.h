@@ -89,6 +89,8 @@ void bonfire_server_destroy(struct bonfire_server *server);
 int bonfire_server_loop(struct bonfire_server *server, long timeout);
 void bonfire_server_set_gateway(struct bonfire_server *server,
                                 const char *gateway_addr);
+void bonfire_server_set_cache_file(struct bonfire_server *server,
+                                   const char *cache_file);
 
 #ifdef __cplusplus
 }

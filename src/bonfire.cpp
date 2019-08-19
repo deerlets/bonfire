@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <spdnet.h>
 
 #include <iostream>
@@ -568,6 +569,8 @@ struct bonfire_server {
 	void *router;
 
 	struct bonfire *bf;
+
+	string cache_file;
 };
 
 static inline json unpack(struct spdnet_msg *msg)
@@ -587,11 +590,12 @@ static inline void pack(struct bmsg *bm, int err, json cnt)
 	bmsg_write_response(bm, resp.dump().c_str());
 }
 
-#define BONFIRE_SERVER_CACHE_FILE "bonfire-server.json"
-
-static void load_config(struct bonfire_server *server)
+static void load_cache(struct bonfire_server *server)
 {
-	std::ifstream ifs(BONFIRE_SERVER_CACHE_FILE);
+	if (server->cache_file.empty())
+		return;
+
+	std::ifstream ifs(server->cache_file);
 
 	try {
 		json j = json::parse(ifs);
@@ -608,9 +612,12 @@ static void load_config(struct bonfire_server *server)
 	ifs.close();
 }
 
-static void save_config(struct bonfire_server *server)
+static void save_cache(struct bonfire_server *server)
 {
-	std::ofstream ofs(BONFIRE_SERVER_CACHE_FILE);
+	if (server->cache_file.empty())
+		return;
+
+	std::ofstream ofs(server->cache_file);
 
 	json cnt = {{"services", json::array()}};
 	int i = 0;
@@ -684,7 +691,7 @@ static void on_service_add(struct bmsg *bm)
 	}
 
 	server->bf->services.insert(std::make_pair(bs.header, bs));
-	save_config(server);
+	save_cache(server);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
@@ -709,7 +716,7 @@ static void on_service_del(struct bmsg *bm)
 	}
 
 	server->bf->services.erase(it);
-	save_config(server);
+	save_cache(server);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
@@ -750,9 +757,6 @@ bonfire_server_new(const char *listen_addr, const char *local_id)
 	bonfire_set_msg_arg(server->bf, server);
 	bonfire_set_local_services(server->bf, services);
 
-	// load config
-	load_config(server);
-
 	return server;
 }
 
@@ -783,4 +787,11 @@ void bonfire_server_set_gateway(struct bonfire_server *server,
 	                        gateway_id,
 	                        &gateway_len);
 	spdnet_router_set_gateway(server->router, gateway_id, gateway_len);
+}
+
+void bonfire_server_set_cache_file(struct bonfire_server *server,
+                                   const char *cache_file)
+{
+	server->cache_file = cache_file;
+	load_cache(server);
 }
