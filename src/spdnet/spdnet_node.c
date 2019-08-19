@@ -98,6 +98,13 @@ void spdnet_set_alive(void *__snode, int64_t alive)
 	snode->alive_timeout = time(NULL) + snode->alive_interval;
 }
 
+void spdnet_set_filter(void *__snode, const void *prefix, size_t len)
+{
+	struct spdnet_node *snode = __snode;
+	assert(snode->type == SPDNET_SUB);
+	zmq_setsockopt(snode->socket, ZMQ_SUBSCRIBE, prefix, len);
+}
+
 int spdnet_bind(void *__snode, const char *addr)
 {
 	struct spdnet_node *snode = __snode;
@@ -110,15 +117,22 @@ int spdnet_connect(void *__snode, const char *addr)
 	struct spdnet_node *snode = __snode;
 	int rc;
 
-	if (addr != snode->addr)
-		snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
+	assert(addr != snode->addr);
+	snprintf(snode->addr, sizeof(snode->addr), "%s", addr);
+
 	rc = zmq_connect(snode->socket, addr);
+	if (rc) return rc;
 
-	if (rc == 0 && snode->type == SPDNET_NODE)
+	if (snode->type == SPDNET_NODE) {
 		rc = spdnet_register(snode);
+		if (rc) {
+			zmq_disconnect(snode->socket, addr);
+			return rc;
+		}
 
-	snode->alive_interval = SPDNET_ALIVE_INTERVAL;
-	snode->alive_timeout = time(NULL) + SPDNET_ALIVE_INTERVAL;
+		snode->alive_interval = SPDNET_ALIVE_INTERVAL;
+		snode->alive_timeout = time(NULL) + SPDNET_ALIVE_INTERVAL;
+	}
 
 	return rc;
 }
@@ -126,13 +140,18 @@ int spdnet_connect(void *__snode, const char *addr)
 int spdnet_disconnect(void *__snode)
 {
 	struct spdnet_node *snode = __snode;
-	if (snode->type == SPDNET_NODE)
-		spdnet_unregister(snode);
-	if (strlen(snode->addr))
-		return zmq_disconnect(snode->socket, snode->addr);
 
-	snode->alive_interval = 0;
-	snode->alive_timeout = 0;
+	if (snode->type == SPDNET_NODE) {
+		spdnet_unregister(snode);
+		snode->alive_interval = 0;
+		snode->alive_timeout = 0;
+	}
+
+	if (strlen(snode->addr)) {
+		int rc = zmq_disconnect(snode->socket, snode->addr);
+		snode->addr[0] = 0;
+		return rc;
+	}
 
 	return 0;
 }

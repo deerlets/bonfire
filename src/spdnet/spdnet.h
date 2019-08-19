@@ -185,6 +185,7 @@ void *spdnet_get_socket(void *__snode);
 void spdnet_get_id(void *snode, void *id, size_t *len);
 void spdnet_set_id(void *snode, const void *id, size_t len);
 void spdnet_set_alive(void *snode, int64_t alive);
+void spdnet_set_filter(void *__snode, const void *prefix, size_t len);
 
 int spdnet_bind(void *snode, const char *addr);
 int spdnet_connect(void *snode, const char *addr);

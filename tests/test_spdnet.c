@@ -91,6 +91,70 @@ static void test_spdnet_basic(void **status)
 }
 
 /*
+ * spdnet pub & sub
+ */
+static void test_spdnet_pub_sub(void **status)
+{
+	void *ctx = spdnet_ctx_new();
+	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
+	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
+
+	spdnet_bind(pub, PUB_SUB_ADDRESS);
+	spdnet_connect(sub, PUB_SUB_ADDRESS);
+	spdnet_set_filter(sub, "topic-test", 10);
+
+	struct spdnet_msg msg;
+	SPDNET_MSG_INIT_DATA(&msg, "topic-test", "zh://say", "hello");
+
+	spdnet_sendmsg(pub, &msg);
+	spdnet_recvmsg(sub, &msg, 0);
+	assert_memory_equal(MSG_SOCKID_DATA(&msg), "topic-test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "zh://say", 8);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
+
+	spdnet_node_destroy(pub);
+	spdnet_node_destroy(sub);
+	spdnet_ctx_destroy(ctx);
+}
+
+static int pub_send(void *pub)
+{
+	struct spdnet_msg msg;
+	SPDNET_MSG_INIT_DATA(&msg, "topic-test", "zh://say", "hello");
+	spdnet_sendmsg(pub, &msg);
+	spdnet_msg_close(&msg);
+
+	return 1;
+}
+
+static void test_spdnet_pub_sub2(void **status)
+{
+	void *ctx = spdnet_ctx_new();
+	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
+	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
+
+	spdnet_bind(sub, PUB_SUB_ADDRESS);
+	spdnet_set_filter(sub, "topic-test", 10);
+	spdnet_connect(pub, PUB_SUB_ADDRESS);
+
+	struct task *t = task_new("pub_send", pub_send, pub);
+	task_start(t);
+
+	struct spdnet_msg msg;
+	spdnet_msg_init(&msg);
+	spdnet_recvmsg(sub, &msg, 0);
+	assert_memory_equal(MSG_SOCKID_DATA(&msg), "topic-test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "zh://say", 8);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
+	spdnet_msg_close(&msg);
+
+	task_destroy(t);
+	spdnet_node_destroy(pub);
+	spdnet_node_destroy(sub);
+	spdnet_ctx_destroy(ctx);
+}
+
+/*
  * spdnet nodepool
  */
 
@@ -267,6 +331,8 @@ int main(void)
 {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test_spdnet_basic),
+		cmocka_unit_test(test_spdnet_pub_sub),
+		cmocka_unit_test(test_spdnet_pub_sub2),
 		cmocka_unit_test(test_spdnet_nodepool),
 		cmocka_unit_test(test_spdnet_router),
 		cmocka_unit_test(test_spdnet_pgm),
