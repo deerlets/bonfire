@@ -38,15 +38,13 @@
  *     frame 11: meta
  *
  * spdnet protocol - pub to sub:
- *     frame 1: node-type
- *     frame 2: dstid
- *     frame 3: delimiter
- *     frame 4: header
- *     frame 5: delimiter
- *     frame 6: content
-
- *     frame 7: delimiter
- *     frame 8: meta
+ *     frame 1: topic
+ *     frame 2: delimiter
+ *     frame 3: empty | delimiter
+ *     frame 4: delimiter
+ *     frame 5: content
+ *     frame 6: delimiter
+ *     frame 7: meta
  */
 
 #include <stddef.h> // size_t
