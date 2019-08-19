@@ -35,6 +35,7 @@ struct bonfire {
 	void *ctx;
 	void *snodepool;
 	void *snode; // for local services
+	long timeout;
 
 	// services
 	std::map<string, struct bonfire_service> services;
@@ -207,6 +208,9 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	assert(spdnet_connect(bf->snode, bf->remote_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
 
+	// timeout
+	bf->timeout = BONFIRE_DEFAULT_TIMEOUT;
+
 	// default service
 	struct bonfire_service bs;
 	bs.header = BONFIRE_SERVICE_INFO;
@@ -277,11 +281,90 @@ void bonfire_set_local_services(struct bonfire *bf,
 	}
 }
 
+static int pull_service_from_remote(struct bonfire *bf)
+{
+	char *result = NULL;
+
+	if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO, NULL, &result))
+		return -1;
+
+	try {
+		json j = json::parse(result);
+		free(result);
+		result = NULL;
+
+		if (j["errno"] != 0)
+			return -1;
+		json s = j["result"]["services"];
+		std::map<string, struct bonfire_service> services;
+		for (auto it = s.begin(); it != s.end(); ++it) {
+			struct bonfire_service bs = *it;
+			services.insert(std::make_pair(bs.header, bs));
+		}
+		bf->services = services;
+	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
+		if (result) free(result);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int push_local_service_to_remote(struct bonfire *bf)
+{
+	char *result = NULL;
+
+	for (auto &item : bf->local_services) {
+		if (bf->services.find(item.second.header) != bf->services.end())
+			continue;
+
+		json cnt = item.second;
+
+		if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
+		                     cnt.dump().c_str(), &result))
+			return -1;
+
+		try {
+			json j = json::parse(result);
+			free(result);
+			result = NULL;
+			if (j["errno"] != 0)
+				return -1;
+		} catch (json::exception &ex) {
+			std::cerr << ex.what() << std::endl;
+			if (result) free(result);
+			return -1;
+		}
+
+		bf->services.insert(item);
+	}
+
+	// TODO: delete remote service that not in local_services
+
+	return 0;
+}
+
+int bonfire_servsync(struct bonfire *bf)
+{
+	if (pull_service_from_remote(bf))
+		return -1;
+
+	if (push_local_service_to_remote(bf))
+		return -1;
+
+	return 0;
+}
+
+void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout)
+{
+	bf->timeout = timeout;
+}
+
 int bonfire_servcall(struct bonfire *bf,
                      const char *header,
                      const char *content,
-                     char **result,
-                     long timeout)
+                     char **result)
 {
 	// find service
 	auto it = bf->services.find(header);
@@ -292,7 +375,7 @@ int bonfire_servcall(struct bonfire *bf,
 		char *result = NULL;
 
 		if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO,
-		                     j.dump().c_str(), &result, timeout))
+		                     j.dump().c_str(), &result))
 			return BONFIRE_SERVCALL_TIMEOUT;
 
 		try {
@@ -322,7 +405,7 @@ int bonfire_servcall(struct bonfire *bf,
 	struct spdnet_msg tmp;
 	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(), header, content);
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
-	if (spdnet_recvmsg_timeout(snode, &tmp, 0, timeout)) {
+	if (spdnet_recvmsg_timeout(snode, &tmp, 0, bf->timeout)) {
 		spdnet_msg_close(&tmp);
 		spdnet_nodepool_put(bf->snodepool, snode);
 		return -1;
@@ -407,7 +490,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 		assert(spdnet_sendmsg(snode, &tmp) == 0);
 		spdnet_msg_close(&tmp);
 
-		spdnet_recvmsg_async(snode, async_cb, as, 3000);
+		spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
 	} catch (json::exception &ex) {
 		std::cerr << ex.what() << std::endl;
 	}
@@ -422,8 +505,7 @@ void bonfire_servcall_async(struct bonfire *bf,
                             const char *header,
                             const char *content,
                             bonfire_servcall_cb cb,
-                            void *arg,
-                            long timeout)
+                            void *arg)
 {
 	// find service
 	auto it = bf->services.find(header);
@@ -434,9 +516,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 		async_struct *as = new async_struct(
 			bf, cb, arg, header, content);
 		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
-		                       j.dump().c_str(),
-		                       service_info_cb,
-		                       as, 3000);
+		                       j.dump().c_str(), service_info_cb, as);
 		return;
 	}
 
@@ -451,83 +531,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	spdnet_msg_close(&tmp);
 
 	async_struct *as = new async_struct(bf, cb, arg);
-	spdnet_recvmsg_async(snode, async_cb, as, timeout);
-}
-
-static int pull_service_from_remote(struct bonfire *bf)
-{
-	char *result = NULL;
-
-	if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO, NULL, &result, 3000))
-		return -1;
-
-	try {
-		json j = json::parse(result);
-		free(result);
-		result = NULL;
-
-		if (j["errno"] != 0)
-			return -1;
-		json s = j["result"]["services"];
-		std::map<string, struct bonfire_service> services;
-		for (auto it = s.begin(); it != s.end(); ++it) {
-			struct bonfire_service bs = *it;
-			services.insert(std::make_pair(bs.header, bs));
-		}
-		bf->services = services;
-	} catch (json::exception &ex) {
-		std::cerr << ex.what() << std::endl;
-		if (result) free(result);
-		return -1;
-	}
-
-	return 0;
-}
-
-static int push_local_service_to_remote(struct bonfire *bf)
-{
-	char *result = NULL;
-
-	for (auto &item : bf->local_services) {
-		if (bf->services.find(item.second.header) != bf->services.end())
-			continue;
-
-		json cnt = item.second;
-
-		if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
-		                     cnt.dump().c_str(),
-		                     &result, 3000))
-			return -1;
-
-		try {
-			json j = json::parse(result);
-			free(result);
-			result = NULL;
-			if (j["errno"] != 0)
-				return -1;
-		} catch (json::exception &ex) {
-			std::cerr << ex.what() << std::endl;
-			if (result) free(result);
-			return -1;
-		}
-
-		bf->services.insert(item);
-	}
-
-	// TODO: delete remote service that not in local_services
-
-	return 0;
-}
-
-int bonfire_servsync(struct bonfire *bf)
-{
-	if (pull_service_from_remote(bf))
-		return -1;
-
-	if (push_local_service_to_remote(bf))
-		return -1;
-
-	return 0;
+	spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
 }
 
 /*
