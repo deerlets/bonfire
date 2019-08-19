@@ -210,6 +210,15 @@ void spdnet_recvmsg_async(void *snode, spdnet_recvmsg_cb recvmsg_cb,
 int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
 
 /*
+ * spdnet_forwarder
+ */
+
+void *
+spdnet_forwarder_new(void *ctx, const char *pub_addr, const char *sub_addr);
+void spdnet_forwarder_destroy(void *fwd);
+int spdnet_forwarder_loop(void *fwd, long timeout);
+
+/*
  * spdnet_router
  */
 

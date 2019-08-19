@@ -12,6 +12,8 @@
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"
 #define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:18339"
 #define PUB_SUB_ADDRESS "tcp://127.0.0.1:18330"
+#define FWD_PUB_ADDRESS "tcp://127.0.0.1:18331"
+#define FWD_SUB_ADDRESS "tcp://127.0.0.1:18332"
 
 /*
  * basic
@@ -23,9 +25,7 @@ static void test_spdnet_basic(void **status)
 	void *router = spdnet_router_new(ctx, "router_inner");
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
 	struct task *router_task = task_new_timeout(
-		"router_task",
-		(task_timeout_func_t)spdnet_router_loop,
-		router, 500);
+		"router_task", spdnet_router_loop, router, 500);
 	task_start(router_task);
 
 	int rc;
@@ -83,7 +83,6 @@ static void test_spdnet_basic(void **status)
 
 	spdnet_node_destroy(requester);
 	spdnet_node_destroy(service);
-
 	task_stop(router_task);
 	task_destroy(router_task);
 	spdnet_router_destroy(router);
@@ -155,6 +154,42 @@ static void test_spdnet_pub_sub2(void **status)
 }
 
 /*
+ * spdnet forwarder
+ */
+
+static void test_spdnet_forwarder(void **status)
+{
+	void *ctx = spdnet_ctx_new();
+	void *fwd = spdnet_forwarder_new(ctx, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
+	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
+
+	struct task *t = task_new_timeout(
+		"forward_loop", spdnet_forwarder_loop, fwd, 500);
+	task_start(t);
+
+	spdnet_connect(pub, FWD_SUB_ADDRESS);
+	spdnet_connect(sub, FWD_PUB_ADDRESS);
+	spdnet_set_filter(sub, "topic-test", 10);
+
+	struct spdnet_msg msg;
+	SPDNET_MSG_INIT_DATA(&msg, "topic-test", "zh://say", "hello");
+
+	spdnet_sendmsg(pub, &msg);
+	spdnet_recvmsg(sub, &msg, 0);
+	assert_memory_equal(MSG_SOCKID_DATA(&msg), "topic-test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "zh://say", 8);
+	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
+
+	task_stop(t);
+	task_destroy(t);
+	spdnet_node_destroy(pub);
+	spdnet_node_destroy(sub);
+	spdnet_forwarder_destroy(fwd);
+	spdnet_ctx_destroy(ctx);
+}
+
+/*
  * spdnet nodepool
  */
 
@@ -203,9 +238,7 @@ static void test_spdnet_router(void **status)
 	rc = spdnet_router_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	struct task *inner_task = task_new_timeout(
-		"router-inner-task",
-		(task_timeout_func_t)spdnet_router_loop,
-		inner, 1000);
+		"router-inner-task", spdnet_router_loop, inner, 1000);
 	task_start(inner_task);
 	sleep(1);
 
@@ -221,9 +254,7 @@ static void test_spdnet_router(void **status)
 	assert_true(rc == 0);
 	spdnet_router_set_gateway(outer, inner_id, inner_len);
 	struct task *outer_task = task_new_timeout(
-		"router-outer-task",
-		(task_timeout_func_t)spdnet_router_loop,
-		outer, 1000);
+		"router-outer-task", spdnet_router_loop, outer, 1000);
 	task_start(outer_task);
 	sleep(1);
 
@@ -333,6 +364,7 @@ int main(void)
 		cmocka_unit_test(test_spdnet_basic),
 		cmocka_unit_test(test_spdnet_pub_sub),
 		cmocka_unit_test(test_spdnet_pub_sub2),
+		cmocka_unit_test(test_spdnet_forwarder),
 		cmocka_unit_test(test_spdnet_nodepool),
 		cmocka_unit_test(test_spdnet_router),
 		cmocka_unit_test(test_spdnet_pgm),
