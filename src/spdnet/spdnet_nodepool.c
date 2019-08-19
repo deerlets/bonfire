@@ -1,7 +1,24 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <pthread.h>
 #include "spdnet-internal.h"
+
+struct spdnet_nodepool {
+	void *ctx;
+	int water_mark;
+	int nr_snode;
+
+	struct list_head snodes;
+	pthread_mutex_t snodes_lock;
+	pthread_mutex_t snodes_del_lock;
+
+	struct list_head pollins;
+	struct list_head pollouts;
+	struct list_head pollerrs;
+	struct list_head recvmsg_timeouts;
+};
 
 static struct spdnet_node *
 spdnet_nodepool_new_node(struct spdnet_nodepool *pool)
