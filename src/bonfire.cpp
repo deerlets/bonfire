@@ -289,8 +289,34 @@ int bonfire_servcall(struct bonfire *bf,
 {
 	// find service
 	auto it = bf->services.find(header);
-	if (it == bf->services.end())
-		return BONFIRE_SERVCALL_NOSERV;
+	if (it == bf->services.end()) {
+		assert(string(header) != BONFIRE_SERVICE_INFO);
+
+		json j = {{"uri", header}};
+		char *result = NULL;
+
+		if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO,
+		                     j.dump().c_str(), &result, timeout))
+			return BONFIRE_SERVCALL_TIMEOUT;
+
+		try {
+			json j = json::parse(result);
+			free(result);
+			result = NULL;
+
+			if (j["errno"])
+				return BONFIRE_SERVCALL_NOSERV;
+
+			struct bonfire_service bs = j["result"];
+			bf->services.insert(std::make_pair(bs.uri, bs));
+			it = bf->services.find(header);
+			assert(it != bf->services.end());
+		} catch (json::exception &ex) {
+			std::cerr << ex.what() << std::endl;
+			if (result) free(result);
+			return BONFIRE_SERVCALL_NOSERV;
+		}
+	}
 
 	// call remote service
 	void *snode = spdnet_nodepool_get(bf->snodepool);
@@ -315,14 +341,36 @@ int bonfire_servcall(struct bonfire *bf,
 }
 
 struct async_struct {
+	struct bonfire *bf;
 	bonfire_servcall_cb cb;
 	void *arg;
-	void *snodepool;
+	string header;
+	string content;
+
+	async_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg,
+	             const char *header, const char *content) {
+		this->bf = bf;
+		this->cb = cb;
+		this->arg = arg;
+		if (header)
+			this->header = header;
+		if (content)
+			this->content = content;
+	}
+
+	async_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg) {
+		this->bf = bf;
+		this->cb = cb;
+		this->arg = arg;
+
+		// why can't use constructor chain ?
+		//async_struct(bf, cb, arg, NULL, NULL);
+	}
 };
 
 static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 {
-	struct async_struct *as = (struct async_struct *)arg;
+	async_struct *as = static_cast<async_struct *>(arg);
 	int flag = BONFIRE_SERVCALL_OK;
 
 	if (!msg) {
@@ -334,7 +382,43 @@ static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 		       as->arg, flag);
 	}
 
-	spdnet_nodepool_put(as->snodepool, snode);
+	spdnet_nodepool_put(as->bf->snodepool, snode);
+}
+
+static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
+{
+	struct async_struct *as = (struct async_struct *)arg;
+	struct bonfire *bf = as->bf;
+
+	if (flag) goto errout;
+
+	try {
+		json j = json::parse((char *)resp, (char *)resp + len);
+		if (j["errno"]) goto errout;
+
+		struct bonfire_service bs = j["result"];
+		bf->services.insert(std::make_pair(bs.uri, bs));
+
+		// call remote service
+		void *snode = spdnet_nodepool_get(bf->snodepool);
+		assert(snode);
+		assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
+
+		struct spdnet_msg tmp;
+		SPDNET_MSG_INIT_DATA(&tmp, bs.sockid.c_str(),
+		                     as->header.c_str(),
+		                     as->content.c_str());
+		assert(spdnet_sendmsg(snode, &tmp) == 0);
+		spdnet_msg_close(&tmp);
+
+		spdnet_recvmsg_async(snode, async_cb, as, 3000);
+	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
+	}
+
+	return;
+errout:
+	as->cb(NULL, 0, as->arg, BONFIRE_SERVCALL_NOSERV);
 	delete as;
 }
 
@@ -348,7 +432,15 @@ void bonfire_servcall_async(struct bonfire *bf,
 	// find service
 	auto it = bf->services.find(header);
 	if (it == bf->services.end()) {
-		cb(NULL, 0, arg, BONFIRE_SERVCALL_NOSERV);
+		assert(string(header) != BONFIRE_SERVICE_INFO);
+
+		json j = {{"uri", header}};
+		async_struct *as = new async_struct(
+			bf, cb, arg, header, content);
+		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
+		                       j.dump().c_str(),
+		                       service_info_cb,
+		                       as, 3000);
 		return;
 	}
 
@@ -362,11 +454,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	spdnet_msg_close(&tmp);
 
-	struct async_struct *as = new struct async_struct;
-	assert(as);
-	as->cb = cb;
-	as->arg = arg;
-	as->snodepool = bf->snodepool;
+	async_struct *as = new async_struct(bf, cb, arg);
 	spdnet_recvmsg_async(snode, async_cb, as, timeout);
 }
 
@@ -392,6 +480,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 		}
 		bf->services = services;
 	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
 		if (result) free(result);
 		return -1;
 	}
@@ -421,6 +510,7 @@ static int push_local_service_to_remote(struct bonfire *bf)
 			if (j["errno"] != 0)
 				return -1;
 		} catch (json::exception &ex) {
+			std::cerr << ex.what() << std::endl;
 			if (result) free(result);
 			return -1;
 		}
@@ -537,6 +627,32 @@ static void on_service_info(struct bmsg *bm)
 {
 	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
 
+	try {
+		json cnt;
+		if (MSG_CONTENT_SIZE(&bm->request))
+			cnt = unpack(&bm->request);
+		if (cnt.find("uri") != cnt.end()) {
+			auto it = server->bf->services.find(cnt["uri"]);
+			if (it != server->bf->services.end()) {
+				pack(bm, SERVICE_EOK, json(it->second));
+				return;
+			}
+
+			auto lit = server->bf->local_services.find(cnt["uri"]);
+			if (lit != server->bf->local_services.end()) {
+				pack(bm, SERVICE_EOK, json(lit->second));
+				return;
+			}
+
+			pack(bm, SERVICE_ENONEXIST, nullptr);
+			return;
+		}
+	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
+		pack(bm, SERVICE_EINVAL, nullptr);
+		return;
+	}
+
 	json cnt = {{"services", json::array()}};
 	int i = 0;
 
@@ -557,6 +673,7 @@ static void on_service_add(struct bmsg *bm)
 	try {
 		bs = unpack(&bm->request);
 	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}
@@ -581,6 +698,7 @@ static void on_service_del(struct bmsg *bm)
 		json cnt = unpack(&bm->request);
 		uri = cnt["uri"];
 	} catch (json::exception &ex) {
+		std::cerr << ex.what() << std::endl;
 		pack(bm, SERVICE_EINVAL, nullptr);
 		return;
 	}
