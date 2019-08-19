@@ -33,9 +33,9 @@ struct task;
 struct task *task_new(const char *name, task_run_func_t fn, void *arg);
 struct task *task_new_timeout(const char *name, task_timeout_func_t fn,
                               void *arg, long timeout);
-int task_destroy(struct task *t);
+void task_destroy(struct task *t);
 int task_start(struct task *t);
-int task_stop(struct task *t);
+void task_stop(struct task *t);
 #ifndef __APPLE__
 void task_suspend(struct task *t);
 void task_resume(struct task *t);

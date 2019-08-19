@@ -92,12 +92,10 @@ static void test_bonfire(void **status)
 	bonfire_destroy(bf_hello);
 
 	// zerox client fini
-	task_stop(bf_zerox_task);
 	task_destroy(bf_zerox_task);
 	bonfire_destroy(bf_zerox);
 
 	// server fini
-	task_stop(bonfire_server_task);
 	task_destroy(bonfire_server_task);
 	bonfire_server_destroy(server);
 }

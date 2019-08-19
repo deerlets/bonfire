@@ -91,13 +91,11 @@ struct task *task_new_timeout(const char *name, task_timeout_func_t fn,
 	return t;
 }
 
-int task_destroy(struct task *t)
+void task_destroy(struct task *t)
 {
 	if (t->t_state != TASK_S_STOPPED)
-		return -1;
-
+		task_stop(t);
 	free(t);
-	return 0;
 }
 
 int task_start(struct task *t)
@@ -105,12 +103,11 @@ int task_start(struct task *t)
 	return pthread_create(&t->t_id, NULL, task_routine, t);
 }
 
-int task_stop(struct task *t)
+void task_stop(struct task *t)
 {
 	t->t_control = TASK_C_STOP;
 	pthread_join(t->t_id, NULL);
 	t->t_state = TASK_S_STOPPED;
-	return 0;
 }
 
 #ifndef __APPLE__

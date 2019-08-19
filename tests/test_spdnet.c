@@ -83,7 +83,6 @@ static void test_spdnet_basic(void **status)
 
 	spdnet_node_destroy(requester);
 	spdnet_node_destroy(service);
-	task_stop(router_task);
 	task_destroy(router_task);
 	spdnet_router_destroy(router);
 	spdnet_ctx_destroy(ctx);
@@ -181,7 +180,6 @@ static void test_spdnet_forwarder(void **status)
 	assert_memory_equal(MSG_HEADER_DATA(&msg), "zh://say", 8);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
 
-	task_stop(t);
 	task_destroy(t);
 	spdnet_node_destroy(pub);
 	spdnet_node_destroy(sub);
@@ -302,9 +300,7 @@ static void test_spdnet_router(void **status)
 	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 5+6);
 	sleep(1);
 
-	task_stop(inner_task);
 	task_destroy(inner_task);
-	task_stop(outer_task);
 	task_destroy(outer_task);
 	spdnet_msg_close(&msg);
 	spdnet_node_destroy(requester);
