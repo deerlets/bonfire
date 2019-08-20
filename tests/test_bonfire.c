@@ -7,9 +7,14 @@
 #include <bonfire.h>
 
 #define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
+#define FWD_SUB_ADDRESS "tcp://127.0.0.1:9339"
+
 #define SERVER_SOCKID "server-sockid"
 #define HELLO_CLIENT_SOCKID "hello-client-sockid"
 #define ZEROX_CLIENT_SOCKID "zerox-client-sockid"
+#define PUB_CLIENT_SOCKID "pub-client-sockid"
+#define SUB_CLIENT_SOCKID "sub-client-sockid"
 
 static int exit_flag;
 
@@ -49,11 +54,12 @@ void hello_to_zerox_cb(const void *resp, size_t len, void *arg, int flag)
 	exit_flag = 1;
 }
 
-static void test_bonfire(void **status)
+static void test_bonfire_servcall(void **status)
 {
 	// server init
-	struct bonfire_server *server =
-		bonfire_server_new(ROUTER_ADDRESS, SERVER_SOCKID);
+	struct bonfire_server *server = bonfire_server_new(
+		ROUTER_ADDRESS, SERVER_SOCKID,
+		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	struct task *bonfire_server_task = task_new_timeout(
 		"bonfire-server-task",
 		(task_timeout_func_t)bonfire_server_loop,
@@ -85,6 +91,7 @@ static void test_bonfire(void **status)
 	                       hello_to_zerox_cb, bf_hello);
 
 	// hello client loop
+	exit_flag = 0;
 	while (!exit_flag)
 		bonfire_loop(bf_hello, 1000);
 
@@ -100,10 +107,58 @@ static void test_bonfire(void **status)
 	bonfire_server_destroy(server);
 }
 
+static void subscribe_cb(const void *resp, size_t len, void *arg)
+{
+	assert_true(len == 5);
+	assert_memory_equal(resp, "hello", len);
+	exit_flag = 1;
+}
+
+static void test_bonfire_pub_sub(void **status)
+{
+	// server init
+	struct bonfire_server *server = bonfire_server_new(
+		ROUTER_ADDRESS, SERVER_SOCKID,
+		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+	struct task *bonfire_server_task = task_new_timeout(
+		"bonfire-server-task",
+		(task_timeout_func_t)bonfire_server_loop,
+		server, 500);
+	task_start(bonfire_server_task);
+
+	// sub client init
+	struct bonfire *bf_sub = bonfire_new(
+		ROUTER_ADDRESS, SERVER_SOCKID, SUB_CLIENT_SOCKID);
+	bonfire_subscribe(bf_sub, "topic-test", subscribe_cb, NULL);
+
+	// pub client init
+	struct bonfire *bf_pub = bonfire_new(
+		ROUTER_ADDRESS, SERVER_SOCKID, PUB_CLIENT_SOCKID);
+	sleep(1);
+	bonfire_publish(bf_pub, "topic-test", "hello");
+
+	// sub client loop
+	exit_flag = 0;
+	while (!exit_flag)
+		bonfire_loop(bf_sub, 1000);
+
+	// sub client fini
+	bonfire_unsubscribe(bf_sub, "topic-test");
+	bonfire_destroy(bf_sub);
+
+	// pub client fini
+	bonfire_destroy(bf_pub);
+
+	// server fini
+	task_destroy(bonfire_server_task);
+	bonfire_server_destroy(server);
+}
+
 int main(void)
 {
 	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_bonfire),
+		cmocka_unit_test(test_bonfire_servcall),
+		cmocka_unit_test(test_bonfire_pub_sub),
 	};
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }

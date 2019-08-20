@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <spdnet.h>
 
 #include <iostream>
@@ -20,6 +21,7 @@ using json = nlohmann::json;
 #define BONFIRE_SERVICE_INFO "bonfire://service/info"
 #define BONFIRE_SERVICE_ADD "bonfire://service/add"
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
+#define BONFIRE_FORWARDER_INFO "bonfire://forwarder/info"
 
 struct bonfire_service {
 	string header;
@@ -36,6 +38,12 @@ struct bonfire {
 	void *ctx;
 	void *snodepool;
 	void *snode; // for local services
+
+	string fwd_pub_addr;
+	string fwd_sub_addr;
+	void *pub;
+	std::map<string, void *> subs;
+
 	long timeout;
 
 	// services
@@ -206,6 +214,9 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	assert(spdnet_connect(bf->snode, bf->remote_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
 
+	// pub
+	bf->pub = NULL;
+
 	// timeout
 	bf->timeout = BONFIRE_DEFAULT_TIMEOUT;
 
@@ -231,6 +242,16 @@ struct bonfire *bonfire_new(const char *remote_addr,
 
 void bonfire_destroy(struct bonfire *bf)
 {
+	if (bf->pub)
+		assert(spdnet_node_destroy(bf->pub) == 0);
+
+	for (auto it = bf->subs.begin(); it != bf->subs.end();) {
+		spdnet_nodepool_del(bf->snodepool, it->second);
+		free(spdnet_get_user_data(it->second));
+		assert(spdnet_node_destroy(it->second) == 0);
+		bf->subs.erase(it++);
+	}
+
 	spdnet_nodepool_put(bf->snodepool, bf->snode);
 	spdnet_nodepool_destroy(bf->snodepool);
 	spdnet_ctx_destroy(bf->ctx);
@@ -309,6 +330,7 @@ static int pull_service_from_remote(struct bonfire *bf)
 
 	return 0;
 }
+
 
 static int push_local_service_to_remote(struct bonfire *bf)
 {
@@ -392,7 +414,7 @@ int bonfire_servcall(struct bonfire *bf,
 		} catch (json::exception &ex) {
 			std::cerr << __func__ << ":" << ex.what() << std::endl;
 			if (result) free(result);
-			return BONFIRE_SERVCALL_NOSERV;
+			assert(0);
 		}
 	}
 
@@ -533,6 +555,104 @@ void bonfire_servcall_async(struct bonfire *bf,
 	spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
 }
 
+struct subscribe_struct {
+	bonfire_subscribe_cb cb;
+	void *arg;
+};
+
+static void subscribe_cb(void *snode, struct spdnet_msg *msg, void *arg)
+{
+	subscribe_struct *ss = static_cast<subscribe_struct *>(
+		spdnet_get_user_data(snode));
+	assert(msg);
+	ss->cb(MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg), ss->arg);
+	spdnet_recvmsg_async(snode, subscribe_cb, NULL, 0);
+}
+
+static int get_forwarder_info(struct bonfire *bf)
+{
+	char *result = NULL;
+
+	if (bonfire_servcall(bf, BONFIRE_FORWARDER_INFO, NULL, &result))
+		return BONFIRE_SERVCALL_TIMEOUT;
+
+	try {
+		json j = json::parse(result);
+		free(result);
+		result = NULL;
+
+		assert(j["errno"] == 0);
+		bf->fwd_pub_addr = j["result"]["pub_addr"];
+		bf->fwd_sub_addr = j["result"]["sub_addr"];
+	} catch (json::exception &ex) {
+		std::cerr << __func__ << ":" << ex.what() << std::endl;
+		if (result) free(result);
+		assert(0);
+	}
+
+	return 0;
+}
+
+int bonfire_publish(struct bonfire *bf, const char *topic, const char *content)
+{
+	if (bf->fwd_sub_addr.empty() && get_forwarder_info(bf))
+		return BONFIRE_PUBLISH_FAILED;
+
+	if (bf->pub == NULL) {
+		bf->pub = spdnet_node_new(bf->ctx, SPDNET_PUB);
+		spdnet_connect(bf->pub, bf->fwd_sub_addr.c_str());
+		sleep(1);
+	}
+	assert(bf->pub);
+
+	struct spdnet_msg msg;
+	SPDNET_MSG_INIT_DATA(&msg, topic, NULL, content);
+	spdnet_sendmsg(bf->pub, &msg);
+	spdnet_msg_close(&msg);
+
+	return 0;
+}
+
+int bonfire_subscribe(struct bonfire *bf,
+                      const char *topic,
+                      bonfire_subscribe_cb cb,
+                      void *arg)
+{
+	if (bf->fwd_pub_addr.empty() && get_forwarder_info(bf))
+		return BONFIRE_SUBSCRIBE_FAILED;
+
+	if (bf->subs.find(topic) != bf->subs.end())
+		return BONFIRE_SUBSCRIBE_EXIST;
+
+	void *sub = spdnet_node_new(bf->ctx, SPDNET_SUB);
+	spdnet_nodepool_add(bf->snodepool, sub);
+	spdnet_connect(sub, bf->fwd_pub_addr.c_str());
+	spdnet_set_filter(sub, topic, strlen(topic));
+
+	subscribe_struct *ss = (subscribe_struct *)malloc(sizeof(*ss));
+	ss->cb = cb;
+	ss->arg = arg;
+	spdnet_set_user_data(sub, ss);
+	spdnet_recvmsg_async(sub, subscribe_cb, NULL, 0);
+
+	bf->subs.insert(std::make_pair(topic, sub));
+	return 0;
+}
+
+int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
+{
+	auto it = bf->subs.find(topic);
+	if (it == bf->subs.end())
+		return BONFIRE_SUBSCRIBE_NONEXIST;
+
+	spdnet_nodepool_del(bf->snodepool, it->second);
+	free(spdnet_get_user_data(it->second));
+	assert(spdnet_node_destroy(it->second) == 0);
+	bf->subs.erase(it);
+
+	return 0;
+}
+
 /*
  * bonfire server
  */
@@ -567,6 +687,10 @@ struct bonfire_server {
 	string router_addr;
 	string router_id;
 	void *router;
+
+	string fwd_pub_addr;
+	string fwd_sub_addr;
+	void *fwd;
 
 	struct bonfire *bf;
 
@@ -720,19 +844,34 @@ static void on_service_del(struct bmsg *bm)
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
+static void on_forwarder_info(struct bmsg *bm)
+{
+	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
+
+	json cnt = {
+		{"pub_addr", server->fwd_pub_addr},
+		{"sub_addr", server->fwd_sub_addr},
+	};
+
+	pack(bm, SERVICE_EOK, cnt);
+}
+
 static struct bonfire_service_info services[] = {
 	INIT_SERVICE(BONFIRE_SERVICE_INFO, on_service_info),
 	INIT_SERVICE(BONFIRE_SERVICE_ADD, on_service_add),
 	INIT_SERVICE(BONFIRE_SERVICE_DEL, on_service_del),
+	INIT_SERVICE(BONFIRE_FORWARDER_INFO, on_forwarder_info),
 	INIT_SERVICE(NULL, NULL),
 };
 
-struct bonfire_server *
-bonfire_server_new(const char *listen_addr, const char *local_id)
+struct bonfire_server *bonfire_server_new(const char *listen_addr,
+                                          const char *listen_id,
+                                          const char *pub_addr,
+                                          const char *sub_addr)
 {
 	struct bonfire_server *server = new struct bonfire_server;
 	assert(strlen(listen_addr) < SPDNET_ADDRESS_SIZE);
-	assert(strlen(local_id) < SPDNET_SOCKID_SIZE);
+	assert(strlen(listen_id) < SPDNET_SOCKID_SIZE);
 
 	// ctx
 	server->ctx = spdnet_ctx_new();
@@ -740,19 +879,20 @@ bonfire_server_new(const char *listen_addr, const char *local_id)
 
 	// router
 	server->router_addr = listen_addr;
-	server->router_id = string("bonfire-router-") + local_id;
+	server->router_id = string("bonfire-router-") + listen_id;
 	server->router = spdnet_router_new(
 		server->ctx, server->router_id.c_str());
 	assert(server->router);
-	if (spdnet_router_bind(server->router,
-	                       server->router_addr.c_str()) != 0) {
-		spdnet_router_destroy(server->router);
-		spdnet_ctx_destroy(server->ctx);
-		return NULL;
-	}
+	assert(spdnet_router_bind(server->router, listen_addr) == 0);
+
+	// forwarder
+	server->fwd_pub_addr = pub_addr;
+	server->fwd_sub_addr = sub_addr;
+	server->fwd = spdnet_forwarder_new(server->ctx);
+	assert(spdnet_forwarder_bind(server->fwd, pub_addr, sub_addr) == 0);
 
 	// bonfire cli
-	server->bf = bonfire_new(listen_addr, local_id, local_id);
+	server->bf = bonfire_new(listen_addr, listen_id, listen_id);
 	assert(server->bf);
 	bonfire_set_msg_arg(server->bf, server);
 	bonfire_set_local_services(server->bf, services);
@@ -763,6 +903,7 @@ bonfire_server_new(const char *listen_addr, const char *local_id)
 void bonfire_server_destroy(struct bonfire_server *server)
 {
 	bonfire_destroy(server->bf);
+	spdnet_forwarder_destroy(server->fwd);
 	spdnet_router_destroy(server->router);
 	spdnet_ctx_destroy(server->ctx);
 
@@ -772,6 +913,7 @@ void bonfire_server_destroy(struct bonfire_server *server)
 int bonfire_server_loop(struct bonfire_server *server, long timeout)
 {
 	spdnet_router_loop(server->router, timeout);
+	spdnet_forwarder_loop(server->fwd, 0);
 	bonfire_loop(server->bf, 0);
 	return 0;
 }

@@ -106,6 +106,18 @@ void spdnet_set_filter(void *__snode, const void *prefix, size_t len)
 	zmq_setsockopt(snode->socket, ZMQ_SUBSCRIBE, prefix, len);
 }
 
+void *spdnet_get_user_data(void *__snode)
+{
+	struct spdnet_node *snode = __snode;
+	return snode->user_data;
+}
+
+void spdnet_set_user_data(void *__snode, void *user_data)
+{
+	struct spdnet_node *snode = __snode;
+	snode->user_data = user_data;
+}
+
 int spdnet_bind(void *__snode, const char *addr)
 {
 	struct spdnet_node *snode = __snode;

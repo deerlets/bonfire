@@ -184,6 +184,8 @@ void spdnet_get_id(void *snode, void *id, size_t *len);
 void spdnet_set_id(void *snode, const void *id, size_t len);
 void spdnet_set_alive(void *snode, int64_t alive);
 void spdnet_set_filter(void *__snode, const void *prefix, size_t len);
+void *spdnet_get_user_data(void *__snode);
+void spdnet_set_user_data(void *__snode, void *user_data);
 
 int spdnet_bind(void *snode, const char *addr);
 int spdnet_connect(void *snode, const char *addr);
@@ -211,9 +213,10 @@ int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
  * spdnet_forwarder
  */
 
-void *
-spdnet_forwarder_new(void *ctx, const char *pub_addr, const char *sub_addr);
+void *spdnet_forwarder_new(void *ctx);
 void spdnet_forwarder_destroy(void *fwd);
+int
+spdnet_forwarder_bind(void *fwd, const char *pub_addr, const char *sub_addr);
 int spdnet_forwarder_loop(void *fwd, long timeout);
 
 /*

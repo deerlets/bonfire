@@ -9,11 +9,11 @@
 #include <spdnet.h>
 #include <task.h>
 
-#define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:18338"
-#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:18339"
-#define PUB_SUB_ADDRESS "tcp://127.0.0.1:18330"
-#define FWD_PUB_ADDRESS "tcp://127.0.0.1:18331"
-#define FWD_SUB_ADDRESS "tcp://127.0.0.1:18332"
+#define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:8339"
+#define PUB_SUB_ADDRESS "tcp://127.0.0.1:9330"
+#define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
+#define FWD_SUB_ADDRESS "tcp://127.0.0.1:9339"
 
 /*
  * basic
@@ -159,7 +159,8 @@ static void test_spdnet_pub_sub2(void **status)
 static void test_spdnet_forwarder(void **status)
 {
 	void *ctx = spdnet_ctx_new();
-	void *fwd = spdnet_forwarder_new(ctx, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+	void *fwd = spdnet_forwarder_new(ctx);
+	spdnet_forwarder_bind(fwd, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
 	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
 

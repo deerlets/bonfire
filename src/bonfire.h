@@ -77,14 +77,33 @@ void bonfire_servcall_async(struct bonfire *bf,
                             bonfire_servcall_cb cb,
                             void *arg);
 
+#define BONFIRE_PUBLISH_OK 0
+#define BONFIRE_PUBLISH_FAILED 1
+#define BONFIRE_SUBSCRIBE_FAILED 2
+#define BONFIRE_SUBSCRIBE_EXIST 3
+#define BONFIRE_SUBSCRIBE_NONEXIST 4
+
+typedef void (*bonfire_subscribe_cb)(const void *resp, size_t len, void *arg);
+
+int bonfire_publish(struct bonfire *bf, const char *topic, const char *content);
+
+int bonfire_subscribe(struct bonfire *bf,
+                      const char *topic,
+                      bonfire_subscribe_cb cb,
+                      void *arg);
+
+int bonfire_unsubscribe(struct bonfire *bf, const char *topic);
+
 /*
  * bonfire server
  */
 
 struct bonfire_server;
 
-struct bonfire_server *
-bonfire_server_new(const char *listen_addr, const char *local_id);
+struct bonfire_server *bonfire_server_new(const char *listen_addr,
+                                          const char *listen_id,
+                                          const char *pub_addr,
+                                          const char *sub_addr);
 void bonfire_server_destroy(struct bonfire_server *server);
 int bonfire_server_loop(struct bonfire_server *server, long timeout);
 void bonfire_server_set_gateway(struct bonfire_server *server,
