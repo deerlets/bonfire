@@ -6,11 +6,11 @@
 #include <task.h>
 #include <bonfire.h>
 
-#define ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define BROKER_ADDRESS "tcp://127.0.0.1:8338"
 #define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
 #define FWD_SUB_ADDRESS "tcp://127.0.0.1:9339"
 
-#define SERVER_SOCKID "server-sockid"
+#define BROKER_SOCKID "broker-sockid"
 #define HELLO_CLIENT_SOCKID "hello-client-sockid"
 #define ZEROX_CLIENT_SOCKID "zerox-client-sockid"
 #define PUB_CLIENT_SOCKID "pub-client-sockid"
@@ -45,26 +45,26 @@ void hello_to_zerox_cb(const void *resp, size_t len, void *arg, int flag)
 
 static void test_bonfire_servcall(void **status)
 {
-	// server init
-	struct bonfire_server *server = bonfire_server_new(
-		ROUTER_ADDRESS, SERVER_SOCKID,
+	// bbrk init
+	struct bonfire_broker *bbrk = bonfire_broker_new(
+		BROKER_ADDRESS, BROKER_SOCKID,
 		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
-	struct task *bonfire_server_task = task_new_timeout(
-		"bonfire-server-task",
-		(task_timeout_func_t)bonfire_server_loop,
-		server, 500);
-	task_start(bonfire_server_task);
+	struct task *bonfire_broker_task = task_new_timeout(
+		"bonfire-bbrk-task",
+		(task_timeout_func_t)bonfire_broker_loop,
+		bbrk, 500);
+	task_start(bonfire_broker_task);
 
 	// hello client init
 	struct bonfire *bf_hello = bonfire_new(
-		ROUTER_ADDRESS, SERVER_SOCKID, HELLO_CLIENT_SOCKID);
+		BROKER_ADDRESS, BROKER_SOCKID, HELLO_CLIENT_SOCKID);
 	bonfire_add_service(bf_hello, "test://hello", on_hello);
 	bonfire_add_service(bf_hello, "test://world", on_world);
 	assert_true(bonfire_servsync(bf_hello) == 0);
 
 	// zerox client init
 	struct bonfire *bf_zerox = bonfire_new(
-		ROUTER_ADDRESS, SERVER_SOCKID, ZEROX_CLIENT_SOCKID);
+		BROKER_ADDRESS, BROKER_SOCKID, ZEROX_CLIENT_SOCKID);
 	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
 	assert_true(bonfire_servsync(bf_zerox) == 0);
 	struct task *bf_zerox_task = task_new_timeout(
@@ -92,9 +92,9 @@ static void test_bonfire_servcall(void **status)
 	task_destroy(bf_zerox_task);
 	bonfire_destroy(bf_zerox);
 
-	// server fini
-	task_destroy(bonfire_server_task);
-	bonfire_server_destroy(server);
+	// bbrk fini
+	task_destroy(bonfire_broker_task);
+	bonfire_broker_destroy(bbrk);
 }
 
 static void subscribe_cb(const void *resp, size_t len, void *arg)
@@ -106,24 +106,24 @@ static void subscribe_cb(const void *resp, size_t len, void *arg)
 
 static void test_bonfire_pub_sub(void **status)
 {
-	// server init
-	struct bonfire_server *server = bonfire_server_new(
-		ROUTER_ADDRESS, SERVER_SOCKID,
+	// bbrk init
+	struct bonfire_broker *bbrk = bonfire_broker_new(
+		BROKER_ADDRESS, BROKER_SOCKID,
 		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
-	struct task *bonfire_server_task = task_new_timeout(
-		"bonfire-server-task",
-		(task_timeout_func_t)bonfire_server_loop,
-		server, 500);
-	task_start(bonfire_server_task);
+	struct task *bonfire_broker_task = task_new_timeout(
+		"bonfire-bbrk-task",
+		(task_timeout_func_t)bonfire_broker_loop,
+		bbrk, 500);
+	task_start(bonfire_broker_task);
 
 	// sub client init
 	struct bonfire *bf_sub = bonfire_new(
-		ROUTER_ADDRESS, SERVER_SOCKID, SUB_CLIENT_SOCKID);
+		BROKER_ADDRESS, BROKER_SOCKID, SUB_CLIENT_SOCKID);
 	bonfire_subscribe(bf_sub, "topic-test", subscribe_cb, NULL);
 
 	// pub client init
 	struct bonfire *bf_pub = bonfire_new(
-		ROUTER_ADDRESS, SERVER_SOCKID, PUB_CLIENT_SOCKID);
+		BROKER_ADDRESS, BROKER_SOCKID, PUB_CLIENT_SOCKID);
 	sleep(1);
 	bonfire_publish(bf_pub, "topic-test", "hello");
 
@@ -139,9 +139,9 @@ static void test_bonfire_pub_sub(void **status)
 	// pub client fini
 	bonfire_destroy(bf_pub);
 
-	// server fini
-	task_destroy(bonfire_server_task);
-	bonfire_server_destroy(server);
+	// bbrk fini
+	task_destroy(bonfire_broker_task);
+	bonfire_broker_destroy(bbrk);
 }
 
 int main(void)

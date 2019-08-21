@@ -83,20 +83,20 @@ int bonfire_subscribe(struct bonfire *bf,
 int bonfire_unsubscribe(struct bonfire *bf, const char *topic);
 
 /*
- * bonfire server
+ * bonfire broker
  */
 
-struct bonfire_server;
+struct bonfire_broker;
 
-struct bonfire_server *bonfire_server_new(const char *listen_addr,
+struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *listen_id,
                                           const char *pub_addr,
                                           const char *sub_addr);
-void bonfire_server_destroy(struct bonfire_server *server);
-int bonfire_server_loop(struct bonfire_server *server, long timeout);
-void bonfire_server_set_gateway(struct bonfire_server *server,
+void bonfire_broker_destroy(struct bonfire_broker *bbrk);
+int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout);
+void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
                                 const char *gateway_addr);
-void bonfire_server_set_cache_file(struct bonfire_server *server,
+void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
                                    const char *cache_file);
 
 #ifdef __cplusplus

@@ -652,7 +652,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 }
 
 /*
- * bonfire server
+ * bonfire broker
  */
 
 #define SERVICE_ERRNO_MAP(XX) \
@@ -679,7 +679,7 @@ const char *service_strerror(int err) {
 }
 #undef SERVICE_STRERROR_GEN
 
-struct bonfire_server {
+struct bonfire_broker {
 	void *ctx;
 
 	string router_addr;
@@ -712,19 +712,19 @@ static inline void pack(struct bmsg *bm, int err, json cnt)
 	bmsg_write_response(bm, resp.dump().c_str());
 }
 
-static void load_cache(struct bonfire_server *server)
+static void load_cache(struct bonfire_broker *bbrk)
 {
-	if (server->cache_file.empty())
+	if (bbrk->cache_file.empty())
 		return;
 
-	std::ifstream ifs(server->cache_file);
+	std::ifstream ifs(bbrk->cache_file);
 
 	try {
 		json j = json::parse(ifs);
 		for (auto it = j["services"].begin();
 		     it != j["services"].end(); ++it) {
 			struct bonfire_service bs = *it;
-			server->bf->services.insert(
+			bbrk->bf->services.insert(
 				std::make_pair(bs.header, bs));
 		}
 	} catch (json::exception &ex) {
@@ -734,17 +734,17 @@ static void load_cache(struct bonfire_server *server)
 	ifs.close();
 }
 
-static void save_cache(struct bonfire_server *server)
+static void save_cache(struct bonfire_broker *bbrk)
 {
-	if (server->cache_file.empty())
+	if (bbrk->cache_file.empty())
 		return;
 
-	std::ofstream ofs(server->cache_file);
+	std::ofstream ofs(bbrk->cache_file);
 
 	json cnt = {{"services", json::array()}};
 	int i = 0;
 
-	for (auto &item : server->bf->services)
+	for (auto &item : bbrk->bf->services)
 		cnt["services"][i++] = item.second;
 
 	ofs << std::setw(4) << cnt << std::endl;
@@ -753,7 +753,7 @@ static void save_cache(struct bonfire_server *server)
 
 static void on_service_info(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)
+	struct bonfire_broker *bbrk = (struct bonfire_broker *)
 		bonfire_get_user_data(bmsg_get_bonfire(bm));
 
 	try {
@@ -761,14 +761,14 @@ static void on_service_info(struct bmsg *bm)
 		if (MSG_CONTENT_SIZE(&bm->request))
 			cnt = unpack(&bm->request);
 		if (cnt.find("header") != cnt.end()) {
-			auto it = server->bf->services.find(cnt["header"]);
-			if (it != server->bf->services.end()) {
+			auto it = bbrk->bf->services.find(cnt["header"]);
+			if (it != bbrk->bf->services.end()) {
 				pack(bm, SERVICE_EOK, json(it->second));
 				return;
 			}
 
-			auto lit = server->bf->local_services.find(cnt["header"]);
-			if (lit != server->bf->local_services.end()) {
+			auto lit = bbrk->bf->local_services.find(cnt["header"]);
+			if (lit != bbrk->bf->local_services.end()) {
 				pack(bm, SERVICE_EOK, json(lit->second));
 				return;
 			}
@@ -785,10 +785,10 @@ static void on_service_info(struct bmsg *bm)
 	json cnt = json::array();
 	int i = 0;
 
-	for (auto &item : server->bf->local_services)
+	for (auto &item : bbrk->bf->local_services)
 		cnt[i++] = item.second;
 
-	for (auto &item : server->bf->services)
+	for (auto &item : bbrk->bf->services)
 		cnt[i++] = item.second;
 
 	pack(bm, SERVICE_EOK, cnt);
@@ -796,7 +796,7 @@ static void on_service_info(struct bmsg *bm)
 
 static void on_service_add(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)
+	struct bonfire_broker *bbrk = (struct bonfire_broker *)
 		bonfire_get_user_data(bmsg_get_bonfire(bm));
 	struct bonfire_service bs;
 
@@ -808,20 +808,20 @@ static void on_service_add(struct bmsg *bm)
 		return;
 	}
 
-	if (server->bf->services.find(bs.header) !=
-	    server->bf->services.end()) {
+	if (bbrk->bf->services.find(bs.header) !=
+	    bbrk->bf->services.end()) {
 		pack(bm, SERVICE_EEXIST, nullptr);
 		return;
 	}
 
-	server->bf->services.insert(std::make_pair(bs.header, bs));
-	save_cache(server);
+	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
+	save_cache(bbrk);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
 static void on_service_del(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)
+	struct bonfire_broker *bbrk = (struct bonfire_broker *)
 		bonfire_get_user_data(bmsg_get_bonfire(bm));
 	string header;
 
@@ -834,104 +834,104 @@ static void on_service_del(struct bmsg *bm)
 		return;
 	}
 
-	auto it = server->bf->services.find(header);
-	if (it == server->bf->services.end()) {
+	auto it = bbrk->bf->services.find(header);
+	if (it == bbrk->bf->services.end()) {
 		pack(bm, SERVICE_ENONEXIST, nullptr);
 		return;
 	}
 
-	server->bf->services.erase(it);
-	save_cache(server);
+	bbrk->bf->services.erase(it);
+	save_cache(bbrk);
 	pack(bm, SERVICE_EOK, nullptr);
 }
 
 static void on_forwarder_info(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)
+	struct bonfire_broker *bbrk = (struct bonfire_broker *)
 		bonfire_get_user_data(bmsg_get_bonfire(bm));
 
 	json cnt = {
-		{"pub_addr", server->fwd_pub_addr},
-		{"sub_addr", server->fwd_sub_addr},
+		{"pub_addr", bbrk->fwd_pub_addr},
+		{"sub_addr", bbrk->fwd_sub_addr},
 	};
 
 	pack(bm, SERVICE_EOK, cnt);
 }
 
-struct bonfire_server *bonfire_server_new(const char *listen_addr,
+struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *listen_id,
                                           const char *pub_addr,
                                           const char *sub_addr)
 {
-	struct bonfire_server *server = new struct bonfire_server;
+	struct bonfire_broker *bbrk = new struct bonfire_broker;
 	assert(strlen(listen_addr) < SPDNET_ADDRESS_SIZE);
 	assert(strlen(listen_id) < SPDNET_SOCKID_SIZE);
 
 	// ctx
-	server->ctx = spdnet_ctx_new();
-	assert(server->ctx);
+	bbrk->ctx = spdnet_ctx_new();
+	assert(bbrk->ctx);
 
 	// router
-	server->router_addr = listen_addr;
-	server->router_id = string("bonfire-router-") + listen_id;
-	server->router = spdnet_router_new(
-		server->ctx, server->router_id.c_str());
-	assert(server->router);
-	assert(spdnet_router_bind(server->router, listen_addr) == 0);
+	bbrk->router_addr = listen_addr;
+	bbrk->router_id = string("bonfire-router-") + listen_id;
+	bbrk->router = spdnet_router_new(
+		bbrk->ctx, bbrk->router_id.c_str());
+	assert(bbrk->router);
+	assert(spdnet_router_bind(bbrk->router, listen_addr) == 0);
 
 	// forwarder
-	server->fwd_pub_addr = pub_addr;
-	server->fwd_sub_addr = sub_addr;
-	server->fwd = spdnet_forwarder_new(server->ctx);
-	assert(spdnet_forwarder_bind(server->fwd, pub_addr, sub_addr) == 0);
+	bbrk->fwd_pub_addr = pub_addr;
+	bbrk->fwd_sub_addr = sub_addr;
+	bbrk->fwd = spdnet_forwarder_new(bbrk->ctx);
+	assert(spdnet_forwarder_bind(bbrk->fwd, pub_addr, sub_addr) == 0);
 
 	// bonfire cli
-	server->bf = bonfire_new(listen_addr, listen_id, listen_id);
-	assert(server->bf);
-	bonfire_set_user_data(server->bf, server);
-	bonfire_add_service(server->bf, BONFIRE_SERVICE_INFO, on_service_info);
-	bonfire_add_service(server->bf, BONFIRE_SERVICE_ADD, on_service_add);
-	bonfire_add_service(server->bf, BONFIRE_SERVICE_DEL, on_service_del);
-	bonfire_add_service(server->bf, BONFIRE_FORWARDER_INFO,
+	bbrk->bf = bonfire_new(listen_addr, listen_id, listen_id);
+	assert(bbrk->bf);
+	bonfire_set_user_data(bbrk->bf, bbrk);
+	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_INFO, on_service_info);
+	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_ADD, on_service_add);
+	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_DEL, on_service_del);
+	bonfire_add_service(bbrk->bf, BONFIRE_FORWARDER_INFO,
 	                    on_forwarder_info);
 
-	return server;
+	return bbrk;
 }
 
-void bonfire_server_destroy(struct bonfire_server *server)
+void bonfire_broker_destroy(struct bonfire_broker *bbrk)
 {
-	bonfire_destroy(server->bf);
-	spdnet_forwarder_destroy(server->fwd);
-	spdnet_router_destroy(server->router);
-	spdnet_ctx_destroy(server->ctx);
+	bonfire_destroy(bbrk->bf);
+	spdnet_forwarder_destroy(bbrk->fwd);
+	spdnet_router_destroy(bbrk->router);
+	spdnet_ctx_destroy(bbrk->ctx);
 
-	delete server;
+	delete bbrk;
 }
 
-int bonfire_server_loop(struct bonfire_server *server, long timeout)
+int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout)
 {
-	spdnet_router_loop(server->router, timeout);
-	spdnet_forwarder_loop(server->fwd, 0);
-	bonfire_loop(server->bf, 0);
+	spdnet_router_loop(bbrk->router, timeout);
+	spdnet_forwarder_loop(bbrk->fwd, 0);
+	bonfire_loop(bbrk->bf, 0);
 	return 0;
 }
 
-void bonfire_server_set_gateway(struct bonfire_server *server,
+void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
                                 const char *gateway_addr)
 {
 	char gateway_id[SPDNET_SOCKID_SIZE];
 	size_t gateway_len;
 
-	spdnet_router_associate(server->router,
+	spdnet_router_associate(bbrk->router,
 	                        gateway_addr,
 	                        gateway_id,
 	                        &gateway_len);
-	spdnet_router_set_gateway(server->router, gateway_id, gateway_len);
+	spdnet_router_set_gateway(bbrk->router, gateway_id, gateway_len);
 }
 
-void bonfire_server_set_cache_file(struct bonfire_server *server,
+void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
                                    const char *cache_file)
 {
-	server->cache_file = cache_file;
-	load_cache(server);
+	bbrk->cache_file = cache_file;
+	load_cache(bbrk);
 }
