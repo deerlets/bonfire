@@ -13,14 +13,14 @@ struct bmsg *bmsg_new()
 	spdnet_msg_init(&bm->request);
 	spdnet_msg_init(&bm->response);
 
-	// user arg
-	bm->user_arg = NULL;
+	// bonfire cli
+	bm->bf = NULL;
 
 	// lifetime state
 	bm->state = BM_RAW;
 
-	// snode which received the request
-	bm->snode = NULL;
+	// user data
+	bm->user_data = NULL;
 
 	return bm;
 }
@@ -50,14 +50,19 @@ void bmsg_handled(struct bmsg *bm)
 	bm->state = BM_HANDLED;
 }
 
-void *bmsg_get_user_arg(struct bmsg *bm)
+struct bonfire *bmsg_get_bonfire(struct bmsg *bm)
 {
-	return bm->user_arg;
+	return bm->bf;
 }
 
-void bmsg_set_user_arg(struct bmsg *bm, void *arg)
+void *bmsg_get_user_data(struct bmsg *bm)
 {
-	bm->user_arg = arg;
+	return bm->user_data;
+}
+
+void bmsg_set_user_data(struct bmsg *bm, void *data)
+{
+	bm->user_data = data;
 }
 
 void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size)

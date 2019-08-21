@@ -29,19 +29,14 @@ struct bmsg {
 	// sockid of response should be srcid after init before using
 	struct spdnet_msg response;
 
-	// bonfire'll init it with msg_arg but never touch it any more
-	void *user_arg;
-
-	// bonfire never touch user_data
-	void *user_data;
-
-	/* used by bonfire only */
-
-	// snode which received the request
-	void *snode;
+	// bonfire cli
+	struct bonfire *bf;
 
 	// lifetime state
 	int state;
+
+	// bonfire never touch user_data
+	void *user_data;
 };
 
 struct bmsg *bmsg_new();

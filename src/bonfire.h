@@ -1,45 +1,50 @@
 #ifndef __BONFIRE_BONFIRE_H
 #define __BONFIRE_BONFIRE_H
 
+#include <stddef.h> //size_t
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct bmsg;
+struct bonfire;
 
 /*
  * bmsg
  */
 
-struct bmsg;
-
 void bmsg_pending(struct bmsg *bm);
 void bmsg_filtered(struct bmsg *bm);
 void bmsg_handled(struct bmsg *bm);
 
-void *bmsg_get_user_arg(struct bmsg *bm);
-void bmsg_set_user_arg(struct bmsg *bm, void *arg);
+struct bonfire *bmsg_get_bonfire(struct bmsg *bm);
+void *bmsg_get_user_data(struct bmsg *bm);
+void bmsg_set_user_data(struct bmsg *bm, void *data);
 void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size);
 void bmsg_get_request_content(struct bmsg *bm, void **content, size_t *size);
 void bmsg_write_response(struct bmsg *bm, const char *data);
 void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 
 /*
- * bonfire service
- */
-
-typedef void (*service_handler_func_t)(struct bmsg *bm);
-
-struct bonfire_service_info {
-	const char *header;
-	service_handler_func_t handler;
-};
-
-#define INIT_SERVICE(header, handler) { header, handler }
-
-/*
  * bonfire cli
  */
 
-struct bonfire;
+#define BONFIRE_DEFAULT_SERVCALL_TIMEOUT 5000
+#define BONFIRE_SERVCALL_OK 0
+#define BONFIRE_SERVCALL_NOSERV 1
+#define BONFIRE_SERVCALL_TIMEOUT 2
+
+#define BONFIRE_PUBLISH_OK 0
+#define BONFIRE_PUBLISH_FAILED 1
+#define BONFIRE_SUBSCRIBE_FAILED 2
+#define BONFIRE_SUBSCRIBE_EXIST 3
+#define BONFIRE_SUBSCRIBE_NONEXIST 4
+
+typedef void (*bonfire_service_cb)(struct bmsg *bm);
+typedef void (*bonfire_servcall_cb)(const void *resp, size_t len,
+                                    void *arg, int flag);
+typedef void (*bonfire_subscribe_cb)(const void *resp, size_t len, void *arg);
 
 struct bonfire *bonfire_new(const char *remote_addr,
                             const char *remote_id,
@@ -47,22 +52,13 @@ struct bonfire *bonfire_new(const char *remote_addr,
 void bonfire_destroy(struct bonfire *bf);
 int bonfire_loop(struct bonfire *bf, long timeout);
 
-void bonfire_set_msg_arg(struct bonfire *bf, void *arg);
-void bonfire_set_msg_prepare(struct bonfire *bf,
-                             service_handler_func_t prepare_cb);
-void bonfire_set_msg_finished(struct bonfire *bf,
-                              service_handler_func_t finished_cb);
-void bonfire_set_local_services(struct bonfire *bf,
-                                struct bonfire_service_info *services);
+void *bonfire_get_user_data(struct bonfire *bf);
+void bonfire_set_user_data(struct bonfire *bf, void *data);
+
+void bonfire_add_service(struct bonfire *bf, const char *header,
+                         bonfire_service_cb handler);
+void bonfire_del_service(struct bonfire *bf, const char *header);
 int bonfire_servsync(struct bonfire *bf);
-
-#define BONFIRE_DEFAULT_TIMEOUT 5000
-#define BONFIRE_SERVCALL_OK 0
-#define BONFIRE_SERVCALL_NOSERV 1
-#define BONFIRE_SERVCALL_TIMEOUT 2
-
-typedef
-void (*bonfire_servcall_cb)(const void *resp, size_t len, void *arg, int flag);
 
 void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout);
 
@@ -76,14 +72,6 @@ void bonfire_servcall_async(struct bonfire *bf,
                             const char *content,
                             bonfire_servcall_cb cb,
                             void *arg);
-
-#define BONFIRE_PUBLISH_OK 0
-#define BONFIRE_PUBLISH_FAILED 1
-#define BONFIRE_SUBSCRIBE_FAILED 2
-#define BONFIRE_SUBSCRIBE_EXIST 3
-#define BONFIRE_SUBSCRIBE_NONEXIST 4
-
-typedef void (*bonfire_subscribe_cb)(const void *resp, size_t len, void *arg);
 
 int bonfire_publish(struct bonfire *bf, const char *topic, const char *content);
 

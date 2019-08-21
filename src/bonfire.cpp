@@ -27,7 +27,7 @@ struct bonfire_service {
 	string header;
 	string sockid;
 	int load_level;
-	service_handler_func_t handler;
+	bonfire_service_cb handler;
 };
 
 struct bonfire {
@@ -53,10 +53,10 @@ struct bonfire {
 	// bmsg
 	std::list<struct bmsg *> bmsgs;
 
-	void *msg_arg;
-	service_handler_func_t msg_filtered_cb;
-	service_handler_func_t msg_prepare_cb;
-	service_handler_func_t msg_finished_cb;
+	void *user_data;
+	bonfire_service_cb filter_cb;
+	bonfire_service_cb prepare_cb;
+	bonfire_service_cb finish_cb;
 
 	int msg_total;
 	int msg_doing;
@@ -103,8 +103,8 @@ static void do_all_msg(struct bonfire *bf)
 
 		// stage 1: handle raw
 		if (bm->state == BM_RAW) {
-			if (bf->msg_prepare_cb)
-				bf->msg_prepare_cb(bm);
+			if (bf->prepare_cb)
+				bf->prepare_cb(bm);
 
 			if (bm->state == BM_RAW)
 				handle_msg(bf, bm);
@@ -120,13 +120,13 @@ static void do_all_msg(struct bonfire *bf)
 		assert(bm->state >= BM_FILTERED);
 
 		if (bm->state == BM_FILTERED) {
-			if (bf->msg_filtered_cb)
-				bf->msg_filtered_cb(bm);
+			if (bf->filter_cb)
+				bf->filter_cb(bm);
 		} else {
-			if (bf->msg_finished_cb)
-				bf->msg_finished_cb(bm);
+			if (bf->finish_cb)
+				bf->finish_cb(bm);
 
-			spdnet_sendmsg(bm->snode, &bm->response);
+			spdnet_sendmsg(bf->snode, &bm->response);
 		}
 
 		if (bm->state == BM_FILTERED)
@@ -170,11 +170,11 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	                     resp_header.c_str(), -1,
 	                     NULL, 0);
 
-	// user arg
-	bm->user_arg = bf->msg_arg;
+	// bonfire cli
+	bm->bf = bf;
 
-	// save snode
-	bm->snode = snode;
+	// state
+	bm->state = BM_RAW;
 
 	// insert to bmsgs of bonfire
 	bf->bmsgs.push_back(bm);
@@ -218,7 +218,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	bf->pub = NULL;
 
 	// timeout
-	bf->timeout = BONFIRE_DEFAULT_TIMEOUT;
+	bf->timeout = BONFIRE_DEFAULT_SERVCALL_TIMEOUT;
 
 	// default service
 	struct bonfire_service bs;
@@ -227,10 +227,10 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	bf->services.insert(std::make_pair(bs.header, bs));
 
 	// bmsg
-	bf->msg_arg = 0;
-	bf->msg_filtered_cb = 0;
-	bf->msg_prepare_cb = 0;
-	bf->msg_finished_cb = 0;
+	bf->user_data = 0;
+	bf->filter_cb = 0;
+	bf->prepare_cb = 0;
+	bf->finish_cb = 0;
 
 	bf->msg_total = 0;
 	bf->msg_doing = 0;
@@ -266,39 +266,37 @@ int bonfire_loop(struct bonfire *bf, long timeout)
 	return 0;
 }
 
-void bonfire_set_msg_arg(struct bonfire *bf, void *arg)
+void *bonfire_get_user_data(struct bonfire *bf)
 {
-	bf->msg_arg = arg;
+	return bf->user_data;
 }
 
-void bonfire_set_msg_prepare(struct bonfire *bf,
-                             service_handler_func_t prepare_cb)
+void bonfire_set_user_data(struct bonfire *bf, void *data)
 {
-	bf->msg_prepare_cb = prepare_cb;
+	bf->user_data = data;
 }
 
-void bonfire_set_msg_finished(struct bonfire *bf,
-                              service_handler_func_t finished_cb)
+void bonfire_add_service(struct bonfire *bf, const char *header,
+                        bonfire_service_cb handler)
 {
-	bf->msg_finished_cb = finished_cb;
+	if (bf->local_services.find(header) != bf->local_services.end())
+		return;
+
+	struct bonfire_service bs = {
+		.header = header,
+		.sockid = bf->local_sockid,
+		.load_level = 0,
+		.handler = handler,
+	};
+	bf->local_services.insert(std::make_pair(bs.header, bs));
 }
 
-void bonfire_set_local_services(struct bonfire *bf,
-                                struct bonfire_service_info *services)
+void bonfire_del_service(struct bonfire *bf, const char *header)
 {
-	bf->local_services.clear();
-
-	while (services && services->header != NULL) {
-		struct bonfire_service bs = {
-			.header = services->header,
-			.sockid = bf->local_sockid,
-			.load_level = 0,
-			.handler = services->handler,
-		};
-
-		bf->local_services.insert(std::make_pair(bs.header, bs));
-		services++;
-	}
+	auto it = bf->local_services.find(header);
+	if (it == bf->local_services.end())
+		return;
+	bf->local_services.erase(it);
 }
 
 static int pull_service_from_remote(struct bonfire *bf)
@@ -755,7 +753,8 @@ static void save_cache(struct bonfire_server *server)
 
 static void on_service_info(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
+	struct bonfire_server *server = (struct bonfire_server *)
+		bonfire_get_user_data(bmsg_get_bonfire(bm));
 
 	try {
 		json cnt;
@@ -797,7 +796,8 @@ static void on_service_info(struct bmsg *bm)
 
 static void on_service_add(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
+	struct bonfire_server *server = (struct bonfire_server *)
+		bonfire_get_user_data(bmsg_get_bonfire(bm));
 	struct bonfire_service bs;
 
 	try {
@@ -821,7 +821,8 @@ static void on_service_add(struct bmsg *bm)
 
 static void on_service_del(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
+	struct bonfire_server *server = (struct bonfire_server *)
+		bonfire_get_user_data(bmsg_get_bonfire(bm));
 	string header;
 
 	try {
@@ -846,7 +847,8 @@ static void on_service_del(struct bmsg *bm)
 
 static void on_forwarder_info(struct bmsg *bm)
 {
-	struct bonfire_server *server = (struct bonfire_server *)bm->user_arg;
+	struct bonfire_server *server = (struct bonfire_server *)
+		bonfire_get_user_data(bmsg_get_bonfire(bm));
 
 	json cnt = {
 		{"pub_addr", server->fwd_pub_addr},
@@ -855,14 +857,6 @@ static void on_forwarder_info(struct bmsg *bm)
 
 	pack(bm, SERVICE_EOK, cnt);
 }
-
-static struct bonfire_service_info services[] = {
-	INIT_SERVICE(BONFIRE_SERVICE_INFO, on_service_info),
-	INIT_SERVICE(BONFIRE_SERVICE_ADD, on_service_add),
-	INIT_SERVICE(BONFIRE_SERVICE_DEL, on_service_del),
-	INIT_SERVICE(BONFIRE_FORWARDER_INFO, on_forwarder_info),
-	INIT_SERVICE(NULL, NULL),
-};
 
 struct bonfire_server *bonfire_server_new(const char *listen_addr,
                                           const char *listen_id,
@@ -894,8 +888,12 @@ struct bonfire_server *bonfire_server_new(const char *listen_addr,
 	// bonfire cli
 	server->bf = bonfire_new(listen_addr, listen_id, listen_id);
 	assert(server->bf);
-	bonfire_set_msg_arg(server->bf, server);
-	bonfire_set_local_services(server->bf, services);
+	bonfire_set_user_data(server->bf, server);
+	bonfire_add_service(server->bf, BONFIRE_SERVICE_INFO, on_service_info);
+	bonfire_add_service(server->bf, BONFIRE_SERVICE_ADD, on_service_add);
+	bonfire_add_service(server->bf, BONFIRE_SERVICE_DEL, on_service_del);
+	bonfire_add_service(server->bf, BONFIRE_FORWARDER_INFO,
+	                    on_forwarder_info);
 
 	return server;
 }

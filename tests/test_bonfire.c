@@ -26,23 +26,12 @@ static void on_world(struct bmsg *bm)
 {
 }
 
-static struct bonfire_service_info services_hello[] = {
-	INIT_SERVICE("test://hello", on_hello),
-	INIT_SERVICE("test://world", on_world),
-	INIT_SERVICE(NULL, NULL),
-};
-
 static void on_zerox(struct bmsg *bm)
 {
 	char welcome[] = "Welcome to zerox.";
 
 	bmsg_write_response(bm, welcome);
 }
-
-static struct bonfire_service_info services_zerox[] = {
-	INIT_SERVICE("test://zerox/t", on_zerox),
-	INIT_SERVICE(NULL, NULL),
-};
 
 void hello_to_zerox_cb(const void *resp, size_t len, void *arg, int flag)
 {
@@ -69,13 +58,14 @@ static void test_bonfire_servcall(void **status)
 	// hello client init
 	struct bonfire *bf_hello = bonfire_new(
 		ROUTER_ADDRESS, SERVER_SOCKID, HELLO_CLIENT_SOCKID);
-	bonfire_set_local_services(bf_hello, services_hello);
+	bonfire_add_service(bf_hello, "test://hello", on_hello);
+	bonfire_add_service(bf_hello, "test://world", on_world);
 	assert_true(bonfire_servsync(bf_hello) == 0);
 
 	// zerox client init
 	struct bonfire *bf_zerox = bonfire_new(
 		ROUTER_ADDRESS, SERVER_SOCKID, ZEROX_CLIENT_SOCKID);
-	bonfire_set_local_services(bf_zerox, services_zerox);
+	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
 	assert_true(bonfire_servsync(bf_zerox) == 0);
 	struct task *bf_zerox_task = task_new_timeout(
 		"bf_zerox_task",
