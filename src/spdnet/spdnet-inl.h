@@ -1,5 +1,5 @@
-#ifndef __SPDNET_SPDNET_INTERNAL_H
-#define __SPDNET_SPDNET_INTERNAL_H
+#ifndef __SPDNET_SPDNET_INL_H
+#define __SPDNET_SPDNET_INL_H
 
 #include <zmq.h>
 #include "list.h"

@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "spdnet-internal.h"
+#include "spdnet-inl.h"
 
 struct spdnet_forwarder {
 	void *pub;

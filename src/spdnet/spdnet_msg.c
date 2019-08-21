@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <zmq.h>
-#include "spdnet-internal.h"
+#include "spdnet-inl.h"
 
 #define SPDNET_STRERROR_GEN(name, msg) case SPDNET_ ## name: return msg;
 const char *spdnet_strerror(int err) {

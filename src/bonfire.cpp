@@ -13,7 +13,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 
-#include "bonfire-internal.h"
+#include "bonfire-inl.h"
 
 using string = std::string;
 using json = nlohmann::json;

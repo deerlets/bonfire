@@ -1,5 +1,5 @@
-#ifndef __BONFIRE_BONFIRE_INTERNAL_H
-#define __BONFIRE_BONFIRE_INTERNAL_H
+#ifndef __BONFIRE_BONFIRE_INL_H
+#define __BONFIRE_BONFIRE_INL_H
 
 #include <spdnet.h>
 #include "bonfire.h"

@@ -99,7 +99,7 @@ const char *spdnet_strerror(int err);
  * spdnet_msg
  */
 
-#ifndef __SPDNET_SPDNET_INTERNAL_H
+#ifndef __SPDNET_SPDNET_INL_H
 typedef struct spdnet_frame_t
 {
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_ARM64))

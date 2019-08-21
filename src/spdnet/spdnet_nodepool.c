@@ -3,7 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
-#include "spdnet-internal.h"
+#include "spdnet-inl.h"
 
 struct spdnet_nodepool {
 	void *ctx;

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include "spdnet-internal.h"
+#include "spdnet-inl.h"
 
 void *spdnet_node_new(void *ctx, int type)
 {

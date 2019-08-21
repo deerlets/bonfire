@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <string.h>
 #include <nlohmann/json.hpp>
-#include "bonfire-internal.h"
+#include "bonfire-inl.h"
 
 using json = nlohmann::json;
 

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "spdnet-internal.h"
+#include "spdnet-inl.h"
 
 struct spdnet_routing_item {
 	char id[SPDNET_SOCKID_SIZE];
