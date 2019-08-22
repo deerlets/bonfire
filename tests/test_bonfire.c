@@ -33,7 +33,8 @@ static void on_zerox(struct bmsg *bm)
 	bmsg_write_response(bm, welcome);
 }
 
-void hello_to_zerox_cb(const void *resp, size_t len, void *arg, int flag)
+static void hello_to_zerox_cb(struct bonfire *bf, const void *resp,
+                              size_t len, void *arg, int flag)
 {
 	assert_true(flag == BONFIRE_SERVCALL_OK);
 
@@ -94,7 +95,8 @@ static void test_bonfire_servcall(void **status)
 	bonfire_broker_destroy(bbrk);
 }
 
-static void subscribe_cb(const void *resp, size_t len, void *arg)
+static void subscribe_cb(struct bonfire *bf, const void *resp,
+                         size_t len, void *arg)
 {
 	assert_true(len == 5);
 	assert_memory_equal(resp, "hello", len);

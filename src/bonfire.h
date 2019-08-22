@@ -42,9 +42,15 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 #define BONFIRE_SUBSCRIBE_NONEXIST 4
 
 typedef void (*bonfire_service_cb)(struct bmsg *bm);
-typedef void (*bonfire_servcall_cb)(const void *resp, size_t len,
-                                    void *arg, int flag);
-typedef void (*bonfire_subscribe_cb)(const void *resp, size_t len, void *arg);
+typedef void (*bonfire_servcall_cb)(struct bonfire *bf,
+                                    const void *resp,
+                                    size_t len,
+                                    void *arg,
+                                    int flag);
+typedef void (*bonfire_subscribe_cb)(struct bonfire *bf,
+                                     const void *resp,
+                                     size_t len,
+                                     void *arg);
 
 struct bonfire *bonfire_new(const char *remote_addr);
 void bonfire_destroy(struct bonfire *bf);

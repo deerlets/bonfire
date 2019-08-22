@@ -487,20 +487,19 @@ static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 
 	if (!msg) {
 		flag = BONFIRE_SERVCALL_TIMEOUT;
-		as->cb(NULL, 0, as->arg, flag);
+		as->cb(as->bf, NULL, 0, as->arg, flag);
 	} else {
-		as->cb(MSG_CONTENT_DATA(msg),
-		       MSG_CONTENT_SIZE(msg),
-		       as->arg, flag);
+		as->cb(as->bf, MSG_CONTENT_DATA(msg),
+		       MSG_CONTENT_SIZE(msg), as->arg, flag);
 	}
 
 	spdnet_nodepool_put(as->bf->snodepool, snode);
 }
 
-static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
+static void service_info_cb(struct bonfire *bf, const void *resp,
+                            size_t len, void *arg, int flag)
 {
 	struct async_struct *as = (struct async_struct *)arg;
-	struct bonfire *bf = as->bf;
 
 	if (flag) goto errout;
 
@@ -530,7 +529,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 
 	return;
 errout:
-	as->cb(NULL, 0, as->arg, BONFIRE_SERVCALL_NOSERV);
+	as->cb(bf, NULL, 0, as->arg, BONFIRE_SERVCALL_NOSERV);
 	delete as;
 }
 
@@ -549,7 +548,8 @@ void bonfire_servcall_async(struct bonfire *bf,
 		async_struct *as = new async_struct(
 			bf, cb, arg, header, content);
 		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
-		                       j.dump().c_str(), service_info_cb, as);
+		                       j.dump().c_str(),
+		                       service_info_cb, as);
 		return;
 	}
 
@@ -568,6 +568,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 }
 
 struct subscribe_struct {
+	struct bonfire *bf;
 	bonfire_subscribe_cb cb;
 	void *arg;
 };
@@ -577,7 +578,7 @@ static void subscribe_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	subscribe_struct *ss = static_cast<subscribe_struct *>(
 		spdnet_get_user_data(snode));
 	assert(msg);
-	ss->cb(MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg), ss->arg);
+	ss->cb(ss->bf, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg), ss->arg);
 	spdnet_recvmsg_async(snode, subscribe_cb, NULL, 0);
 }
 
@@ -642,6 +643,7 @@ int bonfire_subscribe(struct bonfire *bf,
 	spdnet_set_filter(sub, topic, strlen(topic));
 
 	subscribe_struct *ss = (subscribe_struct *)malloc(sizeof(*ss));
+	ss->bf = bf;
 	ss->cb = cb;
 	ss->arg = arg;
 	spdnet_set_user_data(sub, ss);
