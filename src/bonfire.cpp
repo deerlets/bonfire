@@ -452,14 +452,14 @@ int bonfire_servcall(struct bonfire *bf,
 	return 0;
 }
 
-struct async_struct {
+struct servcall_struct {
 	struct bonfire *bf;
 	bonfire_servcall_cb cb;
 	void *arg;
 	string header;
 	string content;
 
-	async_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg,
+	servcall_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg,
 	             const char *header, const char *content) {
 		this->bf = bf;
 		this->cb = cb;
@@ -470,19 +470,19 @@ struct async_struct {
 			this->content = content;
 	}
 
-	async_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg) {
+	servcall_struct(struct bonfire *bf, bonfire_servcall_cb cb, void *arg) {
 		this->bf = bf;
 		this->cb = cb;
 		this->arg = arg;
 
 		// why can't use constructor chain ?
-		//async_struct(bf, cb, arg, NULL, NULL);
+		//servcall_struct(bf, cb, arg, NULL, NULL);
 	}
 };
 
-static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
+static void servcall_cb(void *snode, struct spdnet_msg *msg, void *arg)
 {
-	async_struct *as = static_cast<async_struct *>(arg);
+	servcall_struct *as = static_cast<servcall_struct *>(arg);
 	int flag = BONFIRE_SERVCALL_OK;
 
 	if (!msg) {
@@ -499,7 +499,7 @@ static void async_cb(void *snode, struct spdnet_msg *msg, void *arg)
 static void service_info_cb(struct bonfire *bf, const void *resp,
                             size_t len, void *arg, int flag)
 {
-	struct async_struct *as = (struct async_struct *)arg;
+	struct servcall_struct *as = (struct servcall_struct *)arg;
 
 	if (flag) goto errout;
 
@@ -522,7 +522,7 @@ static void service_info_cb(struct bonfire *bf, const void *resp,
 		assert(spdnet_sendmsg(snode, &tmp) == 0);
 		spdnet_msg_close(&tmp);
 
-		spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
+		spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 	} catch (json::exception &ex) {
 		std::cerr << __func__ << ":" << ex.what() << std::endl;
 	}
@@ -545,7 +545,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 		assert(string(header) != BONFIRE_SERVICE_INFO);
 
 		json j = {{"header", header}};
-		async_struct *as = new async_struct(
+		servcall_struct *as = new servcall_struct(
 			bf, cb, arg, header, content);
 		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
 		                       j.dump().c_str(),
@@ -563,8 +563,8 @@ void bonfire_servcall_async(struct bonfire *bf,
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	spdnet_msg_close(&tmp);
 
-	async_struct *as = new async_struct(bf, cb, arg);
-	spdnet_recvmsg_async(snode, async_cb, as, bf->timeout);
+	servcall_struct *as = new servcall_struct(bf, cb, arg);
+	spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 }
 
 struct subscribe_struct {
