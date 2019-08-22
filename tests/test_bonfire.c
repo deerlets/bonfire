@@ -47,8 +47,7 @@ static void test_bonfire_servcall(void **status)
 {
 	// bbrk init
 	struct bonfire_broker *bbrk = bonfire_broker_new(
-		BROKER_ADDRESS, BROKER_SOCKID,
-		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+		BROKER_ADDRESS, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	struct task *bonfire_broker_task = task_new_timeout(
 		"bonfire-bbrk-task",
 		(task_timeout_func_t)bonfire_broker_loop,
@@ -56,15 +55,13 @@ static void test_bonfire_servcall(void **status)
 	task_start(bonfire_broker_task);
 
 	// hello client init
-	struct bonfire *bf_hello = bonfire_new(
-		BROKER_ADDRESS, BROKER_SOCKID, HELLO_CLIENT_SOCKID);
+	struct bonfire *bf_hello = bonfire_new(BROKER_ADDRESS);
 	bonfire_add_service(bf_hello, "test://hello", on_hello);
 	bonfire_add_service(bf_hello, "test://world", on_world);
 	assert_true(bonfire_servsync(bf_hello) == 0);
 
 	// zerox client init
-	struct bonfire *bf_zerox = bonfire_new(
-		BROKER_ADDRESS, BROKER_SOCKID, ZEROX_CLIENT_SOCKID);
+	struct bonfire *bf_zerox = bonfire_new(BROKER_ADDRESS);
 	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
 	assert_true(bonfire_servsync(bf_zerox) == 0);
 	struct task *bf_zerox_task = task_new_timeout(
@@ -108,8 +105,7 @@ static void test_bonfire_pub_sub(void **status)
 {
 	// bbrk init
 	struct bonfire_broker *bbrk = bonfire_broker_new(
-		BROKER_ADDRESS, BROKER_SOCKID,
-		FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+		BROKER_ADDRESS, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	struct task *bonfire_broker_task = task_new_timeout(
 		"bonfire-bbrk-task",
 		(task_timeout_func_t)bonfire_broker_loop,
@@ -117,13 +113,11 @@ static void test_bonfire_pub_sub(void **status)
 	task_start(bonfire_broker_task);
 
 	// sub client init
-	struct bonfire *bf_sub = bonfire_new(
-		BROKER_ADDRESS, BROKER_SOCKID, SUB_CLIENT_SOCKID);
+	struct bonfire *bf_sub = bonfire_new(BROKER_ADDRESS);
 	bonfire_subscribe(bf_sub, "topic-test", subscribe_cb, NULL);
 
 	// pub client init
-	struct bonfire *bf_pub = bonfire_new(
-		BROKER_ADDRESS, BROKER_SOCKID, PUB_CLIENT_SOCKID);
+	struct bonfire *bf_pub = bonfire_new(BROKER_ADDRESS);
 	sleep(1);
 	bonfire_publish(bf_pub, "topic-test", "hello");
 

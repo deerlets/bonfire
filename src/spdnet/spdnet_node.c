@@ -64,6 +64,16 @@ void *spdnet_get_socket(void *__snode)
 	return snode->socket;
 }
 
+void spdnet_get_addr(void *__snode, void *addr, size_t *len)
+{
+	struct spdnet_node *snode = __snode;
+	assert(addr);
+	assert(len);
+
+	*len = strlen(snode->addr);
+	memcpy(addr, snode->addr, *len);
+}
+
 void spdnet_get_id(void *__snode, void *id, size_t *len)
 {
 	struct spdnet_node *snode = __snode;
@@ -71,7 +81,7 @@ void spdnet_get_id(void *__snode, void *id, size_t *len)
 	assert(len);
 
 	*len = snode->id_len;
-	memcpy(id, snode->id, snode->id_len);
+	memcpy(id, snode->id, *len);
 }
 
 void spdnet_set_id(void *__snode, const void *id, size_t len)

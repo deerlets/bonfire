@@ -46,12 +46,12 @@ typedef void (*bonfire_servcall_cb)(const void *resp, size_t len,
                                     void *arg, int flag);
 typedef void (*bonfire_subscribe_cb)(const void *resp, size_t len, void *arg);
 
-struct bonfire *bonfire_new(const char *remote_addr,
-                            const char *remote_id,
-                            const char *local_id);
+struct bonfire *bonfire_new(const char *remote_addr);
 void bonfire_destroy(struct bonfire *bf);
 int bonfire_loop(struct bonfire *bf, long timeout);
 
+void bonfire_get_id(struct bonfire *bf, void *id, size_t *len);
+void bonfire_set_id(struct bonfire *bf, const void *id, size_t len);
 void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 
@@ -89,7 +89,6 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic);
 struct bonfire_broker;
 
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
-                                          const char *listen_id,
                                           const char *pub_addr,
                                           const char *sub_addr);
 void bonfire_broker_destroy(struct bonfire_broker *bbrk);

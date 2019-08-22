@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <spdnet.h>
+#include <stdlibx.h>
 
 #include <iostream>
 #include <fstream>
@@ -18,6 +19,7 @@
 using string = std::string;
 using json = nlohmann::json;
 
+#define BONFIRE_BROKER_SOCKID "bonfire-broker-sockid"
 #define BONFIRE_SERVICE_INFO "bonfire://service/info"
 #define BONFIRE_SERVICE_ADD "bonfire://service/add"
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
@@ -31,8 +33,7 @@ struct bonfire_service {
 };
 
 struct bonfire {
-	string remote_address;
-	string remote_sockid;
+	string broker_address;
 	string local_sockid; // for local services
 
 	void *ctx;
@@ -185,18 +186,15 @@ static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 	spdnet_recvmsg_async(snode, recvmsg_cb, bf, 0);
 }
 
-struct bonfire *bonfire_new(const char *remote_addr,
-                            const char *remote_id,
-                            const char *local_id)
+struct bonfire *bonfire_new(const char *broker_addr)
 {
 	struct bonfire *bf = new struct bonfire;
 
-	assert(strlen(remote_addr) < SPDNET_ADDRESS_SIZE);
-	assert(strlen(remote_id) < SPDNET_SOCKID_SIZE);
-	assert(strlen(local_id) < SPDNET_SOCKID_SIZE);
-	bf->remote_address = remote_addr;
-	bf->remote_sockid = remote_id;
-	bf->local_sockid = local_id;
+	assert(strlen(broker_addr) < SPDNET_ADDRESS_SIZE);
+	bf->broker_address = broker_addr;
+	char *uuid = uuid_v4_gen();
+	bf->local_sockid = uuid;
+	free(uuid);
 
 	// ctx
 	bf->ctx = spdnet_ctx_new();
@@ -211,7 +209,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	assert(bf->snode);
 	spdnet_set_id(bf->snode, bf->local_sockid.c_str(),
 	              bf->local_sockid.size());
-	assert(spdnet_connect(bf->snode, bf->remote_address.c_str()) == 0);
+	assert(spdnet_connect(bf->snode, bf->broker_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
 
 	// pub
@@ -223,7 +221,7 @@ struct bonfire *bonfire_new(const char *remote_addr,
 	// default service
 	struct bonfire_service bs;
 	bs.header = BONFIRE_SERVICE_INFO;
-	bs.sockid = remote_id;
+	bs.sockid = BONFIRE_BROKER_SOCKID;
 	bf->services.insert(std::make_pair(bs.header, bs));
 
 	// bmsg
@@ -264,6 +262,22 @@ int bonfire_loop(struct bonfire *bf, long timeout)
 	spdnet_nodepool_loop(bf->snodepool, timeout);
 	do_all_msg(bf);
 	return 0;
+}
+
+void bonfire_get_id(struct bonfire *bf, void *id, size_t *len)
+{
+	spdnet_get_id(bf->snode, id, len);
+}
+
+void bonfire_set_id(struct bonfire *bf, const void *id, size_t len)
+{
+	char addr[SPDNET_ADDRESS_SIZE] = {0};
+	size_t addr_len = 0;
+	spdnet_get_addr(bf->snode, addr, &addr_len);
+	spdnet_disconnect(bf->snode);
+	spdnet_set_id(bf->snode, id, len);
+	spdnet_connect(bf->snode, addr);
+	bf->local_sockid = string((char *)id, len);
 }
 
 void *bonfire_get_user_data(struct bonfire *bf)
@@ -419,7 +433,7 @@ int bonfire_servcall(struct bonfire *bf,
 	// call remote service
 	void *snode = spdnet_nodepool_get(bf->snodepool);
 	assert(snode);
-	assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
+	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
 	struct spdnet_msg tmp;
 	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(), header, content);
@@ -500,7 +514,7 @@ static void service_info_cb(const void *resp, size_t len, void *arg, int flag)
 		// call remote service
 		void *snode = spdnet_nodepool_get(bf->snodepool);
 		assert(snode);
-		assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
+		assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
 		struct spdnet_msg tmp;
 		SPDNET_MSG_INIT_DATA(&tmp, bs.sockid.c_str(),
@@ -542,7 +556,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	// call remote service
 	void *snode = spdnet_nodepool_get(bf->snodepool);
 	assert(snode);
-	assert(spdnet_connect(snode, bf->remote_address.c_str()) == 0);
+	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
 	struct spdnet_msg tmp;
 	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(), header, content);
@@ -859,13 +873,11 @@ static void on_forwarder_info(struct bmsg *bm)
 }
 
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
-                                          const char *listen_id,
                                           const char *pub_addr,
                                           const char *sub_addr)
 {
 	struct bonfire_broker *bbrk = new struct bonfire_broker;
 	assert(strlen(listen_addr) < SPDNET_ADDRESS_SIZE);
-	assert(strlen(listen_id) < SPDNET_SOCKID_SIZE);
 
 	// ctx
 	bbrk->ctx = spdnet_ctx_new();
@@ -873,9 +885,10 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 
 	// router
 	bbrk->router_addr = listen_addr;
-	bbrk->router_id = string("bonfire-router-") + listen_id;
-	bbrk->router = spdnet_router_new(
-		bbrk->ctx, bbrk->router_id.c_str());
+	char *uuid = uuid_v4_gen();
+	bbrk->router_id = uuid;
+	free(uuid);
+	bbrk->router = spdnet_router_new(bbrk->ctx, bbrk->router_id.c_str());
 	assert(bbrk->router);
 	assert(spdnet_router_bind(bbrk->router, listen_addr) == 0);
 
@@ -886,15 +899,16 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	assert(spdnet_forwarder_bind(bbrk->fwd, pub_addr, sub_addr) == 0);
 
 	// bonfire cli
-	bbrk->bf = bonfire_new(listen_addr, listen_id, listen_id);
+	bbrk->bf = bonfire_new(listen_addr);
 	assert(bbrk->bf);
+	bonfire_set_id(bbrk->bf, BONFIRE_BROKER_SOCKID,
+	               strlen(BONFIRE_BROKER_SOCKID));
 	bonfire_set_user_data(bbrk->bf, bbrk);
 	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_INFO, on_service_info);
 	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_ADD, on_service_add);
 	bonfire_add_service(bbrk->bf, BONFIRE_SERVICE_DEL, on_service_del);
 	bonfire_add_service(bbrk->bf, BONFIRE_FORWARDER_INFO,
 	                    on_forwarder_info);
-
 	return bbrk;
 }
 

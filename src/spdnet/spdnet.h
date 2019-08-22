@@ -180,6 +180,7 @@ void *spdnet_node_new(void *ctx, int type);
 int spdnet_node_destroy(void *snode);
 
 void *spdnet_get_socket(void *__snode);
+void spdnet_get_addr(void *snode, void *addr, size_t *len);
 void spdnet_get_id(void *snode, void *id, size_t *len);
 void spdnet_set_id(void *snode, const void *id, size_t len);
 void spdnet_set_alive(void *snode, int64_t alive);
