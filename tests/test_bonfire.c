@@ -98,6 +98,11 @@ static void test_bonfire_servcall(void **status)
 static void subscribe_cb(struct bonfire *bf, const void *resp,
                          size_t len, void *arg)
 {
+	if (resp == NULL) {
+		assert_true(len == 0);
+		return;
+	}
+
 	assert_true(len == 5);
 	assert_memory_equal(resp, "hello", len);
 	exit_flag = 1;

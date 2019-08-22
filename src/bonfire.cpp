@@ -659,8 +659,12 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 	if (it == bf->subs.end())
 		return BONFIRE_SUBSCRIBE_NONEXIST;
 
+	subscribe_struct *ss = (subscribe_struct *)
+		spdnet_get_user_data(it->second);
+	ss->cb(bf, NULL, 0, ss->arg);
+	free(ss);
+
 	spdnet_nodepool_del(bf->snodepool, it->second);
-	free(spdnet_get_user_data(it->second));
 	assert(spdnet_node_destroy(it->second) == 0);
 	bf->subs.erase(it);
 
