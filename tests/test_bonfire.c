@@ -104,9 +104,10 @@ static void test_bonfire_servcall(void **status)
 }
 
 static void subscribe_cb(struct bonfire *bf, const void *resp,
-                         size_t len, void *arg)
+                         size_t len, void *arg, int flag)
 {
-	if (resp == NULL) {
+	if (flag != BONFIRE_OK) {
+		assert_true(resp == NULL);
 		assert_true(len == 0);
 		return;
 	}

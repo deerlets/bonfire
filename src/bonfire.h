@@ -36,6 +36,7 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 #define BONFIRE_SERVCALL_TIMEOUT 2
 #define BONFIRE_SUBSCRIBE_EXIST 3
 #define BONFIRE_SUBSCRIBE_NONEXIST 4
+#define BONFIRE_SUBSCRIBE_CANCEL 5
 
 typedef void (*bonfire_service_cb)(struct bmsg *bm);
 typedef void (*bonfire_servcall_cb)(struct bonfire *bf,
@@ -46,7 +47,8 @@ typedef void (*bonfire_servcall_cb)(struct bonfire *bf,
 typedef void (*bonfire_subscribe_cb)(struct bonfire *bf,
                                      const void *resp,
                                      size_t len,
-                                     void *arg);
+                                     void *arg,
+                                     int flag);
 
 struct bonfire *bonfire_new(const char *remote_addr);
 void bonfire_destroy(struct bonfire *bf);

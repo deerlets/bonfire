@@ -591,7 +591,9 @@ subscribe_cb(struct spdnet_node *snode, struct spdnet_msg *msg, void *arg)
 	subscribe_struct *ss = static_cast<subscribe_struct *>(
 		spdnet_get_user_data(snode));
 	assert(msg);
-	ss->cb(ss->bf, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg), ss->arg);
+	ss->cb(ss->bf, MSG_CONTENT_DATA(msg),
+	       MSG_CONTENT_SIZE(msg),
+	       ss->arg, BONFIRE_OK);
 	spdnet_recvmsg_async(snode, subscribe_cb, NULL, 0);
 }
 
@@ -684,7 +686,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 
 	subscribe_struct *ss = (subscribe_struct *)
 		spdnet_get_user_data(it->second);
-	ss->cb(bf, NULL, 0, ss->arg);
+	ss->cb(bf, NULL, 0, ss->arg, BONFIRE_SUBSCRIBE_CANCEL);
 	free(ss);
 
 	spdnet_node_destroy(it->second);
