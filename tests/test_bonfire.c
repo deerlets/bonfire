@@ -33,6 +33,12 @@ static void on_zerox(struct bmsg *bm)
 	bmsg_write_response(bm, welcome);
 }
 
+static void noserv_cb(struct bonfire *bf, const void *resp,
+                      size_t len, void *arg, int flag)
+{
+	assert_true(flag == BONFIRE_SERVCALL_NOSERV);
+}
+
 static void hello_to_zerox_cb(struct bonfire *bf, const void *resp,
                               size_t len, void *arg, int flag)
 {
@@ -75,6 +81,8 @@ static void test_bonfire_servcall(void **status)
 	sleep(1);
 	//if (bonfire_servcall(bf_hello, "test://zerox/t", "hello", NULL) == 0)
 	//	exit_flag = 1;
+	bonfire_servcall_async(bf_hello, "test://zerox", "hello",
+	                       noserv_cb, bf_hello);
 	bonfire_servcall_async(bf_hello, "test://zerox/t", "hello",
 	                       hello_to_zerox_cb, bf_hello);
 
