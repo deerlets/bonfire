@@ -2,16 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <node_api.h>
+#include <uv.h>
 #include <bonfire.h>
+#include <task.h>
+#include <string>
+#include <list>
 
 #define _ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 #define DECLARE_NAPI_METHOD(name, method) \
 	{ name, NULL, method, NULL, NULL, NULL, napi_default, NULL }
-
-struct async_struct {
-	napi_value this_obj;
-	napi_ref func_ref;
-};
 
 static napi_status stringify(napi_env env, napi_value value, napi_value *result)
 {
@@ -41,8 +40,85 @@ static napi_status parse(napi_env env, napi_value value, napi_value *result)
 	return rc;
 }
 
+struct servcall_struct {
+	napi_env env;
+	napi_deferred deferred;
+	std::string resp;
+};
+
+static uv_async_t servcall_async;
+static std::list<servcall_struct *> servcall_list;
+
+struct subscribe_struct {
+	napi_env env;
+	napi_value this_obj;
+	napi_ref func_ref;
+	std::list<std::string> resps;
+};
+
+static uv_async_t subscribe_async;
+static subscribe_struct *subscribe_list;
+
+static struct task *bonfire_task;
+
+static void servcall_async_cb(uv_async_t *handle)
+{
+	for (auto &item : servcall_list) {
+		napi_handle_scope scope;
+		napi_open_handle_scope(item->env, &scope);
+
+		if (item->resp.empty()) {
+			napi_value cnt;
+			napi_create_string_utf8(item->env, "timeout",
+			                        NAPI_AUTO_LENGTH, &cnt);
+			napi_reject_deferred(item->env, item->deferred, cnt);
+		} else {
+			napi_value tmp;
+			napi_create_string_utf8(item->env, item->resp.c_str(),
+			                        NAPI_AUTO_LENGTH, &tmp);
+			napi_value cnt;
+			parse(item->env, tmp, &cnt);
+			napi_resolve_deferred(item->env, item->deferred, cnt);
+		}
+
+		napi_close_handle_scope(item->env, scope);
+		delete item;
+	}
+
+	servcall_list.clear();
+}
+
+static void subscribe_async_cb(uv_async_t *handle)
+{
+	napi_env env = subscribe_list->env;
+	napi_value this_obj = subscribe_list->this_obj;
+	napi_ref func_ref = subscribe_list->func_ref;
+
+	for (auto &item : subscribe_list->resps) {
+		napi_handle_scope scope;
+		napi_open_handle_scope(env, &scope);
+
+		napi_value func;
+		napi_get_reference_value(env, func_ref, &func);
+
+		napi_value tmp;
+		napi_create_string_utf8(env, item.c_str(), item.size(), &tmp);
+		napi_value cnt;
+		parse(env, tmp, &cnt);
+
+		napi_status rc;
+		rc = napi_call_function(env, this_obj, func, 1, &cnt, NULL);
+		assert(rc == napi_ok);
+
+		napi_close_handle_scope(env, scope);
+	}
+
+	subscribe_list->resps.clear();
+}
+
 static void bonfire_finalize(napi_env env, void *data, void *hint)
 {
+	task_destroy(bonfire_task);
 	bonfire_destroy((struct bonfire *)data);
 }
 
@@ -75,9 +151,13 @@ static napi_value bonfire_loop_wrap(napi_env env, napi_callback_info info)
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
 
-	// bonfire_loop will call subscribe_cb
-	bonfire_set_user_data(bf, env);
-	bonfire_loop(bf, timeout);
+	uv_loop_t *loop;
+	napi_get_uv_event_loop(env, &loop);
+	uv_async_init(loop, &servcall_async, servcall_async_cb);
+	uv_async_init(loop, &subscribe_async, subscribe_async_cb);
+	bonfire_task = task_new_timeout(
+		"btask", (task_timeout_func_t)bonfire_loop, bf, timeout);
+	task_start(bonfire_task);
 
 	return nullptr;
 }
@@ -85,32 +165,15 @@ static napi_value bonfire_loop_wrap(napi_env env, napi_callback_info info)
 static void servcall_cb(struct bonfire *bf, const void *resp,
                         size_t len, void *arg, int flag)
 {
-	struct async_struct *ss = (struct async_struct *)arg;
-	napi_env env = (napi_env)bonfire_get_user_data(bf);
+	struct servcall_struct *ss = (struct servcall_struct *)arg;
 
-	napi_value func;
-	napi_get_reference_value(env, ss->func_ref, &func);
+	if (flag)
+		ss->resp = "";
+	else
+		ss->resp = std::string((char *)resp, len);
 
-	if (flag) {
-		/*
-		 * FIXME: We're in bonfire_loop, can't throw ...
-		 * Try napi_async_init & napi_open_callback_scope
-		 */
-		//napi_throw_error(env, NULL, "11111");
-		fprintf(stderr, "%s: %d\n", __func__, flag);
-	} else {
-		napi_value tmp;
-		napi_create_string_utf8(env, (char *)resp, len, &tmp);
-		napi_value cnt;
-		parse(env, tmp, &cnt);
-		napi_status rc;
-		rc = napi_call_function(env, ss->this_obj, func, 1, &cnt, NULL);
-		assert(rc == napi_ok);
-	}
-
-	uint32_t count;
-	napi_reference_unref(env, ss->func_ref, &count);
-	free(ss);
+	servcall_list.push_back(ss);
+	uv_async_send(&servcall_async);
 }
 
 static napi_value bonfire_servcall_wrap(napi_env env, napi_callback_info info)
@@ -133,13 +196,12 @@ static napi_value bonfire_servcall_wrap(napi_env env, napi_callback_info info)
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
 
-	struct async_struct *ss =
-		(struct async_struct *)malloc(sizeof(*ss));
-	ss->this_obj = this_obj;
-	napi_create_reference(env, argv[2], 1, &ss->func_ref);
-
+	struct servcall_struct *ss = new struct servcall_struct;
+	ss->env = env;
+	napi_value promise;
+	napi_create_promise(env, &ss->deferred, &promise);
 	bonfire_servcall_async(bf, hdr, cnt, servcall_cb, ss);
-	return nullptr;
+	return promise;
 }
 
 static napi_value bonfire_publish_wrap(napi_env env, napi_callback_info info)
@@ -169,28 +231,18 @@ static napi_value bonfire_publish_wrap(napi_env env, napi_callback_info info)
 static void
 subscribe_cb(struct bonfire *bf, const void *resp, size_t len, void *arg)
 {
-	struct async_struct *ss = (struct async_struct *)arg;
-	napi_env env = (napi_env)bonfire_get_user_data(bf);
-
 	if (resp == NULL) {
 		uint32_t count;
-		napi_reference_unref(env, ss->func_ref, &count);
+		napi_reference_unref(subscribe_list->env,
+		                     subscribe_list->func_ref,
+		                     &count);
 		fprintf(stderr, "%s: %d\n", __func__, count);
-		free(ss);
+		free(subscribe_list);
 		return;
 	}
 
-	napi_value func;
-	napi_get_reference_value(env, ss->func_ref, &func);
-
-	napi_value tmp;
-	napi_create_string_utf8(env, (char *)resp, len, &tmp);
-	napi_value cnt;
-	parse(env, tmp, &cnt);
-
-	napi_status rc;
-	rc = napi_call_function(env, ss->this_obj, func, 1, &cnt, NULL);
-	assert(rc == napi_ok);
+	subscribe_list->resps.push_back(std::string((char *)resp, len));
+	uv_async_send(&subscribe_async);
 }
 
 static napi_value bonfire_subscribe_wrap(napi_env env, napi_callback_info info)
@@ -207,12 +259,12 @@ static napi_value bonfire_subscribe_wrap(napi_env env, napi_callback_info info)
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
 
-	struct async_struct *ss =
-		(struct async_struct *)malloc(sizeof(*ss));
-	ss->this_obj = this_obj;
-	napi_create_reference(env, argv[1], 1, &ss->func_ref);
+	subscribe_list = new struct subscribe_struct;
+	subscribe_list->env = env;
+	subscribe_list->this_obj = this_obj;
+	napi_create_reference(env, argv[1], 1, &subscribe_list->func_ref);
 
-	int rc = bonfire_subscribe(bf, topic, subscribe_cb, ss);
+	int rc = bonfire_subscribe(bf, topic, subscribe_cb, NULL);
 	napi_value retval;
 	napi_create_int32(env, rc, &retval);
 	return retval;
@@ -232,8 +284,6 @@ static napi_value bonfire_unsubscribe_wrap(napi_env env, napi_callback_info info
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
 
-	// bonfire_unsubscribe will call subscribe_cb
-	bonfire_set_user_data(bf, env);
 	int rc = bonfire_unsubscribe(bf, topic);
 	napi_value retval;
 	napi_create_int32(env, rc, &retval);

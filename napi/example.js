@@ -6,7 +6,9 @@ data = {
     header: 'bonfire://service/add'
 };
 
-bf.servcall("bonfire://service/info", data, (content) => {
+var promise = bf.servcall("bonfire://service/info", data);
+promise.then((content) => {
+    console.log("1");
     console.log(content);
 });
 
@@ -14,14 +16,45 @@ bf.subscribe("point#update", (content) => {
     console.log(content);
 });
 
-var exit_flag = 0;
+process.on('SIGINT', () => {
+    console.log("Capture SIGINT");
+    process.exit(1);
+});
 
-//process.on('SIGINT', () => {
-//    console.log("Capture SIGINT");
-//    exit_flag = 1;
-//});
+bf.loop(1000);
 
-while (exit_flag === 0)
-    bf.loop(1000);
+setInterval(() => {
+    //console.log("timeout");
+}, 1000);
 
-bf.unsubscribe("point#update");
+//bf.unsubscribe("point#update");
+
+bf.servcall("bonfire://service/info", data).then((content) => {
+    console.log("2");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("3");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("4");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("5");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("6");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("7");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+}).then((content) => {
+    console.log("8");
+    console.log(content);
+    return bf.servcall("bonfire://service/info", data);
+});
