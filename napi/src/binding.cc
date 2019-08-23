@@ -57,6 +57,7 @@ struct subscribe_struct {
 	napi_env env;
 	napi_value this_obj;
 	napi_ref func_ref;
+	napi_async_context context;
 	std::list<std::string> resps;
 };
 
@@ -104,9 +105,13 @@ static void subscribe_async_cb(uv_async_t *handle)
 		napi_env env = item.second->env;
 		napi_value this_obj = item.second->this_obj;
 		napi_ref func_ref = item.second->func_ref;
+		napi_async_context context = item.second->context;
 
 		napi_handle_scope scope;
 		napi_open_handle_scope(env, &scope);
+
+		napi_callback_scope cb_scope;
+		napi_open_callback_scope(env, nullptr, context, &cb_scope);
 
 		napi_value func;
 		napi_get_reference_value(env, func_ref, &func);
@@ -119,11 +124,12 @@ static void subscribe_async_cb(uv_async_t *handle)
 			parse(env, tmp, &cnt);
 
 			napi_status rc;
-			rc = napi_call_function(env, this_obj, func,
-			                        1, &cnt, NULL);
+			rc = napi_make_callback(env, context, this_obj,
+			                        func, 1, &cnt, NULL);
 			assert(rc == napi_ok);
 		}
 
+		napi_close_callback_scope(env, cb_scope);
 		napi_close_handle_scope(env, scope);
 		item.second->resps.clear();
 	}
@@ -260,6 +266,7 @@ subscribe_cb(struct bonfire *bf, const void *resp, size_t len, void *arg)
 		uint32_t count;
 		napi_reference_unref(ss->env, ss->func_ref, &count);
 		fprintf(stderr, "%s: %d\n", __func__, count);
+		napi_async_destroy(ss->env, ss->context);
 		pthread_mutex_lock(&subscribe_lock);
 		auto it = subscribe_list.find(ss->topic);
 		assert(it != subscribe_list.end());
@@ -298,6 +305,7 @@ static napi_value bonfire_subscribe_wrap(napi_env env, napi_callback_info info)
 		ss->env = env;
 		ss->this_obj = this_obj;
 		napi_create_reference(env, argv[1], 1, &ss->func_ref);
+		napi_async_init(env, nullptr, argv[0], &ss->context);
 		pthread_mutex_lock(&subscribe_lock);
 		subscribe_list.insert(std::make_pair(topic, ss));
 		pthread_mutex_unlock(&subscribe_lock);
