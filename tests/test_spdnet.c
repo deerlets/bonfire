@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <zmq.h>
-#include <spdnet.h>
+#include <spdnet-inl.h>
 #include <task.h>
 
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
@@ -21,7 +21,7 @@
 
 static void test_spdnet_basic(void **status)
 {
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *router = spdnet_router_new(ctx, "router_inner");
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
 	struct task *router_task = task_new_timeout(
@@ -93,7 +93,7 @@ static void test_spdnet_basic(void **status)
  */
 static void test_spdnet_pub_sub(void **status)
 {
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
 	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
 
@@ -127,7 +127,7 @@ static int pub_send(void *pub)
 
 static void test_spdnet_pub_sub2(void **status)
 {
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
 	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
 
@@ -158,7 +158,7 @@ static void test_spdnet_pub_sub2(void **status)
 
 static void test_spdnet_forwarder(void **status)
 {
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *fwd = spdnet_forwarder_new(ctx);
 	spdnet_forwarder_bind(fwd, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
@@ -192,33 +192,34 @@ static void test_spdnet_forwarder(void **status)
  * spdnet nodepool
  */
 
+static int snodepool_exit_flag;
+
 static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
 {
-	spdnet_nodepool_put(arg, snode);
+	assert_true(msg == NULL);
+	snodepool_exit_flag = 1;
 }
 
 static void test_spdnet_nodepool(void **status)
 {
 	int rc;
-	void *ctx = spdnet_ctx_new();
-	void *snodepool = spdnet_nodepool_new(ctx, 1);
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 
 	struct spdnet_msg msg;
 	SPDNET_MSG_INIT_DATA(&msg, "gene", "info", NULL);
-	void *p = spdnet_nodepool_get(snodepool);
+	void *p = spdnet_node_new(ctx, SPDNET_NODE);
 	rc = spdnet_connect(p, "tcp://192.168.31.12:1234");
 	assert_true(rc == 0);
 	rc = spdnet_sendmsg(p, &msg);
 	assert_true(rc == 0);
-	spdnet_recvmsg_async(p, recvmsg_cb, snodepool, 3000);
+	spdnet_recvmsg_async(p, recvmsg_cb, NULL, 3000);
 	assert_true(rc == 0);
 	spdnet_msg_close(&msg);
 
-	// water_mark is one, spdnet_nodepool_put will decrease alive count
-	while (spdnet_nodepool_alive_count(snodepool))
-		spdnet_nodepool_loop(snodepool, 0);
+	while (!snodepool_exit_flag)
+		spdnet_loop(ctx, 100);
 
-	spdnet_nodepool_destroy(snodepool);
+	spdnet_node_destroy(p);
 	spdnet_ctx_destroy(ctx);
 }
 
@@ -229,7 +230,7 @@ static void test_spdnet_nodepool(void **status)
 static void test_spdnet_router(void **status)
 {
 	int rc;
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 
 	// router inner
 	void *inner = spdnet_router_new(ctx, "router-inner");
@@ -329,7 +330,7 @@ static void test_spdnet_pgm(void **status)
 {
 	// always fails
 	return;
-	void *ctx = spdnet_ctx_new();
+	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *pub = zmq_socket(ctx, ZMQ_PUB);
 	void *sub = zmq_socket(ctx, ZMQ_SUB);
 

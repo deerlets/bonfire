@@ -1,19 +1,32 @@
+#include <stdlib.h>
 #include <zmq.h>
-#include "spdnet.h"
+#include <pthread.h>
+#include "spdnet-inl.h"
 
 /*
  * spdnet_ctx
  */
 
-void *spdnet_ctx_new(void)
+struct spdnet_ctx *spdnet_ctx_new(void)
 {
-	return zmq_ctx_new();
+	struct spdnet_ctx *ctx = malloc(sizeof(*ctx));
+	if (!ctx) return NULL;
+	ctx->zmq_ctx = zmq_ctx_new();
+	ctx->pool = spdnet_nodepool_new(ctx, 100);
+	return ctx;
 }
 
-int spdnet_ctx_destroy(void *ctx)
+void spdnet_ctx_destroy(struct spdnet_ctx *ctx)
 {
-	zmq_ctx_shutdown(ctx);
-	return zmq_ctx_term(ctx);
+	spdnet_nodepool_destroy(ctx->pool);
+	zmq_ctx_shutdown(ctx->zmq_ctx);
+	zmq_ctx_term(ctx->zmq_ctx);
+	free(ctx);
+}
+
+int spdnet_loop(struct spdnet_ctx *ctx, long timeout)
+{
+	return spdnet_nodepool_loop(ctx->pool, timeout);
 }
 
 /*

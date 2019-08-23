@@ -33,7 +33,7 @@ struct spdnet_routing_item {
 	} while (0);
 
 struct spdnet_router {
-	void *ctx;
+	struct spdnet_ctx *ctx;
 	struct spdnet_node *snode;
 	struct list_head routing_table;
 
@@ -42,7 +42,7 @@ struct spdnet_router {
 };
 
 static int
-spdnet_peer_remote(void *ctx, const char *addr, void *id, size_t *len)
+spdnet_peer_remote(struct spdnet_ctx *ctx, const char *addr, void *id, size_t *len)
 {
 	int rc = 0;
 	char buf[32] = "peer";
@@ -487,7 +487,7 @@ finally:
 	return rc;
 }
 
-void *spdnet_router_new(void *ctx, const char *id)
+void *spdnet_router_new(struct spdnet_ctx *ctx, const char *id)
 {
 	struct spdnet_router *router = malloc(sizeof(*router));
 	if (!router) return NULL;
@@ -514,7 +514,7 @@ void *spdnet_router_new(void *ctx, const char *id)
 	return router;
 }
 
-int spdnet_router_destroy(void *__router)
+void spdnet_router_destroy(void *__router)
 {
 	struct spdnet_router *router = __router;
 
@@ -524,9 +524,8 @@ int spdnet_router_destroy(void *__router)
 		free(pos);
 	}
 
-	assert(spdnet_node_destroy(router->snode) == 0);
+	spdnet_node_destroy(router->snode);
 	free(__router);
-	return 0;
 }
 
 int spdnet_router_bind(void *__router, const char *addr)

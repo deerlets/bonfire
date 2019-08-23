@@ -36,8 +36,7 @@ struct bonfire {
 	string broker_address;
 	string local_sockid; // for local services
 
-	void *ctx;
-	void *snodepool;
+	struct spdnet_ctx *ctx;
 	void *snode; // for local services
 
 	string fwd_pub_addr;
@@ -200,12 +199,8 @@ struct bonfire *bonfire_new(const char *broker_addr)
 	bf->ctx = spdnet_ctx_new();
 	assert(bf->ctx);
 
-	// snodepool
-	bf->snodepool = spdnet_nodepool_new(bf->ctx, 50);
-	assert(bf->snodepool);
-
 	// snode
-	bf->snode = spdnet_nodepool_get(bf->snodepool);
+	bf->snode = spdnet_node_new(bf->ctx, SPDNET_NODE);
 	assert(bf->snode);
 	spdnet_set_id(bf->snode, bf->local_sockid.c_str(),
 	              bf->local_sockid.size());
@@ -241,17 +236,15 @@ struct bonfire *bonfire_new(const char *broker_addr)
 void bonfire_destroy(struct bonfire *bf)
 {
 	if (bf->pub)
-		assert(spdnet_node_destroy(bf->pub) == 0);
+		spdnet_node_destroy(bf->pub);
 
 	for (auto it = bf->subs.begin(); it != bf->subs.end();) {
-		spdnet_nodepool_del(bf->snodepool, it->second);
 		free(spdnet_get_user_data(it->second));
-		assert(spdnet_node_destroy(it->second) == 0);
+		spdnet_node_destroy(it->second);
 		bf->subs.erase(it++);
 	}
 
-	spdnet_nodepool_put(bf->snodepool, bf->snode);
-	spdnet_nodepool_destroy(bf->snodepool);
+	spdnet_node_destroy(bf->snode);
 	spdnet_ctx_destroy(bf->ctx);
 
 	delete bf;
@@ -259,7 +252,7 @@ void bonfire_destroy(struct bonfire *bf)
 
 int bonfire_loop(struct bonfire *bf, long timeout)
 {
-	spdnet_nodepool_loop(bf->snodepool, timeout);
+	spdnet_loop(bf->ctx, timeout);
 	do_all_msg(bf);
 	return 0;
 }
@@ -271,12 +264,9 @@ void bonfire_get_id(struct bonfire *bf, void *id, size_t *len)
 
 void bonfire_set_id(struct bonfire *bf, const void *id, size_t len)
 {
-	char addr[SPDNET_ADDRESS_SIZE] = {0};
-	size_t addr_len = 0;
-	spdnet_get_addr(bf->snode, addr, &addr_len);
 	spdnet_disconnect(bf->snode);
 	spdnet_set_id(bf->snode, id, len);
-	spdnet_connect(bf->snode, addr);
+	spdnet_connect(bf->snode, bf->broker_address.c_str());
 	bf->local_sockid = string((char *)id, len);
 }
 
@@ -431,7 +421,7 @@ int bonfire_servcall(struct bonfire *bf,
 	}
 
 	// call remote service
-	void *snode = spdnet_nodepool_get(bf->snodepool);
+	void *snode = spdnet_node_new(bf->ctx, SPDNET_NODE);
 	assert(snode);
 	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
@@ -440,7 +430,7 @@ int bonfire_servcall(struct bonfire *bf,
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	if (spdnet_recvmsg_timeout(snode, &tmp, 0, bf->timeout)) {
 		spdnet_msg_close(&tmp);
-		spdnet_nodepool_put(bf->snodepool, snode);
+		spdnet_node_destroy(snode);
 		return -1;
 	}
 
@@ -448,7 +438,7 @@ int bonfire_servcall(struct bonfire *bf,
 	if (result) *result = strdup(cnt.c_str());
 
 	spdnet_msg_close(&tmp);
-	spdnet_nodepool_put(bf->snodepool, snode);
+	spdnet_node_destroy(snode);
 	return 0;
 }
 
@@ -493,7 +483,7 @@ static void servcall_cb(void *snode, struct spdnet_msg *msg, void *arg)
 		       MSG_CONTENT_SIZE(msg), as->arg, flag);
 	}
 
-	spdnet_nodepool_put(as->bf->snodepool, snode);
+	spdnet_node_destroy(snode);
 }
 
 static void service_info_cb(struct bonfire *bf, const void *resp,
@@ -511,7 +501,7 @@ static void service_info_cb(struct bonfire *bf, const void *resp,
 		bf->services.insert(std::make_pair(bs.header, bs));
 
 		// call remote service
-		void *snode = spdnet_nodepool_get(bf->snodepool);
+		void *snode = spdnet_node_new(bf->ctx, SPDNET_NODE);
 		assert(snode);
 		assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
@@ -554,7 +544,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	}
 
 	// call remote service
-	void *snode = spdnet_nodepool_get(bf->snodepool);
+	void *snode = spdnet_node_new(bf->ctx, SPDNET_NODE);
 	assert(snode);
 	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
@@ -638,7 +628,6 @@ int bonfire_subscribe(struct bonfire *bf,
 		return BONFIRE_SUBSCRIBE_EXIST;
 
 	void *sub = spdnet_node_new(bf->ctx, SPDNET_SUB);
-	spdnet_nodepool_add(bf->snodepool, sub);
 	spdnet_connect(sub, bf->fwd_pub_addr.c_str());
 	spdnet_set_filter(sub, topic, strlen(topic));
 
@@ -664,8 +653,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 	ss->cb(bf, NULL, 0, ss->arg);
 	free(ss);
 
-	spdnet_nodepool_del(bf->snodepool, it->second);
-	assert(spdnet_node_destroy(it->second) == 0);
+	spdnet_node_destroy(it->second);
 	bf->subs.erase(it);
 
 	return 0;
@@ -700,7 +688,7 @@ const char *service_strerror(int err) {
 #undef SERVICE_STRERROR_GEN
 
 struct bonfire_broker {
-	void *ctx;
+	struct spdnet_ctx *ctx;
 
 	string router_addr;
 	string router_id;

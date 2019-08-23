@@ -165,8 +165,11 @@ spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name);
  * spdnet_ctx
  */
 
-void *spdnet_ctx_new(void);
-int spdnet_ctx_destroy(void *ctx);
+struct spdnet_ctx;
+
+struct spdnet_ctx *spdnet_ctx_new(void);
+void spdnet_ctx_destroy(struct spdnet_ctx *ctx);
+int spdnet_loop(struct spdnet_ctx *ctx, long timeout);
 
 /*
  * spdnet_node
@@ -176,11 +179,10 @@ int spdnet_ctx_destroy(void *ctx);
 #define SPDNET_SUB 2
 #define SPDNET_NODE 5
 
-void *spdnet_node_new(void *ctx, int type);
-int spdnet_node_destroy(void *snode);
+void *spdnet_node_new(struct spdnet_ctx *ctx, int type);
+void spdnet_node_destroy(void *snode);
 
 void *spdnet_get_socket(void *__snode);
-void spdnet_get_addr(void *snode, void *addr, size_t *len);
 void spdnet_get_id(void *snode, void *id, size_t *len);
 void spdnet_set_id(void *snode, const void *id, size_t len);
 void spdnet_set_alive(void *snode, int64_t alive);
@@ -190,7 +192,8 @@ void spdnet_set_user_data(void *__snode, void *user_data);
 
 int spdnet_bind(void *snode, const char *addr);
 int spdnet_connect(void *snode, const char *addr);
-int spdnet_disconnect(void *snode);
+void spdnet_unbind(void *__snode);
+void spdnet_disconnect(void *snode);
 
 int spdnet_register(void *snode);
 int spdnet_unregister(void *snode);
@@ -206,7 +209,7 @@ typedef void (*spdnet_recvmsg_cb)(
 int spdnet_recvmsg(void *snode, struct spdnet_msg *msg, int flags);
 int spdnet_recvmsg_timeout(void *snode, struct spdnet_msg *msg,
                            int flags, int timeout);
-void spdnet_recvmsg_async(void *snode, spdnet_recvmsg_cb recvmsg_cb,
+void spdnet_recvmsg_async(void *snode, spdnet_recvmsg_cb cb,
                           void *arg, long timeout);
 int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
 
@@ -214,7 +217,7 @@ int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
  * spdnet_forwarder
  */
 
-void *spdnet_forwarder_new(void *ctx);
+void *spdnet_forwarder_new(struct spdnet_ctx *ctx);
 void spdnet_forwarder_destroy(void *fwd);
 int
 spdnet_forwarder_bind(void *fwd, const char *pub_addr, const char *sub_addr);
@@ -224,8 +227,8 @@ int spdnet_forwarder_loop(void *fwd, long timeout);
  * spdnet_router
  */
 
-void *spdnet_router_new(void *ctx, const char *id);
-int spdnet_router_destroy(void *router);
+void *spdnet_router_new(struct spdnet_ctx *ctx, const char *id);
+void spdnet_router_destroy(void *router);
 int spdnet_router_bind(void *router, const char *addr);
 int
 spdnet_router_associate(void *router, const char *addr, void *id, size_t *len);
@@ -233,20 +236,6 @@ int spdnet_router_set_gateway(void *router, void *id, size_t len);
 int spdnet_router_msg_routerd(void *router);
 int spdnet_router_msg_dropped(void *router);
 int spdnet_router_loop(void *router, long timeout);
-
-/*
- * spdnet_nodepool
- */
-
-void *spdnet_nodepool_new(void *ctx, int water_mark);
-int spdnet_nodepool_destroy(void *pool);
-void *spdnet_nodepool_find(void *pool, const void *id, size_t len);
-void *spdnet_nodepool_get(void *pool);
-void spdnet_nodepool_put(void *pool, void *snode);
-void spdnet_nodepool_add(void *pool, void *snode);
-void spdnet_nodepool_del(void *pool, void *snode);
-int spdnet_nodepool_alive_count(void *pool);
-int spdnet_nodepool_loop(void *pool, long timeout);
 
 #ifdef __cplusplus
 }

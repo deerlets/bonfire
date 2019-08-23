@@ -8,7 +8,7 @@ struct spdnet_forwarder {
 	void *sub;
 };
 
-void *spdnet_forwarder_new(void *ctx)
+void *spdnet_forwarder_new(struct spdnet_ctx *ctx)
 {
 	struct spdnet_forwarder *fwd = malloc(sizeof(*fwd));
 	if (!fwd) return NULL;
