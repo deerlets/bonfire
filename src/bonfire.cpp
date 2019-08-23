@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <spdnet.h>
@@ -43,12 +44,14 @@ struct bonfire {
 	string fwd_sub_addr;
 	struct spdnet_node *pub;
 	std::map<string, struct spdnet_node *> subs;
+	pthread_mutex_t subs_lock;
 
 	long timeout;
 
 	// services
 	std::map<string, struct bonfire_service> services;
 	std::map<string, struct bonfire_service> local_services;
+	pthread_mutex_t services_lock;
 
 	// bmsg
 	std::list<struct bmsg *> bmsgs;
@@ -210,6 +213,7 @@ struct bonfire *bonfire_new(const char *broker_addr)
 
 	// pub
 	bf->pub = NULL;
+	pthread_mutex_init(&bf->subs_lock, NULL);
 
 	// timeout
 	bf->timeout = BONFIRE_DEFAULT_SERVCALL_TIMEOUT;
@@ -219,6 +223,7 @@ struct bonfire *bonfire_new(const char *broker_addr)
 	bs.header = BONFIRE_SERVICE_INFO;
 	bs.sockid = BONFIRE_BROKER_SOCKID;
 	bf->services.insert(std::make_pair(bs.header, bs));
+	pthread_mutex_init(&bf->services_lock, NULL);
 
 	// bmsg
 	bf->user_data = 0;
@@ -244,6 +249,9 @@ void bonfire_destroy(struct bonfire *bf)
 		spdnet_node_destroy(it->second);
 		bf->subs.erase(it++);
 	}
+
+	pthread_mutex_destroy(&bf->subs_lock);
+	pthread_mutex_destroy(&bf->services_lock);
 
 	spdnet_node_destroy(bf->snode);
 	spdnet_ctx_destroy(bf->ctx);
@@ -284,25 +292,32 @@ void bonfire_set_user_data(struct bonfire *bf, void *data)
 void bonfire_add_service(struct bonfire *bf, const char *header,
                         bonfire_service_cb handler)
 {
-	if (bf->local_services.find(header) != bf->local_services.end())
-		return;
-
-	struct bonfire_service bs = {
-		.header = header,
-		.sockid = bf->local_sockid,
-		.load_level = 0,
-		.handler = handler,
-	};
-	bf->local_services.insert(std::make_pair(bs.header, bs));
+	pthread_mutex_lock(&bf->services_lock);
+	if (bf->local_services.find(header) == bf->local_services.end()) {
+		struct bonfire_service bs = {
+			.header = header,
+			.sockid = bf->local_sockid,
+			.load_level = 0,
+			.handler = handler,
+		};
+		bf->local_services.insert(std::make_pair(bs.header, bs));
+	}
+	pthread_mutex_unlock(&bf->services_lock);
 }
 
 void bonfire_del_service(struct bonfire *bf, const char *header)
 {
+	pthread_mutex_lock(&bf->services_lock);
 	auto it = bf->local_services.find(header);
-	if (it == bf->local_services.end())
-		return;
-	bf->local_services.erase(it);
+	if (it != bf->local_services.end())
+		bf->local_services.erase(it);
+	pthread_mutex_unlock(&bf->services_lock);
 }
+
+static int bonfire_servcall_not_lock(struct bonfire *bf,
+                                     const char *header,
+                                     const char *content,
+                                     char **result);
 
 static int pull_service_from_remote(struct bonfire *bf)
 {
@@ -324,7 +339,9 @@ static int pull_service_from_remote(struct bonfire *bf)
 			struct bonfire_service bs = *it;
 			services.insert(std::make_pair(bs.header, bs));
 		}
+		pthread_mutex_lock(&bf->services_lock);
 		bf->services = services;
+		pthread_mutex_unlock(&bf->services_lock);
 	} catch (json::exception &ex) {
 		std::cerr << __func__ << ":" << ex.what() << std::endl;
 		if (result) free(result);
@@ -339,14 +356,15 @@ static int push_local_service_to_remote(struct bonfire *bf)
 {
 	char *result = NULL;
 
+	pthread_mutex_lock(&bf->services_lock);
 	for (auto &item : bf->local_services) {
 		if (bf->services.find(item.second.header) != bf->services.end())
 			continue;
 
 		json cnt = item.second;
 
-		if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
-		                     cnt.dump().c_str(), &result))
+		if (bonfire_servcall_not_lock(bf, BONFIRE_SERVICE_ADD,
+		                              cnt.dump().c_str(), &result))
 			return -1;
 
 		try {
@@ -363,6 +381,7 @@ static int push_local_service_to_remote(struct bonfire *bf)
 
 		bf->services.insert(item);
 	}
+	pthread_mutex_unlock(&bf->services_lock);
 
 	// TODO: delete remote service that not in local_services
 
@@ -385,10 +404,10 @@ void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout)
 	bf->timeout = timeout;
 }
 
-int bonfire_servcall(struct bonfire *bf,
-                     const char *header,
-                     const char *content,
-                     char **result)
+static int bonfire_servcall_not_lock(struct bonfire *bf,
+                                     const char *header,
+                                     const char *content,
+                                     char **result)
 {
 	// find service
 	auto it = bf->services.find(header);
@@ -398,8 +417,8 @@ int bonfire_servcall(struct bonfire *bf,
 		json j = {{"header", header}};
 		char *result = NULL;
 
-		if (bonfire_servcall(bf, BONFIRE_SERVICE_INFO,
-		                     j.dump().c_str(), &result))
+		if (bonfire_servcall_not_lock(bf, BONFIRE_SERVICE_INFO,
+		                              j.dump().c_str(), &result))
 			return BONFIRE_SERVCALL_TIMEOUT;
 
 		try {
@@ -441,6 +460,17 @@ int bonfire_servcall(struct bonfire *bf,
 	spdnet_msg_close(&tmp);
 	spdnet_node_destroy(snode);
 	return 0;
+}
+
+int bonfire_servcall(struct bonfire *bf,
+                     const char *header,
+                     const char *content,
+                     char **result)
+{
+	pthread_mutex_lock(&bf->services_lock);
+	int rc = bonfire_servcall_not_lock(bf, header, content, result);
+	pthread_mutex_unlock(&bf->services_lock);
+	return rc;
 }
 
 struct servcall_struct {
@@ -500,7 +530,9 @@ static void service_info_cb(struct bonfire *bf, const void *resp,
 		if (j["errno"] != 0) goto errout;
 
 		struct bonfire_service bs = j["result"];
+		pthread_mutex_lock(&bf->services_lock);
 		bf->services.insert(std::make_pair(bs.header, bs));
+		pthread_mutex_unlock(&bf->services_lock);
 
 		// call remote service
 		struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_NODE);
@@ -525,11 +557,11 @@ errout:
 	delete as;
 }
 
-void bonfire_servcall_async(struct bonfire *bf,
-                            const char *header,
-                            const char *content,
-                            bonfire_servcall_cb cb,
-                            void *arg)
+static void bonfire_servcall_async_not_lock(struct bonfire *bf,
+                                            const char *header,
+                                            const char *content,
+                                            bonfire_servcall_cb cb,
+                                            void *arg)
 {
 	// find service
 	auto it = bf->services.find(header);
@@ -539,9 +571,9 @@ void bonfire_servcall_async(struct bonfire *bf,
 		json j = {{"header", header}};
 		servcall_struct *as = new servcall_struct(
 			bf, cb, arg, header, content);
-		bonfire_servcall_async(bf, BONFIRE_SERVICE_INFO,
-		                       j.dump().c_str(),
-		                       service_info_cb, as);
+		bonfire_servcall_async_not_lock(bf, BONFIRE_SERVICE_INFO,
+		                                j.dump().c_str(),
+		                                service_info_cb, as);
 		return;
 	}
 
@@ -558,6 +590,18 @@ void bonfire_servcall_async(struct bonfire *bf,
 	servcall_struct *as = new servcall_struct(bf, cb, arg);
 	spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 }
+
+void bonfire_servcall_async(struct bonfire *bf,
+                            const char *header,
+                            const char *content,
+                            bonfire_servcall_cb cb,
+                            void *arg)
+{
+	pthread_mutex_lock(&bf->services_lock);
+	bonfire_servcall_async_not_lock(bf, header, content, cb, arg);
+	pthread_mutex_unlock(&bf->services_lock);
+}
+
 
 struct subscribe_struct {
 	struct bonfire *bf;
@@ -627,8 +671,12 @@ int bonfire_subscribe(struct bonfire *bf,
 	if (bf->fwd_pub_addr.empty() && get_forwarder_info(bf))
 		return BONFIRE_SUBSCRIBE_FAILED;
 
-	if (bf->subs.find(topic) != bf->subs.end())
+	pthread_mutex_lock(&bf->subs_lock);
+	if (bf->subs.find(topic) != bf->subs.end()) {
+		pthread_mutex_unlock(&bf->subs_lock);
 		return BONFIRE_SUBSCRIBE_EXIST;
+	}
+	pthread_mutex_unlock(&bf->subs_lock);
 
 	struct spdnet_node *sub = spdnet_node_new(bf->ctx, SPDNET_SUB);
 	spdnet_connect(sub, bf->fwd_pub_addr.c_str());
@@ -641,15 +689,20 @@ int bonfire_subscribe(struct bonfire *bf,
 	spdnet_set_user_data(sub, ss);
 	spdnet_recvmsg_async(sub, subscribe_cb, NULL, 0);
 
+	pthread_mutex_lock(&bf->subs_lock);
 	bf->subs.insert(std::make_pair(topic, sub));
+	pthread_mutex_unlock(&bf->subs_lock);
 	return 0;
 }
 
 int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 {
+	pthread_mutex_lock(&bf->subs_lock);
 	auto it = bf->subs.find(topic);
-	if (it == bf->subs.end())
+	if (it == bf->subs.end()) {
+		pthread_mutex_unlock(&bf->subs_lock);
 		return BONFIRE_SUBSCRIBE_NONEXIST;
+	}
 
 	subscribe_struct *ss = (subscribe_struct *)
 		spdnet_get_user_data(it->second);
@@ -658,6 +711,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 
 	spdnet_node_destroy(it->second);
 	bf->subs.erase(it);
+	pthread_mutex_unlock(&bf->subs_lock);
 
 	return 0;
 }
