@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include <node_api.h>
 #include <uv.h>
 #include <bonfire.h>
@@ -49,6 +50,7 @@ struct servcall_struct {
 
 static uv_async_t servcall_async;
 static std::list<servcall_struct *> servcall_list;
+static pthread_mutex_t servcall_lock;
 
 struct subscribe_struct {
 	std::string topic;
@@ -60,11 +62,14 @@ struct subscribe_struct {
 
 static uv_async_t subscribe_async;
 static std::map<std::string, subscribe_struct *> subscribe_list;
+static pthread_mutex_t subscribe_lock;
 
 static struct task *bonfire_task;
 
 static void servcall_async_cb(uv_async_t *handle)
 {
+	pthread_mutex_lock(&servcall_lock);
+
 	for (auto &item : servcall_list) {
 		napi_handle_scope scope;
 		napi_open_handle_scope(item->env, &scope);
@@ -86,12 +91,15 @@ static void servcall_async_cb(uv_async_t *handle)
 		napi_close_handle_scope(item->env, scope);
 		delete item;
 	}
-
 	servcall_list.clear();
+
+	pthread_mutex_unlock(&servcall_lock);
 }
 
 static void subscribe_async_cb(uv_async_t *handle)
 {
+	pthread_mutex_lock(&subscribe_lock);
+
 	for (auto &item : subscribe_list) {
 		napi_env env = item.second->env;
 		napi_value this_obj = item.second->this_obj;
@@ -119,16 +127,28 @@ static void subscribe_async_cb(uv_async_t *handle)
 		napi_close_handle_scope(env, scope);
 		item.second->resps.clear();
 	}
+
+	pthread_mutex_unlock(&subscribe_lock);
 }
 
 static void bonfire_finalize(napi_env env, void *data, void *hint)
 {
 	task_destroy(bonfire_task);
 	bonfire_destroy((struct bonfire *)data);
+
+	pthread_mutex_destroy(&servcall_lock);
+	pthread_mutex_destroy(&subscribe_lock);
 }
 
 static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 {
+	uv_loop_t *loop;
+	napi_get_uv_event_loop(env, &loop);
+	uv_async_init(loop, &servcall_async, servcall_async_cb);
+	uv_async_init(loop, &subscribe_async, subscribe_async_cb);
+	pthread_mutex_init(&servcall_lock, NULL);
+	pthread_mutex_init(&subscribe_lock, NULL);
+
 	size_t argc = 1;
 	napi_value argv[1];
 	napi_value this_obj = nullptr;
@@ -156,10 +176,6 @@ static napi_value bonfire_loop_wrap(napi_env env, napi_callback_info info)
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
 
-	uv_loop_t *loop;
-	napi_get_uv_event_loop(env, &loop);
-	uv_async_init(loop, &servcall_async, servcall_async_cb);
-	uv_async_init(loop, &subscribe_async, subscribe_async_cb);
 	bonfire_task = task_new_timeout(
 		"btask", (task_timeout_func_t)bonfire_loop, bf, timeout);
 	task_start(bonfire_task);
@@ -177,7 +193,9 @@ static void servcall_cb(struct bonfire *bf, const void *resp,
 	else
 		ss->resp = std::string((char *)resp, len);
 
+	pthread_mutex_lock(&servcall_lock);
 	servcall_list.push_back(ss);
+	pthread_mutex_unlock(&servcall_lock);
 	uv_async_send(&servcall_async);
 }
 
@@ -242,14 +260,18 @@ subscribe_cb(struct bonfire *bf, const void *resp, size_t len, void *arg)
 		uint32_t count;
 		napi_reference_unref(ss->env, ss->func_ref, &count);
 		fprintf(stderr, "%s: %d\n", __func__, count);
+		pthread_mutex_lock(&subscribe_lock);
 		auto it = subscribe_list.find(ss->topic);
 		assert(it != subscribe_list.end());
 		subscribe_list.erase(it);
+		pthread_mutex_unlock(&subscribe_lock);
 		delete ss;
 		return;
 	}
 
+	pthread_mutex_lock(&subscribe_lock);
 	ss->resps.push_back(std::string((char *)resp, len));
+	pthread_mutex_unlock(&subscribe_lock);
 	uv_async_send(&subscribe_async);
 }
 
@@ -276,7 +298,9 @@ static napi_value bonfire_subscribe_wrap(napi_env env, napi_callback_info info)
 		ss->env = env;
 		ss->this_obj = this_obj;
 		napi_create_reference(env, argv[1], 1, &ss->func_ref);
+		pthread_mutex_lock(&subscribe_lock);
 		subscribe_list.insert(std::make_pair(topic, ss));
+		pthread_mutex_unlock(&subscribe_lock);
 	}
 
 	napi_value retval;
