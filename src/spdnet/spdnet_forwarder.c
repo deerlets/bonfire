@@ -8,7 +8,7 @@ struct spdnet_forwarder {
 	void *sub;
 };
 
-void *spdnet_forwarder_new(struct spdnet_ctx *ctx)
+struct spdnet_forwarder *spdnet_forwarder_new(struct spdnet_ctx *ctx)
 {
 	struct spdnet_forwarder *fwd = malloc(sizeof(*fwd));
 	if (!fwd) return NULL;
@@ -19,19 +19,17 @@ void *spdnet_forwarder_new(struct spdnet_ctx *ctx)
 	return fwd;
 }
 
-void spdnet_forwarder_destroy(void *__fwd)
+void spdnet_forwarder_destroy(struct spdnet_forwarder *fwd)
 {
-	struct spdnet_forwarder *fwd = __fwd;
 	spdnet_node_destroy(fwd->pub);
 	spdnet_node_destroy(fwd->sub);
 	free(fwd);
 }
 
-int
-spdnet_forwarder_bind(void *__fwd, const char *pub_addr, const char *sub_addr)
+int spdnet_forwarder_bind(struct spdnet_forwarder *fwd,
+                          const char *pub_addr,
+                          const char *sub_addr)
 {
-	struct spdnet_forwarder *fwd = __fwd;
-
 	if (spdnet_bind(fwd->pub, pub_addr))
 		return -1;
 
@@ -43,9 +41,8 @@ spdnet_forwarder_bind(void *__fwd, const char *pub_addr, const char *sub_addr)
 	return 0;
 }
 
-int spdnet_forwarder_loop(void *__fwd, long timeout)
+int spdnet_forwarder_loop(struct spdnet_forwarder *fwd, long timeout)
 {
-	struct spdnet_forwarder *fwd = __fwd;
 	int rc;
 
 	zmq_pollitem_t items[] = {

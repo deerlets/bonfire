@@ -487,7 +487,7 @@ finally:
 	return rc;
 }
 
-void *spdnet_router_new(struct spdnet_ctx *ctx, const char *id)
+struct spdnet_router *spdnet_router_new(struct spdnet_ctx *ctx, const char *id)
 {
 	struct spdnet_router *router = malloc(sizeof(*router));
 	if (!router) return NULL;
@@ -514,10 +514,8 @@ void *spdnet_router_new(struct spdnet_ctx *ctx, const char *id)
 	return router;
 }
 
-void spdnet_router_destroy(void *__router)
+void spdnet_router_destroy(struct spdnet_router *router)
 {
-	struct spdnet_router *router = __router;
-
 	struct spdnet_routing_item *pos, *n;
 	list_for_each_entry_safe(pos, n, &router->routing_table, node) {
 		list_del(&pos->node);
@@ -525,19 +523,17 @@ void spdnet_router_destroy(void *__router)
 	}
 
 	spdnet_node_destroy(router->snode);
-	free(__router);
+	free(router);
 }
 
-int spdnet_router_bind(void *__router, const char *addr)
+int spdnet_router_bind(struct spdnet_router *router, const char *addr)
 {
-	struct spdnet_router *router = __router;
 	return spdnet_bind(router->snode, addr);
 }
 
-int
-spdnet_router_associate(void *__router, const char *addr, void *id, size_t *len)
+int spdnet_router_associate(struct spdnet_router *router,
+                            const char *addr, void *id, size_t *len)
 {
-	struct spdnet_router *router = __router;
 	char remote_id[SPDNET_SOCKID_SIZE];
 	size_t remote_len;
 
@@ -589,9 +585,8 @@ spdnet_router_associate(void *__router, const char *addr, void *id, size_t *len)
 	return 0;
 }
 
-int spdnet_router_set_gateway(void *__router, void *id, size_t len)
+int spdnet_router_set_gateway(struct spdnet_router *router, void *id, size_t len)
 {
-	struct spdnet_router *router = __router;
 	const char *gw = SPDNET_ROUTER_DEFAULT_GATEWAY;
 
 	struct spdnet_routing_item *item =
@@ -609,21 +604,18 @@ int spdnet_router_set_gateway(void *__router, void *id, size_t len)
 	return 0;
 }
 
-int spdnet_router_msg_routerd(void *__router)
+int spdnet_router_msg_routerd(struct spdnet_router *router)
 {
-	struct spdnet_router *router = __router;
 	return router->nr_msg_routerd;
 }
 
-int spdnet_router_msg_dropped(void *__router)
+int spdnet_router_msg_dropped(struct spdnet_router *router)
 {
-	struct spdnet_router *router = __router;
 	return router->nr_msg_dropped;
 }
 
-int spdnet_router_loop(void *__router, long timeout)
+int spdnet_router_loop(struct spdnet_router *router, long timeout)
 {
-	struct spdnet_router *router = __router;
 	int rc;
 
 	zmq_pollitem_t items[] = {

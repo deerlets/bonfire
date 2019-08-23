@@ -219,25 +219,30 @@ int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
  * spdnet_forwarder
  */
 
-void *spdnet_forwarder_new(struct spdnet_ctx *ctx);
-void spdnet_forwarder_destroy(void *fwd);
-int
-spdnet_forwarder_bind(void *fwd, const char *pub_addr, const char *sub_addr);
-int spdnet_forwarder_loop(void *fwd, long timeout);
+struct spdnet_forwarder;
+
+struct spdnet_forwarder *spdnet_forwarder_new(struct spdnet_ctx *ctx);
+void spdnet_forwarder_destroy(struct spdnet_forwarder *fwd);
+int spdnet_forwarder_bind(struct spdnet_forwarder *fwd,
+                          const char *pub_addr,
+                          const char *sub_addr);
+int spdnet_forwarder_loop(struct spdnet_forwarder *fwd, long timeout);
 
 /*
  * spdnet_router
  */
 
-void *spdnet_router_new(struct spdnet_ctx *ctx, const char *id);
-void spdnet_router_destroy(void *router);
-int spdnet_router_bind(void *router, const char *addr);
-int
-spdnet_router_associate(void *router, const char *addr, void *id, size_t *len);
-int spdnet_router_set_gateway(void *router, void *id, size_t len);
-int spdnet_router_msg_routerd(void *router);
-int spdnet_router_msg_dropped(void *router);
-int spdnet_router_loop(void *router, long timeout);
+struct spdnet_router;
+
+struct spdnet_router *spdnet_router_new(struct spdnet_ctx *ctx, const char *id);
+void spdnet_router_destroy(struct spdnet_router *router);
+int spdnet_router_bind(struct spdnet_router *router, const char *addr);
+int spdnet_router_associate(struct spdnet_router *router,
+                            const char *addr, void *id, size_t *len);
+int spdnet_router_set_gateway(struct spdnet_router *router, void *id, size_t len);
+int spdnet_router_msg_routerd(struct spdnet_router *router);
+int spdnet_router_msg_dropped(struct spdnet_router *router);
+int spdnet_router_loop(struct spdnet_router *router, long timeout);
 
 #ifdef __cplusplus
 }

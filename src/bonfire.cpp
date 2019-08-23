@@ -695,11 +695,11 @@ struct bonfire_broker {
 
 	string router_addr;
 	string router_id;
-	void *router;
+	struct spdnet_router *router;
 
 	string fwd_pub_addr;
 	string fwd_sub_addr;
-	void *fwd;
+	struct spdnet_forwarder *fwd;
 
 	struct bonfire *bf;
 

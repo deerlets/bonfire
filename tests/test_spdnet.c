@@ -25,7 +25,8 @@ static void test_spdnet_basic(void **status)
 	void *router = spdnet_router_new(ctx, "router_inner");
 	spdnet_router_bind(router, INNER_ROUTER_ADDRESS);
 	struct task *router_task = task_new_timeout(
-		"router_task", spdnet_router_loop, router, 500);
+		"router_task", (task_timeout_func_t)
+		spdnet_router_loop, router, 500);
 	task_start(router_task);
 
 	int rc;
@@ -159,13 +160,14 @@ static void test_spdnet_pub_sub2(void **status)
 static void test_spdnet_forwarder(void **status)
 {
 	struct spdnet_ctx *ctx = spdnet_ctx_new();
-	void *fwd = spdnet_forwarder_new(ctx);
+	struct spdnet_forwarder *fwd = spdnet_forwarder_new(ctx);
 	spdnet_forwarder_bind(fwd, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
 	void *pub = spdnet_node_new(ctx, SPDNET_PUB);
 	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
 
 	struct task *t = task_new_timeout(
-		"forward_loop", spdnet_forwarder_loop, fwd, 500);
+		"forward_loop", (task_timeout_func_t)
+		spdnet_forwarder_loop, fwd, 500);
 	task_start(t);
 
 	spdnet_connect(pub, FWD_SUB_ADDRESS);
@@ -234,19 +236,20 @@ static void test_spdnet_router(void **status)
 	struct spdnet_ctx *ctx = spdnet_ctx_new();
 
 	// router inner
-	void *inner = spdnet_router_new(ctx, "router-inner");
+	struct spdnet_router *inner = spdnet_router_new(ctx, "router-inner");
 	assert_true(inner);
 	rc = spdnet_router_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	struct task *inner_task = task_new_timeout(
-		"router-inner-task", spdnet_router_loop, inner, 1000);
+		"router-inner-task", (task_timeout_func_t)
+		spdnet_router_loop, inner, 1000);
 	task_start(inner_task);
 	sleep(1);
 
 	// router outer
 	char inner_id[SPDNET_SOCKID_SIZE];
 	size_t inner_len;
-	void *outer = spdnet_router_new(ctx, NULL);
+	struct spdnet_router *outer = spdnet_router_new(ctx, NULL);
 	assert_true(outer);
 	rc = spdnet_router_bind(outer, OUTER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
@@ -255,7 +258,8 @@ static void test_spdnet_router(void **status)
 	assert_true(rc == 0);
 	spdnet_router_set_gateway(outer, inner_id, inner_len);
 	struct task *outer_task = task_new_timeout(
-		"router-outer-task", spdnet_router_loop, outer, 1000);
+		"router-outer-task", (task_timeout_func_t)
+		spdnet_router_loop, outer, 1000);
 	task_start(outer_task);
 	sleep(1);
 
