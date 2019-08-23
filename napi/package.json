@@ -1,0 +1,21 @@
+{
+  "name": "napi",
+  "version": "1.0.0",
+  "description": "bonfire cli napi",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install": "node-gyp rebuild"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deerlets/bonfire.git"
+  },
+  "author": "yonzkon@gmail.com",
+  "license": "GPL-3.0",
+  "gypfile": true,
+  "bugs": {
+    "url": "https://github.com/deerlets/bonfire/issues"
+  },
+  "homepage": "https://github.com/deerlets/bonfire#readme"
+}
