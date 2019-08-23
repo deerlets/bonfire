@@ -36,7 +36,7 @@ static void on_zerox(struct bmsg *bm)
 static void hello_to_zerox_cb(struct bonfire *bf, const void *resp,
                               size_t len, void *arg, int flag)
 {
-	assert_true(flag == BONFIRE_SERVCALL_OK);
+	assert_true(flag == BONFIRE_OK);
 
 	assert_true(len == 17);
 	assert_memory_equal(resp, "Welcome to zerox.", 17);

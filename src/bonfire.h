@@ -31,13 +31,9 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
  */
 
 #define BONFIRE_DEFAULT_SERVCALL_TIMEOUT 5000
-#define BONFIRE_SERVCALL_OK 0
+#define BONFIRE_OK 0
 #define BONFIRE_SERVCALL_NOSERV 1
 #define BONFIRE_SERVCALL_TIMEOUT 2
-
-#define BONFIRE_PUBLISH_OK 0
-#define BONFIRE_PUBLISH_FAILED 1
-#define BONFIRE_SUBSCRIBE_FAILED 2
 #define BONFIRE_SUBSCRIBE_EXIST 3
 #define BONFIRE_SUBSCRIBE_NONEXIST 4
 
@@ -62,7 +58,7 @@ void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 
 void bonfire_add_service(struct bonfire *bf, const char *header,
-                         bonfire_service_cb handler);
+                         bonfire_service_cb cb);
 void bonfire_del_service(struct bonfire *bf, const char *header);
 int bonfire_servsync(struct bonfire *bf);
 
