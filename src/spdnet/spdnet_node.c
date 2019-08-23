@@ -33,7 +33,7 @@ static struct spdnet_node *__spdnet_node_new(struct spdnet_ctx *ctx, int type)
 
 	snode->user_data = NULL;
 
-	/* mainly used by spdnet_nodepool */
+	/* mainly used by spdnet_pool */
 	snode->used = 0;
 	snode->recvmsg_cb = NULL;
 	snode->recvmsg_timeout = 0;
@@ -48,13 +48,13 @@ static struct spdnet_node *__spdnet_node_new(struct spdnet_ctx *ctx, int type)
 
 struct spdnet_node *spdnet_node_new(struct spdnet_ctx *ctx, int type)
 {
-	struct spdnet_node *snode = spdnet_nodepool_get(ctx->pool, type);
+	struct spdnet_node *snode = spdnet_pool_get(ctx->pool, type);
 	if (snode) return snode;
 
 	snode = __spdnet_node_new(ctx, type);
 	assert(snode);
 
-	spdnet_nodepool_add(ctx->pool, snode);
+	spdnet_pool_add(ctx->pool, snode);
 	return snode;
 }
 
@@ -72,7 +72,7 @@ static void __spdnet_node_destroy(struct spdnet_node *snode)
 void spdnet_node_destroy(struct spdnet_node *snode)
 {
 	if (snode->used)
-		spdnet_nodepool_put(snode->ctx->pool, snode);
+		spdnet_pool_put(snode->ctx->pool, snode);
 	else
 		__spdnet_node_destroy(snode);
 }

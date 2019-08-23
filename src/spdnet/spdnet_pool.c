@@ -5,9 +5,9 @@
 #include <pthread.h>
 #include "spdnet-inl.h"
 
-void *spdnet_nodepool_new(struct spdnet_ctx *ctx, int water_mark)
+struct spdnet_pool *spdnet_pool_new(struct spdnet_ctx *ctx, int water_mark)
 {
-	struct spdnet_nodepool *pool = malloc(sizeof(*pool));
+	struct spdnet_pool *pool = malloc(sizeof(*pool));
 	if (!pool) return NULL;
 	memset(pool, 0, sizeof(*pool));
 
@@ -24,10 +24,8 @@ void *spdnet_nodepool_new(struct spdnet_ctx *ctx, int water_mark)
 	return pool;
 }
 
-void spdnet_nodepool_destroy(void *__pool)
+void spdnet_pool_destroy(struct spdnet_pool *pool)
 {
-	struct spdnet_nodepool *pool = __pool;
-
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
 		assert(pos->used == 0);
@@ -39,11 +37,8 @@ void spdnet_nodepool_destroy(void *__pool)
 	free(pool);
 }
 
-void spdnet_nodepool_add(void *__pool, void *__snode)
+void spdnet_pool_add(struct spdnet_pool *pool, struct spdnet_node *snode)
 {
-	struct spdnet_nodepool *pool = __pool;
-	struct spdnet_node *snode = __snode;
-
 	pthread_mutex_lock(&pool->snodes_lock);
 	assert(snode->used == 0);
 	snode->used = 0;
@@ -53,11 +48,8 @@ void spdnet_nodepool_add(void *__pool, void *__snode)
 	pthread_mutex_unlock(&pool->snodes_lock);
 }
 
-void spdnet_nodepool_del(void *__pool, void *__snode)
+void spdnet_pool_del(struct spdnet_pool *pool, struct spdnet_node *snode)
 {
-	struct spdnet_nodepool *pool = __pool;
-	struct spdnet_node *snode = __snode;
-
 	pthread_mutex_lock(&pool->snodes_lock);
 	pthread_mutex_lock(&pool->snodes_del_lock);
 	assert(snode->used == 1);
@@ -68,10 +60,8 @@ void spdnet_nodepool_del(void *__pool, void *__snode)
 	pthread_mutex_unlock(&pool->snodes_lock);
 }
 
-void *spdnet_nodepool_get(void *__pool, int type)
+void *spdnet_pool_get(struct spdnet_pool *pool, int type)
 {
-	struct spdnet_nodepool *pool = __pool;
-
 	pthread_mutex_lock(&pool->snodes_lock);
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &pool->snodes, node) {
@@ -86,11 +76,8 @@ void *spdnet_nodepool_get(void *__pool, int type)
 	return NULL;
 }
 
-void spdnet_nodepool_put(void *__pool, void *__snode)
+void spdnet_pool_put(struct spdnet_pool *pool, struct spdnet_node *snode)
 {
-	struct spdnet_nodepool *pool = __pool;
-	struct spdnet_node *snode = __snode;
-
 	pthread_mutex_lock(&pool->snodes_lock);
 	pthread_mutex_lock(&pool->snodes_del_lock);
 	assert(snode->used == 1);
@@ -103,7 +90,7 @@ void spdnet_nodepool_put(void *__pool, void *__snode)
 	pthread_mutex_unlock(&pool->snodes_lock);
 }
 
-static int spdnet_nodepool_poll(struct spdnet_nodepool *pool, long timeout)
+static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 {
 	// TODO: Implement pollout & pollerr
 	//       use SPDNET_POLLIN, SPDNET_POLLOUT, SPDNET_POLLERR
@@ -173,7 +160,7 @@ finally:
 	return rc;
 }
 
-static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
+static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 {
 	struct spdnet_node *pos, *n;
 
@@ -204,19 +191,16 @@ static void spdnet_nodepool_do_poll(struct spdnet_nodepool *pool)
 	}
 }
 
-int spdnet_nodepool_alive_count(void *__pool)
+int spdnet_pool_alive_count(struct spdnet_pool *pool)
 {
-	struct spdnet_nodepool *pool = __pool;
 	return pool->nr_snode;
 }
 
-int spdnet_nodepool_loop(void *__pool, long timeout)
+int spdnet_pool_loop(struct spdnet_pool *pool, long timeout)
 {
-	struct spdnet_nodepool *pool = __pool;
-
-	if (spdnet_nodepool_poll(pool, timeout) == -1)
+	if (spdnet_pool_poll(pool, timeout) == -1)
 		return -1;
 
-	spdnet_nodepool_do_poll(pool);
+	spdnet_pool_do_poll(pool);
 	return 0;
 }

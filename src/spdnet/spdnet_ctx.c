@@ -12,13 +12,13 @@ struct spdnet_ctx *spdnet_ctx_new(void)
 	struct spdnet_ctx *ctx = malloc(sizeof(*ctx));
 	if (!ctx) return NULL;
 	ctx->zmq_ctx = zmq_ctx_new();
-	ctx->pool = spdnet_nodepool_new(ctx, 100);
+	ctx->pool = spdnet_pool_new(ctx, 100);
 	return ctx;
 }
 
 void spdnet_ctx_destroy(struct spdnet_ctx *ctx)
 {
-	spdnet_nodepool_destroy(ctx->pool);
+	spdnet_pool_destroy(ctx->pool);
 	zmq_ctx_shutdown(ctx->zmq_ctx);
 	zmq_ctx_term(ctx->zmq_ctx);
 	free(ctx);
@@ -26,7 +26,7 @@ void spdnet_ctx_destroy(struct spdnet_ctx *ctx)
 
 int spdnet_loop(struct spdnet_ctx *ctx, long timeout)
 {
-	return spdnet_nodepool_loop(ctx->pool, timeout);
+	return spdnet_pool_loop(ctx->pool, timeout);
 }
 
 /*
