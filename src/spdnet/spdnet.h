@@ -179,39 +179,41 @@ int spdnet_loop(struct spdnet_ctx *ctx, long timeout);
 #define SPDNET_SUB 2
 #define SPDNET_NODE 5
 
-void *spdnet_node_new(struct spdnet_ctx *ctx, int type);
-void spdnet_node_destroy(void *snode);
+struct spdnet_node;
 
-void *spdnet_get_socket(void *__snode);
-void spdnet_get_id(void *snode, void *id, size_t *len);
-void spdnet_set_id(void *snode, const void *id, size_t len);
-void spdnet_set_alive(void *snode, int64_t alive);
-void spdnet_set_filter(void *__snode, const void *prefix, size_t len);
-void *spdnet_get_user_data(void *__snode);
-void spdnet_set_user_data(void *__snode, void *user_data);
+struct spdnet_node *spdnet_node_new(struct spdnet_ctx *ctx, int type);
+void spdnet_node_destroy(struct spdnet_node *snode);
 
-int spdnet_bind(void *snode, const char *addr);
-int spdnet_connect(void *snode, const char *addr);
-void spdnet_unbind(void *__snode);
-void spdnet_disconnect(void *snode);
+void *spdnet_get_socket(struct spdnet_node *snode);
+void spdnet_get_id(struct spdnet_node *snode, void *id, size_t *len);
+void spdnet_set_id(struct spdnet_node *snode, const void *id, size_t len);
+void spdnet_set_alive(struct spdnet_node *snode, int64_t alive);
+void spdnet_set_filter(struct spdnet_node *snode, const void *prefix, size_t len);
+void *spdnet_get_user_data(struct spdnet_node *snode);
+void spdnet_set_user_data(struct spdnet_node *snode, void *user_data);
 
-int spdnet_register(void *snode);
-int spdnet_unregister(void *snode);
-int spdnet_expose(void *snode);
-int spdnet_alive(void *snode);
+int spdnet_bind(struct spdnet_node *snode, const char *addr);
+int spdnet_connect(struct spdnet_node *snode, const char *addr);
+void spdnet_unbind(struct spdnet_node *snode);
+void spdnet_disconnect(struct spdnet_node *snode);
 
-int spdnet_recv(void *snode, void *buf, size_t size, int flags);
-int spdnet_send(void *snode, const void *buf, size_t size, int flags);
+int spdnet_register(struct spdnet_node *snode);
+int spdnet_unregister(struct spdnet_node *snode);
+int spdnet_expose(struct spdnet_node *snode);
+int spdnet_alive(struct spdnet_node *snode);
+
+int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags);
+int spdnet_send(struct spdnet_node *snode, const void *buf, size_t size, int flags);
 
 typedef void (*spdnet_recvmsg_cb)(
-	void *snode, struct spdnet_msg *msg, void *arg);
+	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg);
 
-int spdnet_recvmsg(void *snode, struct spdnet_msg *msg, int flags);
-int spdnet_recvmsg_timeout(void *snode, struct spdnet_msg *msg,
+int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags);
+int spdnet_recvmsg_timeout(struct spdnet_node *snode, struct spdnet_msg *msg,
                            int flags, int timeout);
-void spdnet_recvmsg_async(void *snode, spdnet_recvmsg_cb cb,
+void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
                           void *arg, long timeout);
-int spdnet_sendmsg(void *snode, struct spdnet_msg *msg);
+int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
 
 /*
  * spdnet_forwarder

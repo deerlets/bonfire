@@ -194,7 +194,8 @@ static void test_spdnet_forwarder(void **status)
 
 static int snodepool_exit_flag;
 
-static void recvmsg_cb(void *snode, struct spdnet_msg *msg, void *arg)
+static void
+recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg, void *arg)
 {
 	assert_true(msg == NULL);
 	snodepool_exit_flag = 1;
