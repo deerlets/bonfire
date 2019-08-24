@@ -12,6 +12,18 @@ Bonfire.prototype.loop = function(timeout) {
     return this.addon.loop(timeout);
 };
 
+Bonfire.prototype.addService = function(header, callback) {
+    return this.addon.addService(header, callback);
+};
+
+Bonfire.prototype.delService = function(header) {
+    return this.addon.delService(header);
+};
+
+Bonfire.prototype.servsync = function(header, content) {
+    return this.addon.servsync(header, content);
+};
+
 Bonfire.prototype.servcall = function(header, content) {
     return this.addon.servcall(header, content);
 };

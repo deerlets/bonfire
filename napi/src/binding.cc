@@ -42,6 +42,19 @@ static napi_status parse(napi_env env, napi_value value, napi_value *result)
 	return rc;
 }
 
+struct service_struct {
+	std::string header;
+	napi_env env;
+	napi_value this_obj;
+	napi_ref func_ref;
+	napi_async_context context;
+	std::list<struct bmsg *> reqs;
+};
+
+static uv_async_t service_async;
+static std::map<std::string, service_struct *> service_list;
+static pthread_mutex_t service_lock;
+
 struct servcall_struct {
 	napi_env env;
 	napi_deferred deferred;
@@ -67,6 +80,54 @@ static pthread_mutex_t subscribe_lock;
 
 static struct task *bonfire_task;
 
+static void service_async_cb(uv_async_t *handle)
+{
+	pthread_mutex_lock(&service_lock);
+
+	for (auto &item : service_list) {
+		napi_env env = item.second->env;
+		napi_value this_obj = item.second->this_obj;
+		napi_ref func_ref = item.second->func_ref;
+		napi_async_context context = item.second->context;
+
+		napi_handle_scope scope;
+		napi_open_handle_scope(env, &scope);
+
+		napi_callback_scope cb_scope;
+		napi_open_callback_scope(env, nullptr, context, &cb_scope);
+
+		napi_value func;
+		napi_get_reference_value(env, func_ref, &func);
+
+		for (auto &bm : item.second->reqs) {
+			void *content;
+			size_t size;
+			bmsg_get_request_content(bm, &content, &size);
+
+			napi_value cnt;
+			napi_create_string_utf8(env, (char *)content, size, &cnt);
+
+			napi_status rc;
+			napi_value result;
+			rc = napi_make_callback(env, context, this_obj,
+			                        func, 1, &cnt, &result);
+			assert(rc == napi_ok);
+
+			char res[4096] = {0};
+			size_t in = 4096, out;
+			napi_get_value_string_utf8(env, result, res, in, &out);
+			bmsg_write_response_size(bm, res, out);
+			bmsg_handled(bm);
+		}
+
+		napi_close_callback_scope(env, cb_scope);
+		napi_close_handle_scope(env, scope);
+		item.second->reqs.clear();
+	}
+
+	pthread_mutex_unlock(&service_lock);
+}
+
 static void servcall_async_cb(uv_async_t *handle)
 {
 	pthread_mutex_lock(&servcall_lock);
@@ -75,20 +136,16 @@ static void servcall_async_cb(uv_async_t *handle)
 		napi_handle_scope scope;
 		napi_open_handle_scope(item->env, &scope);
 
+		napi_value cnt;
 		if (item->resp.empty()) {
-			napi_value cnt;
 			napi_create_string_utf8(item->env, "timeout",
 			                        NAPI_AUTO_LENGTH, &cnt);
-			napi_reject_deferred(item->env, item->deferred, cnt);
 		} else {
-			napi_value tmp;
 			napi_create_string_utf8(item->env, item->resp.c_str(),
-			                        NAPI_AUTO_LENGTH, &tmp);
-			napi_value cnt;
-			parse(item->env, tmp, &cnt);
-			napi_resolve_deferred(item->env, item->deferred, cnt);
+			                        NAPI_AUTO_LENGTH, &cnt);
 		}
 
+		napi_resolve_deferred(item->env, item->deferred, cnt);
 		napi_close_handle_scope(item->env, scope);
 		delete item;
 	}
@@ -117,12 +174,9 @@ static void subscribe_async_cb(uv_async_t *handle)
 		napi_get_reference_value(env, func_ref, &func);
 
 		for (auto &resp : item.second->resps) {
-			napi_value tmp;
-			napi_create_string_utf8(env, resp.c_str(),
-			                        resp.size(), &tmp);
 			napi_value cnt;
-			parse(env, tmp, &cnt);
-
+			napi_create_string_utf8(env, resp.c_str(),
+			                        resp.size(), &cnt);
 			napi_status rc;
 			rc = napi_make_callback(env, context, this_obj,
 			                        func, 1, &cnt, NULL);
@@ -142,6 +196,7 @@ static void bonfire_finalize(napi_env env, void *data, void *hint)
 	task_destroy(bonfire_task);
 	bonfire_destroy((struct bonfire *)data);
 
+	pthread_mutex_destroy(&service_lock);
 	pthread_mutex_destroy(&servcall_lock);
 	pthread_mutex_destroy(&subscribe_lock);
 }
@@ -150,8 +205,10 @@ static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 {
 	uv_loop_t *loop;
 	napi_get_uv_event_loop(env, &loop);
+	uv_async_init(loop, &service_async, service_async_cb);
 	uv_async_init(loop, &servcall_async, servcall_async_cb);
 	uv_async_init(loop, &subscribe_async, subscribe_async_cb);
+	pthread_mutex_init(&service_lock, NULL);
 	pthread_mutex_init(&servcall_lock, NULL);
 	pthread_mutex_init(&subscribe_lock, NULL);
 
@@ -189,6 +246,83 @@ static napi_value bonfire_loop_wrap(napi_env env, napi_callback_info info)
 	return nullptr;
 }
 
+static void service_cb(struct bmsg *bm)
+{
+	void *header;
+	size_t size;
+	bmsg_get_request_header(bm, &header, &size);
+	std::string hdr((char *)header, size);
+
+	auto it = service_list.find(hdr);
+	if (it == service_list.end())
+		return;
+
+	bmsg_pending(bm);
+	pthread_mutex_lock(&service_lock);
+	it->second->reqs.push_back(bm);
+	pthread_mutex_unlock(&service_lock);
+	uv_async_send(&service_async);
+}
+
+static napi_value bonfire_add_service_wrap(napi_env env, napi_callback_info info)
+{
+	size_t argc = 2;
+	napi_value argv[2];
+	napi_value this_obj;
+	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
+
+	char hdr[256] = {0};
+	size_t hdr_in = 256, hdr_out;
+	napi_get_value_string_utf8(env, argv[0], hdr, hdr_in, &hdr_out);
+
+	struct bonfire *bf;
+	napi_unwrap(env, this_obj, (void **)&bf);
+
+	bonfire_add_service(bf, hdr, service_cb);
+
+	service_struct *ss = new struct service_struct;
+	ss->header = hdr;
+	ss->env = env;
+	ss->this_obj = this_obj;
+	napi_create_reference(env, argv[1], 1, &ss->func_ref);
+	napi_async_init(env, nullptr, argv[0], &ss->context);
+	pthread_mutex_lock(&service_lock);
+	service_list.insert(std::make_pair(hdr, ss));
+	pthread_mutex_unlock(&service_lock);
+	return nullptr;
+}
+
+static napi_value bonfire_del_service_wrap(napi_env env, napi_callback_info info)
+{
+	size_t argc = 2;
+	napi_value argv[2];
+	napi_value this_obj;
+	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
+
+	char hdr[256] = {0};
+	size_t hdr_in = 256, hdr_out;
+	napi_get_value_string_utf8(env, argv[0], hdr, hdr_in, &hdr_out);
+
+	struct bonfire *bf;
+	napi_unwrap(env, this_obj, (void **)&bf);
+
+	bonfire_del_service(bf, hdr);
+	return nullptr;
+}
+
+static napi_value bonfire_servsync_wrap(napi_env env, napi_callback_info info)
+{
+	size_t argc = 2;
+	napi_value argv[2];
+	napi_value this_obj;
+	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
+
+	struct bonfire *bf;
+	napi_unwrap(env, this_obj, (void **)&bf);
+	bonfire_servsync(bf);
+	return nullptr;
+}
+
 static void servcall_cb(struct bonfire *bf, const void *resp,
                         size_t len, void *arg, int flag)
 {
@@ -207,8 +341,8 @@ static void servcall_cb(struct bonfire *bf, const void *resp,
 
 static napi_value bonfire_servcall_wrap(napi_env env, napi_callback_info info)
 {
-	size_t argc = 3;
-	napi_value argv[3];
+	size_t argc = 2;
+	napi_value argv[2];
 	napi_value this_obj;
 	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
 
@@ -216,11 +350,9 @@ static napi_value bonfire_servcall_wrap(napi_env env, napi_callback_info info)
 	size_t hdr_in = 256, hdr_out;
 	napi_get_value_string_utf8(env, argv[0], hdr, hdr_in, &hdr_out);
 
-	napi_value tmp;
-	stringify(env, argv[1], &tmp);
 	char cnt[4096] = {0};
 	size_t cnt_in = 4096, cnt_out;
-	napi_get_value_string_utf8(env, tmp, cnt, cnt_in, &cnt_out);
+	napi_get_value_string_utf8(env, argv[1], cnt, cnt_in, &cnt_out);
 
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
@@ -257,12 +389,12 @@ static napi_value bonfire_publish_wrap(napi_env env, napi_callback_info info)
 	return retval;
 }
 
-static void
-subscribe_cb(struct bonfire *bf, const void *resp, size_t len, void *arg)
+static void subscribe_cb(struct bonfire *bf, const void *resp,
+                         size_t len, void *arg, int flag)
 {
 	subscribe_struct *ss = (subscribe_struct *)arg;
 
-	if (resp == NULL) {
+	if (flag != BONFIRE_OK) {
 		uint32_t count;
 		napi_reference_unref(ss->env, ss->func_ref, &count);
 		fprintf(stderr, "%s: %d\n", __func__, count);
@@ -338,8 +470,11 @@ static napi_value bonfire_unsubscribe_wrap(napi_env env, napi_callback_info info
 
 static napi_value Init(napi_env env, napi_value exports)
 {
-	napi_property_descriptor properties[5] = {
+	napi_property_descriptor properties[8] = {
 		DECLARE_NAPI_METHOD("loop", bonfire_loop_wrap),
+		DECLARE_NAPI_METHOD("addService", bonfire_add_service_wrap),
+		DECLARE_NAPI_METHOD("delService", bonfire_del_service_wrap),
+		DECLARE_NAPI_METHOD("servsync", bonfire_servsync_wrap),
 		DECLARE_NAPI_METHOD("servcall", bonfire_servcall_wrap),
 		DECLARE_NAPI_METHOD("publish", bonfire_publish_wrap),
 		DECLARE_NAPI_METHOD("subscribe", bonfire_subscribe_wrap),
