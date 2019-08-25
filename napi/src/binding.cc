@@ -310,19 +310,6 @@ static napi_value bonfire_del_service_wrap(napi_env env, napi_callback_info info
 	return nullptr;
 }
 
-static napi_value bonfire_servsync_wrap(napi_env env, napi_callback_info info)
-{
-	size_t argc = 2;
-	napi_value argv[2];
-	napi_value this_obj;
-	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
-
-	struct bonfire *bf;
-	napi_unwrap(env, this_obj, (void **)&bf);
-	bonfire_servsync(bf);
-	return nullptr;
-}
-
 static void servcall_cb(struct bonfire *bf, const void *resp,
                         size_t len, void *arg, int flag)
 {
@@ -394,7 +381,7 @@ static void subscribe_cb(struct bonfire *bf, const void *resp,
 {
 	subscribe_struct *ss = (subscribe_struct *)arg;
 
-	if (flag != BONFIRE_OK) {
+	if (flag != BONFIRE_EOK) {
 		uint32_t count;
 		napi_reference_unref(ss->env, ss->func_ref, &count);
 		fprintf(stderr, "%s: %d\n", __func__, count);
@@ -470,11 +457,10 @@ static napi_value bonfire_unsubscribe_wrap(napi_env env, napi_callback_info info
 
 static napi_value Init(napi_env env, napi_value exports)
 {
-	napi_property_descriptor properties[8] = {
+	napi_property_descriptor properties[7] = {
 		DECLARE_NAPI_METHOD("loop", bonfire_loop_wrap),
 		DECLARE_NAPI_METHOD("addService", bonfire_add_service_wrap),
 		DECLARE_NAPI_METHOD("delService", bonfire_del_service_wrap),
-		DECLARE_NAPI_METHOD("servsync", bonfire_servsync_wrap),
 		DECLARE_NAPI_METHOD("servcall", bonfire_servcall_wrap),
 		DECLARE_NAPI_METHOD("publish", bonfire_publish_wrap),
 		DECLARE_NAPI_METHOD("subscribe", bonfire_subscribe_wrap),

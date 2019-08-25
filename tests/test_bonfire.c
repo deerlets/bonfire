@@ -36,13 +36,13 @@ static void on_zerox(struct bmsg *bm)
 static void noserv_cb(struct bonfire *bf, const void *resp,
                       size_t len, void *arg, int flag)
 {
-	assert_true(flag == BONFIRE_SERVCALL_NOSERV);
+	assert_true(flag == BONFIRE_ENOTFOUND);
 }
 
 static void hello_to_zerox_cb(struct bonfire *bf, const void *resp,
                               size_t len, void *arg, int flag)
 {
-	assert_true(flag == BONFIRE_OK);
+	assert_true(flag == BONFIRE_EOK);
 
 	assert_true(len == 17);
 	assert_memory_equal(resp, "Welcome to zerox.", 17);
@@ -65,12 +65,10 @@ static void test_bonfire_servcall(void **status)
 	struct bonfire *bf_hello = bonfire_new(BROKER_ADDRESS);
 	bonfire_add_service(bf_hello, "test://hello", on_hello);
 	bonfire_add_service(bf_hello, "test://world", on_world);
-	assert_true(bonfire_servsync(bf_hello) == 0);
 
 	// zerox client init
 	struct bonfire *bf_zerox = bonfire_new(BROKER_ADDRESS);
 	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
-	assert_true(bonfire_servsync(bf_zerox) == 0);
 	struct task *bf_zerox_task = task_new_timeout(
 		"bf_zerox_task",
 		(task_timeout_func_t)bonfire_loop,
@@ -106,7 +104,7 @@ static void test_bonfire_servcall(void **status)
 static void subscribe_cb(struct bonfire *bf, const void *resp,
                          size_t len, void *arg, int flag)
 {
-	if (flag != BONFIRE_OK) {
+	if (flag != BONFIRE_EOK) {
 		assert_true(resp == NULL);
 		assert_true(len == 0);
 		return;

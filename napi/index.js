@@ -20,10 +20,6 @@ Bonfire.prototype.delService = function(header) {
     return this.addon.delService(header);
 };
 
-Bonfire.prototype.servsync = function(header, content) {
-    return this.addon.servsync(header, content);
-};
-
 Bonfire.prototype.servcall = function(header, content) {
     return this.addon.servcall(header, content);
 };

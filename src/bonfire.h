@@ -7,6 +7,22 @@
 extern "C" {
 #endif
 
+#define BONFIRE_ERRNO_MAP(XX) \
+	XX(EOK, "OK") \
+	XX(EINVAL, "Invalid argument") \
+	XX(EEXIST, "Target exists") \
+	XX(ENOTFOUND, "Target not found") \
+	XX(ETIMEOUT, "Operation timeout") \
+	XX(ECANCEL, "Operation canceled") \
+	XX(EPERM, "Permission deny")
+
+typedef enum {
+#define XX(code, _) BONFIRE_##code,
+	BONFIRE_ERRNO_MAP(XX)
+#undef XX
+	BONFIRE_ERRNO_MAX = 1000
+} bonfire_errno_t;
+
 struct bmsg;
 struct bonfire;
 
@@ -30,13 +46,7 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
  * bonfire cli
  */
 
-#define BONFIRE_DEFAULT_SERVCALL_TIMEOUT 5000
-#define BONFIRE_OK 0
-#define BONFIRE_SERVCALL_NOSERV 1
-#define BONFIRE_SERVCALL_TIMEOUT 2
-#define BONFIRE_SUBSCRIBE_EXIST 3
-#define BONFIRE_SUBSCRIBE_NONEXIST 4
-#define BONFIRE_SUBSCRIBE_CANCEL 5
+#define BONFIRE_DEFAULT_TIMEOUT 5000
 
 typedef void (*bonfire_service_cb)(struct bmsg *bm);
 typedef void (*bonfire_servcall_cb)(struct bonfire *bf,
@@ -59,10 +69,9 @@ void bonfire_set_id(struct bonfire *bf, const void *id, size_t len);
 void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 
-void bonfire_add_service(struct bonfire *bf, const char *header,
+int bonfire_add_service(struct bonfire *bf, const char *header,
                          bonfire_service_cb cb);
-void bonfire_del_service(struct bonfire *bf, const char *header);
-int bonfire_servsync(struct bonfire *bf);
+int bonfire_del_service(struct bonfire *bf, const char *header);
 
 void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout);
 
