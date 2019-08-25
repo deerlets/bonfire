@@ -14,34 +14,6 @@
 #define DECLARE_NAPI_METHOD(name, method) \
 	{ name, NULL, method, NULL, NULL, NULL, napi_default, NULL }
 
-static napi_status stringify(napi_env env, napi_value value, napi_value *result)
-{
-	napi_status rc;
-	napi_value global, JSON, stringify;
-	rc = napi_get_global(env, &global);
-	assert(rc == napi_ok);
-	rc = napi_get_named_property(env, global, "JSON", &JSON);
-	assert(rc == napi_ok);
-	rc = napi_get_named_property(env, JSON, "stringify", &stringify);
-	assert(rc == napi_ok);
-	rc = napi_call_function(env, global, stringify, 1, &value, result);
-	return rc;
-}
-
-static napi_status parse(napi_env env, napi_value value, napi_value *result)
-{
-	napi_status rc;
-	napi_value global, JSON, parse;
-	rc = napi_get_global(env, &global);
-	assert(rc == napi_ok);
-	rc = napi_get_named_property(env, global, "JSON", &JSON);
-	assert(rc == napi_ok);
-	rc = napi_get_named_property(env, JSON, "parse", &parse);
-	assert(rc == napi_ok);
-	rc = napi_call_function(env, global, parse, 1, &value, result);
-	return rc;
-}
-
 struct service_struct {
 	std::string header;
 	napi_env env;
