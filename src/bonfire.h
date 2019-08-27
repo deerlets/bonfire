@@ -60,8 +60,10 @@ typedef void (*bonfire_subscribe_cb)(struct bonfire *bf,
                                      void *arg,
                                      int flag);
 
-struct bonfire *bonfire_new(const char *remote_addr);
+struct bonfire *bonfire_new();
 void bonfire_destroy(struct bonfire *bf);
+int bonfire_connect(struct bonfire *bf, const char *remote_addr);
+void bonfire_disconnect(struct bonfire *bf);
 int bonfire_loop(struct bonfire *bf, long timeout);
 
 void bonfire_get_id(struct bonfire *bf, void *id, size_t *len);

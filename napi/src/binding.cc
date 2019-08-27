@@ -191,14 +191,10 @@ static void bonfire_finalize(napi_env env, void *data, void *hint)
 
 static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 {
-	size_t argc = 1;
-	napi_value argv[1];
+	size_t argc = 0;
+	napi_value argv[0];
 	napi_value this_obj = nullptr;
 	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
-
-	char addr[64] = {0};
-	size_t insize = 64, outsize;
-	napi_get_value_string_utf8(env, argv[0], addr, insize, &outsize);
 
 	binding *bd = new binding;
 	uv_loop_t *loop;
@@ -213,7 +209,7 @@ static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 	pthread_mutex_init(&bd->servcall_lock, NULL);
 	pthread_mutex_init(&bd->subscribe_lock, NULL);
 
-	struct bonfire *bf = bonfire_new(addr);
+	struct bonfire *bf = bonfire_new();
 	bonfire_set_user_data(bf, bd);
 	napi_wrap(env, this_obj, bf, bonfire_finalize, NULL, NULL);
 	bd->t = task_new_timeout(
@@ -241,6 +237,40 @@ static void service_cb(struct bmsg *bm)
 	it->second->reqs.push_back(bm);
 	pthread_mutex_unlock(&bd->service_lock);
 	uv_async_send(&bd->service_async);
+}
+
+static napi_value bonfire_connect_wrap(napi_env env, napi_callback_info info)
+{
+	size_t argc = 1;
+	napi_value argv[1];
+	napi_value this_obj;
+	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
+
+	char addr[256] = {0};
+	size_t addr_in = 256, addr_out;
+	napi_get_value_string_utf8(env, argv[0], addr, addr_in, &addr_out);
+
+	struct bonfire *bf;
+	napi_unwrap(env, this_obj, (void **)&bf);
+
+	int rc = bonfire_connect(bf, addr);
+	napi_value retval;
+	napi_create_int32(env, rc, &retval);
+	return retval;
+}
+
+static napi_value bonfire_disconnect_wrap(napi_env env, napi_callback_info info)
+{
+	size_t argc = 0;
+	napi_value argv[0];
+	napi_value this_obj;
+	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
+
+	struct bonfire *bf;
+	napi_unwrap(env, this_obj, (void **)&bf);
+
+	bonfire_disconnect(bf);
+	return nullptr;
 }
 
 static napi_value bonfire_add_service_wrap(napi_env env, napi_callback_info info)
@@ -440,7 +470,9 @@ static napi_value bonfire_unsubscribe_wrap(napi_env env, napi_callback_info info
 
 static napi_value Init(napi_env env, napi_value exports)
 {
-	napi_property_descriptor properties[6] = {
+	napi_property_descriptor properties[8] = {
+		DECLARE_NAPI_METHOD("connect", bonfire_connect_wrap),
+		DECLARE_NAPI_METHOD("disconnect", bonfire_disconnect_wrap),
 		DECLARE_NAPI_METHOD("addService", bonfire_add_service_wrap),
 		DECLARE_NAPI_METHOD("delService", bonfire_del_service_wrap),
 		DECLARE_NAPI_METHOD("servcall", bonfire_servcall_wrap),

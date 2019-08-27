@@ -108,7 +108,8 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
-		if (!pos->used || !pos->recvmsg_cb)
+		if (!pos->used || !pos->recvmsg_cb ||
+		    (!pos->is_bind && !pos->is_connect))
 			continue;
 
 		if (pos->recvmsg_timeout && pos->recvmsg_timeout < time(NULL)) {

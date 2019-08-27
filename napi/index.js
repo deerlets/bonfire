@@ -2,10 +2,18 @@ const addon = require('./build/Release/bonfire').bonfire;
 const EventEmitter = require('events').EventEmitter;
 
 function Bonfire (address) {
-    this.addon = new addon(address);
+    this.addon = new addon();
 }
 
 Bonfire.prototype = new EventEmitter;
+
+Bonfire.prototype.connect = function(address) {
+    return this.addon.connect(address);
+};
+
+Bonfire.prototype.disconnect = function() {
+    return this.addon.disconnect();
+};
 
 Bonfire.prototype.addService = function(header, callback) {
     return this.addon.addService(header, callback);

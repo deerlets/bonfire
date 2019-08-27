@@ -62,12 +62,14 @@ static void test_bonfire_servcall(void **status)
 	task_start(bonfire_broker_task);
 
 	// hello client init
-	struct bonfire *bf_hello = bonfire_new(BROKER_ADDRESS);
+	struct bonfire *bf_hello = bonfire_new();
+	bonfire_connect(bf_hello, BROKER_ADDRESS);
 	bonfire_add_service(bf_hello, "test://hello", on_hello);
 	bonfire_add_service(bf_hello, "test://world", on_world);
 
 	// zerox client init
-	struct bonfire *bf_zerox = bonfire_new(BROKER_ADDRESS);
+	struct bonfire *bf_zerox = bonfire_new();
+	bonfire_connect(bf_zerox, BROKER_ADDRESS);
 	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
 	struct task *bf_zerox_task = task_new_timeout(
 		"bf_zerox_task",
@@ -127,11 +129,13 @@ static void test_bonfire_pub_sub(void **status)
 	task_start(bonfire_broker_task);
 
 	// sub client init
-	struct bonfire *bf_sub = bonfire_new(BROKER_ADDRESS);
+	struct bonfire *bf_sub = bonfire_new();
+	bonfire_connect(bf_sub, BROKER_ADDRESS);
 	bonfire_subscribe(bf_sub, "topic-test", subscribe_cb, NULL);
 
 	// pub client init
-	struct bonfire *bf_pub = bonfire_new(BROKER_ADDRESS);
+	struct bonfire *bf_pub = bonfire_new();
+	bonfire_connect(bf_pub, BROKER_ADDRESS);
 	sleep(1);
 	bonfire_publish(bf_pub, "topic-test", "hello");
 
