@@ -21,8 +21,6 @@ process.on('SIGINT', () => {
     process.exit(1);
 });
 
-bf.loop(1000);
-
 setInterval(() => {
     //console.log("timeout");
 }, 1000);

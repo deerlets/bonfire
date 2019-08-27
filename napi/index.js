@@ -3,14 +3,9 @@ const EventEmitter = require('events').EventEmitter;
 
 function Bonfire (address) {
     this.addon = new addon(address);
-    this.addon.loop(1000);
 }
 
 Bonfire.prototype = new EventEmitter;
-
-Bonfire.prototype.loop = function(timeout) {
-    return this.addon.loop(timeout);
-};
 
 Bonfire.prototype.addService = function(header, callback) {
     return this.addon.addService(header, callback);
