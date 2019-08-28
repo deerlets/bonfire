@@ -5,12 +5,6 @@
 #include <zmq.h>
 #include "list.h"
 
-#define SPDNET_PUB 1 // ZMQ_PUB
-#define SPDNET_SUB 2 // ZMQ_SUB
-#define SPDNET_NODE 5 // ZMQ_DEALER
-#define SPDNET_ROUTER 6 // ZMQ_ROUTER
-#define SPDNET_OTHER -1
-
 typedef zmq_msg_t spdnet_frame_t;
 #include "spdnet.h"
 
@@ -23,6 +17,17 @@ struct spdnet_ctx {
 	struct spdnet_pool *pool;
 };
 
+struct spdnet_interface {
+	struct spdnet_node *(*create)(struct spdnet_ctx *ctx);
+	void (*destroy)(struct spdnet_node *snode);
+	int (*recvmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
+	int (*sendmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
+
+	int (*associate)(struct spdnet_node *snode,
+	                 const char *addr, void *id, size_t *len);
+	int (*set_gateway)(struct spdnet_node *snode, void *id, size_t len);
+};
+
 struct spdnet_node {
 	struct spdnet_ctx *ctx;
 
@@ -30,6 +35,8 @@ struct spdnet_node {
 	size_t id_len;
 
 	int type;
+	struct spdnet_interface *ifs;
+
 	int64_t alive_interval;
 	int64_t alive_timeout;
 
@@ -52,6 +59,14 @@ struct spdnet_node {
 	struct list_head pollerr_node;
 	struct list_head recvmsg_timeout_node;
 };
+
+int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type);
+void spdnet_node_fini(struct spdnet_node *snode);
+
+struct spdnet_interface *spdnet_dealer_interface();
+struct spdnet_interface *spdnet_router_interface();
+struct spdnet_interface *spdnet_pub_interface();
+struct spdnet_interface *spdnet_sub_interface();
 
 struct spdnet_pool {
 	struct spdnet_ctx *ctx;

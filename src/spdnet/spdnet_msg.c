@@ -52,37 +52,43 @@ int spdnet_msg_init(struct spdnet_msg *msg)
 {
 	memset(msg, 0, sizeof(*msg));
 
-	if (zmq_msg_init(&msg->__sockid) == -1)
+	if (zmq_msg_init(&msg->__srcid) == -1)
+		return -1;
+	if (zmq_msg_init(&msg->__dstid) == -1)
 		return -1;
 	if (zmq_msg_init(&msg->__header) == -1)
 		return -1;
 	if (zmq_msg_init(&msg->__content) == -1)
 		return -1;
-	msg->__meta = NULL;
+	if (zmq_msg_init(&msg->__meta) == -1)
+		return -1;
 
 	return 0;
 }
 
 int spdnet_msg_init_data(struct spdnet_msg *msg,
-                         const void *sockid, int id_size,
+                         const void *dstid, int id_size,
                          const void *header, int hdr_size,
                          const void *content, int cnt_size)
 {
 	memset(msg, 0, sizeof(*msg));
 
 	if (id_size == -1)
-		id_size = sockid ? strlen(sockid) : 0;
+		id_size = dstid ? strlen(dstid) : 0;
 	if (hdr_size == -1)
 		hdr_size = header ? strlen(header) : 0;
 	if (cnt_size == -1)
 		cnt_size = content ? strlen(content) : 0;
 
-	// sockid
-	if (id_size && sockid) {
-		zmq_msg_init_size(MSG_SOCKID(msg), id_size);
-		memcpy(MSG_SOCKID_DATA(msg), sockid, id_size);
+	// srcid
+	zmq_msg_init(MSG_SRCID(msg));
+
+	// dstid
+	if (id_size && dstid) {
+		zmq_msg_init_size(MSG_DSTID(msg), id_size);
+		memcpy(MSG_DSTID_DATA(msg), dstid, id_size);
 	} else
-		zmq_msg_init(MSG_SOCKID(msg));
+		zmq_msg_init(MSG_DSTID(msg));
 
 	// header
 	if (hdr_size && header) {
@@ -99,44 +105,38 @@ int spdnet_msg_init_data(struct spdnet_msg *msg,
 		zmq_msg_init(MSG_CONTENT(msg));
 
 	// meta
-	msg->__meta = NULL;
+	zmq_msg_init(MSG_META(msg));
 
 	return 0;
 }
 
 int spdnet_msg_close(struct spdnet_msg *msg)
 {
-	assert(zmq_msg_close(&msg->__sockid) == 0);
+	assert(zmq_msg_close(&msg->__srcid) == 0);
+	assert(zmq_msg_close(&msg->__dstid) == 0);
 	assert(zmq_msg_close(&msg->__header) == 0);
 	assert(zmq_msg_close(&msg->__content) == 0);
-
-	if (msg->__meta) {
-		free(msg->__meta);
-		msg->__meta = NULL;
-	}
-
+	assert(zmq_msg_close(&msg->__meta) == 0);
 	return 0;
 }
 
 int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src)
 {
-	zmq_msg_move(&dst->__sockid, &src->__sockid);
+	zmq_msg_move(&dst->__srcid, &src->__srcid);
+	zmq_msg_move(&dst->__dstid, &src->__dstid);
 	zmq_msg_move(&dst->__header, &src->__header);
 	zmq_msg_move(&dst->__content, &src->__content);
-
-	assert(dst->__meta == NULL);
-	if (src->__meta) {
-		dst->__meta = src->__meta;
-		src->__meta = NULL;
-	}
-
+	zmq_msg_move(&dst->__meta, &src->__meta);
 	return 0;
 }
 
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 {
-	zmq_msg_init_size(MSG_SOCKID(dst), MSG_SOCKID_SIZE(src));
-	memcpy(MSG_SOCKID_DATA(dst), MSG_SOCKID_DATA(src), MSG_SOCKID_SIZE(src));
+	zmq_msg_init_size(MSG_SRCID(dst), MSG_SRCID_SIZE(src));
+	memcpy(MSG_SRCID_DATA(dst), MSG_SRCID_DATA(src), MSG_SRCID_SIZE(src));
+
+	zmq_msg_init_size(MSG_DSTID(dst), MSG_DSTID_SIZE(src));
+	memcpy(MSG_DSTID_DATA(dst), MSG_DSTID_DATA(src), MSG_DSTID_SIZE(src));
 
 	zmq_msg_init_size(MSG_HEADER(dst), MSG_HEADER_SIZE(src));
 	memcpy(MSG_HEADER_DATA(dst), MSG_HEADER_DATA(src), MSG_HEADER_SIZE(src));
@@ -145,20 +145,23 @@ int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src)
 	memcpy(MSG_CONTENT_DATA(dst), MSG_CONTENT_DATA(src),
 	       MSG_CONTENT_SIZE(src));
 
-	if (src->__meta) {
-		memcpy(dst->__meta, src->__meta, sizeof(*dst->__meta));
-	}
+	zmq_msg_init_size(MSG_META(dst), MSG_META_SIZE(src));
+	memcpy(MSG_META_DATA(dst), MSG_META_DATA(src), MSG_META_SIZE(src));
 
 	return 0;
 }
 
 spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name)
 {
-	if (!strcmp(frame_name, "sockid"))
-		return &msg->__sockid;
+	if (!strcmp(frame_name, "srcid"))
+		return &msg->__srcid;
+	else if (!strcmp(frame_name, "dstid"))
+		return &msg->__dstid;
 	else if (!strcmp(frame_name, "header"))
 		return &msg->__header;
 	else if (!strcmp(frame_name, "content"))
 		return &msg->__content;
+	else if (!strcmp(frame_name, "meta"))
+		return &msg->__meta;
 	return NULL;
 }

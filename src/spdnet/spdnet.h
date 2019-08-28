@@ -3,7 +3,7 @@
 
 /*
  * spdnet protocol - node to router:
- *     frame 1: srcid
+ *     frame 1: srcid(send:auto add, recv:manual)
  *     frame 2: node-type
  *     frame 3: dstid
  *     frame 4: delimiter
@@ -14,7 +14,7 @@
  *     frame 9: meta
  *
  * spdnet protocol - router to node:
- *     frame 1: rid
+ *     frame 1: dstid(send:manual, recv:auto remove)
  *     frame 2: node-type
  *     frame 3: srcid
  *     frame 4: delimiter
@@ -25,7 +25,7 @@
  *     frame 9: meta
  *
  * spdnet protocol - router to router:
- *     frame 1: rid
+ *     frame 1: next-rid(send), prev-rid(recv)
  *     frame 2: node-type
  *     frame 3: srcid
  *     frame 4: delimiter
@@ -40,11 +40,9 @@
  * spdnet protocol - pub to sub:
  *     frame 1: topic
  *     frame 2: delimiter
- *     frame 3: empty | delimiter
+ *     frame 3: content
  *     frame 4: delimiter
- *     frame 5: content
- *     frame 6: delimiter
- *     frame 7: meta
+ *     frame 5: meta
  */
 
 #include <stddef.h> // size_t
@@ -70,7 +68,7 @@ extern "C" {
 #define SPDNET_ALIVE_INTERVAL 600
 #define SPDNET_MIN_ALIVE_INTERVAL 10
 
-#define SPDNET_ZMTP_SOCKID_LEN 5
+#define SPDNET_ZMTP_DSTID_LEN 5
 #define SPDNET_SOCKID_SIZE 64
 #define SPDNET_ADDRESS_SIZE 64
 
@@ -83,7 +81,8 @@ extern "C" {
 	XX(ESOCKETTYPE, "unsupported socket type") \
 	XX(EPROTOCOL, "protocol error") \
 	XX(EROUTING, "can't routing") \
-	XX(EIO, "recv or send error")
+	XX(EIO, "recv or send error") \
+	XX(ETIMEOUT, "recv timeout")
 
 typedef enum {
 	SPDNET_ERRNO_MIN = 10000,
@@ -122,10 +121,11 @@ typedef struct spdnet_meta {
 } __attribute__((packed)) spdnet_meta_t;
 
 struct spdnet_msg {
-	spdnet_frame_t __sockid; // dstid for sender, srcid for receiver
+	spdnet_frame_t __srcid;
+	spdnet_frame_t __dstid;
 	spdnet_frame_t __header;
 	spdnet_frame_t __content;
-	spdnet_meta_t *__meta;
+	spdnet_frame_t __meta;
 };
 
 int spdnet_frame_init(spdnet_frame_t *frame);
@@ -138,7 +138,7 @@ size_t spdnet_frame_size(const spdnet_frame_t *frame);
 
 int spdnet_msg_init(struct spdnet_msg *msg);
 int spdnet_msg_init_data(struct spdnet_msg *msg,
-                         const void *sockid, int id_size,
+                         const void *dstid, int id_size,
                          const void *header, int hdr_size,
                          const void *content, int cnt_size);
 int spdnet_msg_close(struct spdnet_msg *msg);
@@ -146,12 +146,16 @@ int spdnet_msg_move(struct spdnet_msg *dst, struct spdnet_msg *src);
 int spdnet_msg_copy(struct spdnet_msg *dst, struct spdnet_msg *src);
 spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name);
 
-#define SPDNET_MSG_INIT_DATA(msg, sockid, header, content) \
-	spdnet_msg_init_data(msg, sockid, -1, header, -1, content, -1)
+#define SPDNET_MSG_INIT_DATA(msg, dstid, header, content) \
+	spdnet_msg_init_data(msg, dstid, -1, header, -1, content, -1)
 
-#define MSG_SOCKID(msg) spdnet_msg_get(msg, "sockid")
-#define MSG_SOCKID_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "sockid"))
-#define MSG_SOCKID_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "sockid"))
+#define MSG_SRCID(msg) spdnet_msg_get(msg, "srcid")
+#define MSG_SRCID_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "srcid"))
+#define MSG_SRCID_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "srcid"))
+
+#define MSG_DSTID(msg) spdnet_msg_get(msg, "dstid")
+#define MSG_DSTID_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "dstid"))
+#define MSG_DSTID_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "dstid"))
 
 #define MSG_HEADER(msg) spdnet_msg_get(msg, "header")
 #define MSG_HEADER_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "header"))
@@ -160,6 +164,10 @@ spdnet_frame_t *spdnet_msg_get(struct spdnet_msg *msg, const char *frame_name);
 #define MSG_CONTENT(msg) spdnet_msg_get(msg, "content")
 #define MSG_CONTENT_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "content"))
 #define MSG_CONTENT_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "content"))
+
+#define MSG_META(msg) spdnet_msg_get(msg, "meta")
+#define MSG_META_DATA(msg) spdnet_frame_data(spdnet_msg_get(msg, "meta"))
+#define MSG_META_SIZE(msg) spdnet_frame_size(spdnet_msg_get(msg, "meta"))
 
 /*
  * spdnet_ctx
@@ -177,7 +185,8 @@ int spdnet_loop(struct spdnet_ctx *ctx, long timeout);
 
 #define SPDNET_PUB 1
 #define SPDNET_SUB 2
-#define SPDNET_NODE 5
+#define SPDNET_DEALER 5
+#define SPDNET_ROUTER 6
 
 struct spdnet_node;
 
@@ -202,15 +211,16 @@ int spdnet_unregister(struct spdnet_node *snode);
 int spdnet_expose(struct spdnet_node *snode);
 int spdnet_alive(struct spdnet_node *snode);
 
-int spdnet_recv(struct spdnet_node *snode, void *buf, size_t size, int flags);
-int spdnet_send(struct spdnet_node *snode, const void *buf, size_t size, int flags);
+int spdnet_associate(struct spdnet_node *snode,
+                     const char *addr, void *id, size_t *len);
+int spdnet_set_gateway(struct spdnet_node *snode, void *id, size_t len);
 
 typedef void (*spdnet_recvmsg_cb)(
-	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg);
+	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag);
 
-int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg, int flags);
-int spdnet_recvmsg_timeout(struct spdnet_node *snode, struct spdnet_msg *msg,
-                           int flags, int timeout);
+int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
+int spdnet_recvmsg_timeout(struct spdnet_node *snode,
+                           struct spdnet_msg *msg, int timeout);
 void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
                           void *arg, long timeout);
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
@@ -224,25 +234,7 @@ struct spdnet_forwarder;
 struct spdnet_forwarder *spdnet_forwarder_new(struct spdnet_ctx *ctx);
 void spdnet_forwarder_destroy(struct spdnet_forwarder *fwd);
 int spdnet_forwarder_bind(struct spdnet_forwarder *fwd,
-                          const char *pub_addr,
-                          const char *sub_addr);
-int spdnet_forwarder_loop(struct spdnet_forwarder *fwd, long timeout);
-
-/*
- * spdnet_router
- */
-
-struct spdnet_router;
-
-struct spdnet_router *spdnet_router_new(struct spdnet_ctx *ctx, const char *id);
-void spdnet_router_destroy(struct spdnet_router *router);
-int spdnet_router_bind(struct spdnet_router *router, const char *addr);
-int spdnet_router_associate(struct spdnet_router *router,
-                            const char *addr, void *id, size_t *len);
-int spdnet_router_set_gateway(struct spdnet_router *router, void *id, size_t len);
-int spdnet_router_msg_routerd(struct spdnet_router *router);
-int spdnet_router_msg_dropped(struct spdnet_router *router);
-int spdnet_router_loop(struct spdnet_router *router, long timeout);
+                          const char *pub_addr, const char *sub_addr);
 
 #ifdef __cplusplus
 }

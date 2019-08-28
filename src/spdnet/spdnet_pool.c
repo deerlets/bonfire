@@ -172,13 +172,13 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 		pos->recvmsg_cb = NULL;
 		pos->recvmsg_arg = NULL;
 		pos->recvmsg_timeout = 0;
-		callback(pos, NULL, arg);
+		callback(pos, NULL, arg, SPDNET_ETIMEOUT);
 	}
 
 	list_for_each_entry_safe(pos, n, &pool->pollins, pollin_node) {
 		struct spdnet_msg msg;
 		spdnet_msg_init(&msg);
-		spdnet_recvmsg(pos, &msg, 0);
+		int rc = spdnet_recvmsg(pos, &msg);
 
 		// snode maybe released in callback, so do callback last
 		spdnet_recvmsg_cb callback = pos->recvmsg_cb;
@@ -186,7 +186,10 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 		pos->recvmsg_cb = NULL;
 		pos->recvmsg_arg = NULL;
 		pos->recvmsg_timeout = 0;
-		callback(pos, &msg, arg);
+		if (rc == -1)
+			callback(pos, &msg, arg, errno);
+		else
+			callback(pos, &msg, arg, 0);
 
 		spdnet_msg_close(&msg);
 	}
