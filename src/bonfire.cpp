@@ -680,12 +680,15 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
  * bonfire broker
  */
 
+typedef int (*bonfire_broker_filter)(struct bmsg *bm);
+
 struct bonfire_broker {
 	struct spdnet_ctx *ctx;
 
 	string router_addr;
 	string router_id;
 	struct spdnet_node *router;
+	bonfire_broker_filter filter;
 
 	string fwd_pub_addr;
 	string fwd_sub_addr;
@@ -854,6 +857,29 @@ static void on_forwarder_info(struct bmsg *bm)
 	pack(bm, BONFIRE_EOK, cnt);
 }
 
+static void router_recvmsg_cb(struct spdnet_node *snode,
+                              struct spdnet_msg *msg,
+                              void *arg, int flag)
+{
+	if (flag) {
+		fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
+		return;
+	}
+	assert(msg);
+
+	struct bonfire_broker *bbrk =
+		(struct bonfire_broker *)spdnet_get_user_data(snode);
+	if (bbrk->filter) {
+		struct bmsg *bm = bmsg_new();
+		spdnet_msg_copy(&bm->request, msg);
+		int rc = bbrk->filter(bm);
+		bmsg_destroy(bm);
+		if (rc) return;
+	}
+
+	spdnet_builtin_router_recvmsg_cb(snode, msg, arg, flag);
+}
+
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *pub_addr,
                                           const char *sub_addr)
@@ -875,8 +901,9 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	              bbrk->router_id.size());
 	assert(bbrk->router);
 	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
-	spdnet_recvmsg_async(
-		bbrk->router, spdnet_builtin_router_recvmsg_cb, NULL, 0);
+	spdnet_recvmsg_async(bbrk->router, router_recvmsg_cb, NULL, 0);
+	spdnet_set_user_data(bbrk->router, bbrk);
+	bbrk->filter = NULL;
 
 	// forwarder
 	bbrk->fwd_pub_addr = pub_addr;
@@ -930,6 +957,12 @@ int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout)
 	spdnet_loop(bbrk->ctx, timeout);
 	bonfire_loop(bbrk->bf, 0);
 	return 0;
+}
+
+void bonfire_broker_set_filter(struct bonfire_broker *bbrk,
+                               bonfire_broker_filter_cb cb)
+{
+	bbrk->filter = cb;
 }
 
 void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,

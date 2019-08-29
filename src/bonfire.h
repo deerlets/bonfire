@@ -72,7 +72,7 @@ void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 
 int bonfire_add_service(struct bonfire *bf, const char *header,
-                         bonfire_service_cb cb);
+                        bonfire_service_cb cb);
 int bonfire_del_service(struct bonfire *bf, const char *header);
 
 void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout);
@@ -101,6 +101,8 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic);
  * bonfire broker
  */
 
+typedef int (*bonfire_broker_filter_cb)(struct bmsg *bm);
+
 struct bonfire_broker;
 
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
@@ -108,6 +110,8 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *sub_addr);
 void bonfire_broker_destroy(struct bonfire_broker *bbrk);
 int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout);
+void bonfire_broker_set_filter(struct bonfire_broker *bbrk,
+                               bonfire_broker_filter_cb cb);
 void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
                                 const char *gateway_addr);
 void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
