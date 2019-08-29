@@ -25,6 +25,7 @@ static void test_spdnet_basic(void **status)
 	void *router = spdnet_node_new(ctx, SPDNET_ROUTER);
 	spdnet_set_id(router, "router", 6);
 	spdnet_bind(router, INNER_ROUTER_ADDRESS);
+	spdnet_recvmsg_async(router, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct task *spdnet_task = task_new_timeout(
 		"spdnet_task", (task_timeout_func_t)
@@ -235,6 +236,7 @@ static void test_spdnet_router(void **status)
 	spdnet_set_id(inner, "router-inner", 12);
 	rc = spdnet_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
+	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// spdnet loop
 	struct task *spdnet_task = task_new_timeout(
@@ -254,6 +256,7 @@ static void test_spdnet_router(void **status)
 	rc = spdnet_associate(outer, INNER_ROUTER_ADDRESS, inner_id, &inner_len);
 	assert_true(rc == 0);
 	spdnet_set_gateway(outer, inner_id, inner_len);
+	spdnet_recvmsg_async(outer, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct spdnet_msg msg;
 	void *requester, *service;

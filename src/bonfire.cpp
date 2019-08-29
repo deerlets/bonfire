@@ -875,6 +875,8 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	              bbrk->router_id.size());
 	assert(bbrk->router);
 	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
+	spdnet_recvmsg_async(
+		bbrk->router, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// forwarder
 	bbrk->fwd_pub_addr = pub_addr;

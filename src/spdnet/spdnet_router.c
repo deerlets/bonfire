@@ -35,9 +35,6 @@ struct spdnet_routing_item {
 struct spdnet_router {
 	struct spdnet_node snode;
 	struct list_head routing_table;
-
-	int nr_msg_routerd;
-	int nr_msg_dropped;
 };
 
 static struct spdnet_routing_item *
@@ -68,16 +65,12 @@ spdnet_find_routing_item_ex(struct spdnet_router *router, zmq_msg_t *id)
 	                                zmq_msg_size(id));
 }
 
-static void router_recvmsg_cb(struct spdnet_node *snode,
-                              struct spdnet_msg *msg,
-                              void *arg, int flag)
+void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
+                                      struct spdnet_msg *msg,
+                                      void *arg, int flag)
 {
-	struct spdnet_router *router =
-		container_of(snode, struct spdnet_router, snode);
-
 	if (flag) {
 		fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
-		router->nr_msg_dropped++;
 		return;
 	}
 	assert(msg);
@@ -100,8 +93,7 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 #endif
 
 	spdnet_sendmsg(snode, msg);
-	spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
-	router->nr_msg_routerd++;
+	spdnet_recvmsg_async(snode, spdnet_builtin_router_recvmsg_cb, arg, 0);
 }
 
 static struct spdnet_node *spdnet_router_create(struct spdnet_ctx *ctx)
@@ -115,12 +107,8 @@ static struct spdnet_node *spdnet_router_create(struct spdnet_ctx *ctx)
 		return NULL;
 	}
 	router->snode.ifs = spdnet_router_interface();
-
 	INIT_LIST_HEAD(&router->routing_table);
-	router->nr_msg_routerd = 0;
-	router->nr_msg_dropped = 0;
 
-	spdnet_recvmsg_async(&router->snode, router_recvmsg_cb, router, 0);
 	return &router->snode;
 }
 

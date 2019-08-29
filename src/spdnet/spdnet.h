@@ -226,6 +226,13 @@ void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
 
 /*
+ * built in device
+ */
+
+void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
+                                      struct spdnet_msg *msg,
+                                      void *arg, int flag);
+/*
  * spdnet_forwarder
  */
 
