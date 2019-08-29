@@ -157,7 +157,7 @@ static void recvmsg_cb(struct spdnet_node *snode,
                        void *arg, int flag)
 {
 	if (flag) {
-		fprintf(stderr, "%s: flag => %d\n", __func__, flag);
+		fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
 		return;
 	}
 	assert(msg);
@@ -337,7 +337,7 @@ int bonfire_add_service(struct bonfire *bf, const char *header,
 			return -1;
 		}
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		assert(0);
 	}
 
@@ -372,7 +372,7 @@ int bonfire_del_service(struct bonfire *bf, const char *header)
 			return -1;
 		}
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		assert(0);
 	}
 
@@ -446,7 +446,7 @@ static int call_service_info(struct bonfire *bf,
 
 		*bs = j["result"];
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		assert(0);
 	}
 
@@ -594,7 +594,7 @@ static int get_forwarder_info(struct bonfire *bf)
 		bf->fwd_pub_addr = j["result"]["pub_addr"];
 		bf->fwd_sub_addr = j["result"]["sub_addr"];
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		assert(0);
 	}
 
@@ -732,7 +732,7 @@ static void load_cache(struct bonfire_broker *bbrk)
 				std::make_pair(bs.header, bs));
 		}
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 	}
 
 	ifs.close();
@@ -775,7 +775,7 @@ static void on_service_info(struct bmsg *bm)
 			return;
 		}
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		pack(bm, BONFIRE_EINVAL, nullptr);
 		return;
 	}
@@ -798,7 +798,7 @@ static void on_service_add(struct bmsg *bm)
 	try {
 		bs = unpack(&bm->request);
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		pack(bm, BONFIRE_EINVAL, nullptr);
 		return;
 	}
@@ -806,7 +806,7 @@ static void on_service_add(struct bmsg *bm)
 	if (bbrk->bf->services.find(bs.header) !=
 	    bbrk->bf->services.end()) {
 		auto it = bbrk->bf->services.find(bs.header);
-		fprintf(stderr, "%s: old_sockid => %s, new_sockid => %s\n",
+		fprintf(stderr, "[%s]: old_sockid => %s, new_sockid => %s\n",
 		        __func__, it->second.sockid.c_str(), bs.sockid.c_str());
 		bbrk->bf->services.erase(it);
 		//pack(bm, BONFIRE_EEXIST, nullptr);
@@ -828,7 +828,7 @@ static void on_service_del(struct bmsg *bm)
 		json cnt = unpack(&bm->request);
 		header = cnt["header"];
 	} catch (json::exception &ex) {
-		fprintf(stderr, "%s: %s\n", __func__, ex.what());
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		pack(bm, BONFIRE_EINVAL, nullptr);
 		return;
 	}
