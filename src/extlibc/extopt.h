@@ -35,13 +35,13 @@ struct opt {
 };
 
 #define INIT_OPT_STRING(optshort, key, val, desc) \
-	{ optshort, key, .value.s = (char *)val, OPT_STRING_STATIC, desc }
+	{ optshort, key, {.s = (char *)val}, OPT_STRING_STATIC, desc }
 #define INIT_OPT_INT(optshort, key, val, desc) \
-	{ optshort, key, .value.i = val, OPT_INTEGER, desc }
+	{ optshort, key, {.i = val}, OPT_INTEGER, desc }
 #define INIT_OPT_BOOL(optshort, key, val, desc) \
-	{ optshort, key, .value.b = val, OPT_BOOL, desc }
+	{ optshort, key, {.b = val}, OPT_BOOL, desc }
 #define INIT_OPT_NONE() \
-	{ NULL, NULL, .value.s = NULL, OPT_NONE, NULL }
+	{ NULL, NULL, {.s = NULL}, OPT_NONE, NULL }
 
 const char *opt_errmsg();
 struct opt *find_opt(const char *key, struct opt * const opttab);
