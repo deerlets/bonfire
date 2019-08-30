@@ -164,17 +164,16 @@ static void recvmsg_cb(struct spdnet_node *snode,
 
 	struct bonfire *bf = (struct bonfire *)arg;
 	struct bmsg *bm = bmsg_new();
-	const void *srcid = MSG_SRCID_DATA(msg);
-	size_t srcid_len = MSG_SRCID_SIZE(msg);
 
 	// response
-	// TODO: need performance optimization
 	string resp_header((char *)MSG_HEADER_DATA(msg), MSG_HEADER_SIZE(msg));
 	resp_header += BONFIRE_RESPONSE_SUBFIX;
 	spdnet_msg_close(&bm->response);
 	spdnet_msg_init_data(&bm->response,
-	                     srcid, srcid_len,
-	                     resp_header.c_str(), -1,
+	                     MSG_SRCID_DATA(msg),
+	                     MSG_SRCID_SIZE(msg),
+	                     resp_header.c_str(),
+	                     resp_header.size(),
 	                     NULL, 0);
 
 	// request
@@ -867,17 +866,54 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 	}
 	assert(msg);
 
+	// filter register & unregister & alive msg but expose msg
+	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
+	           SPDNET_REGISTER_MSG_LEN) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
+	           SPDNET_UNREGISTER_MSG_LEN) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_MSG,
+	           SPDNET_ALIVE_MSG_LEN) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_INFO,
+	           strlen(BONFIRE_SERVICE_INFO)) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_ADD,
+	           strlen(BONFIRE_SERVICE_ADD)) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_DEL,
+	           strlen(BONFIRE_SERVICE_DEL)) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_FORWARDER_INFO,
+	           strlen(BONFIRE_FORWARDER_INFO)) == 0) {
+		spdnet_builtin_router_recvmsg_cb(snode, msg, arg, flag);
+		spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
+		return;
+	}
+
 	struct bonfire_broker *bbrk =
 		(struct bonfire_broker *)spdnet_get_user_data(snode);
 	if (bbrk->filter) {
 		struct bmsg *bm = bmsg_new();
 		spdnet_msg_copy(&bm->request, msg);
-		int rc = bbrk->filter(bm);
+		if (bbrk->filter(bm) && MSG_CONTENT_SIZE(&bm->response)) {
+			string resp_header((char *)MSG_HEADER_DATA(msg),
+			                   MSG_HEADER_SIZE(msg));
+			resp_header += BONFIRE_RESPONSE_SUBFIX;
+			struct spdnet_msg tmp;
+			spdnet_msg_init_data(&tmp,
+			                     MSG_SRCID_DATA(msg),
+			                     MSG_SRCID_SIZE(msg),
+			                     resp_header.c_str(),
+			                     resp_header.size(),
+			                     MSG_CONTENT_DATA(&bm->response),
+			                     MSG_CONTENT_SIZE(&bm->response));
+			spdnet_sendmsg(snode, &tmp);
+			spdnet_msg_close(&tmp);
+			bmsg_destroy(bm);
+			spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
+			return;
+		}
 		bmsg_destroy(bm);
-		if (rc) return;
 	}
 
 	spdnet_builtin_router_recvmsg_cb(snode, msg, arg, flag);
+	spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
 }
 
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,

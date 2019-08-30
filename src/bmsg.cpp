@@ -65,6 +65,12 @@ void bmsg_set_user_data(struct bmsg *bm, void *data)
 	bm->user_data = data;
 }
 
+void bmsg_get_request_srcid(struct bmsg *bm, void **srcid, size_t *size)
+{
+	*srcid = MSG_SRCID_DATA(&bm->request);
+	*size = MSG_SRCID_SIZE(&bm->request);
+}
+
 void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size)
 {
 	*header = MSG_HEADER_DATA(&bm->request);

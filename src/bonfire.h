@@ -37,6 +37,7 @@ void bmsg_handled(struct bmsg *bm);
 struct bonfire *bmsg_get_bonfire(struct bmsg *bm);
 void *bmsg_get_user_data(struct bmsg *bm);
 void bmsg_set_user_data(struct bmsg *bm, void *data);
+void bmsg_get_request_srcid(struct bmsg *bm, void **srcid, size_t *size);
 void bmsg_get_request_header(struct bmsg *bm, void **header, size_t *size);
 void bmsg_get_request_content(struct bmsg *bm, void **content, size_t *size);
 void bmsg_write_response(struct bmsg *bm, const char *data);
