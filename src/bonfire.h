@@ -11,10 +11,11 @@ extern "C" {
 	XX(EOK, "OK") \
 	XX(EINVAL, "Invalid argument") \
 	XX(EEXIST, "Target exists") \
-	XX(ENOTFOUND, "Target not found") \
 	XX(ETIMEOUT, "Operation timeout") \
 	XX(ECANCEL, "Operation canceled") \
-	XX(EPERM, "Permission deny")
+	XX(EPERM, "Permission deny") \
+	XX(ENOSERV, "Service not found") \
+	XX(ENOTOPIC, "Topic not found")
 
 typedef enum {
 #define XX(code, _) BONFIRE_##code,

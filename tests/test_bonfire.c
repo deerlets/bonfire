@@ -36,7 +36,7 @@ static void on_zerox(struct bmsg *bm)
 static void noserv_cb(struct bonfire *bf, const void *resp,
                       size_t len, void *arg, int flag)
 {
-	assert_true(flag == BONFIRE_ENOTFOUND);
+	assert_true(flag == BONFIRE_ENOSERV);
 }
 
 static void hello_to_zerox_cb(struct bonfire *bf, const void *resp,

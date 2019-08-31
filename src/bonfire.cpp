@@ -351,7 +351,7 @@ int bonfire_del_service(struct bonfire *bf, const char *header)
 	pthread_mutex_lock(&bf->services_lock);
 	if (bf->services.find(header) == bf->services.end()) {
 		pthread_mutex_unlock(&bf->services_lock);
-		errno = BONFIRE_ENOTFOUND;
+		errno = BONFIRE_ENOSERV;
 		return -1;
 	}
 	pthread_mutex_unlock(&bf->services_lock);
@@ -659,7 +659,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 	auto it = bf->subs.find(topic);
 	if (it == bf->subs.end()) {
 		pthread_mutex_unlock(&bf->subs_lock);
-		errno = BONFIRE_ENOTFOUND;
+		errno = BONFIRE_ENOTOPIC;
 		return -1;
 	}
 
@@ -770,7 +770,7 @@ static void on_service_info(struct bmsg *bm)
 				return;
 			}
 
-			pack(bm, BONFIRE_ENOTFOUND, nullptr);
+			pack(bm, BONFIRE_ENOSERV, nullptr);
 			return;
 		}
 	} catch (json::exception &ex) {
@@ -834,7 +834,7 @@ static void on_service_del(struct bmsg *bm)
 
 	auto it = bbrk->bf->services.find(header);
 	if (it == bbrk->bf->services.end()) {
-		pack(bm, BONFIRE_ENOTFOUND, nullptr);
+		pack(bm, BONFIRE_ENOSERV, nullptr);
 		return;
 	}
 
