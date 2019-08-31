@@ -117,6 +117,12 @@ static void spdnet_router_destroy(struct spdnet_node *snode)
 	struct spdnet_router *router =
 		container_of(snode, struct spdnet_router, snode);
 
+	struct spdnet_routing_item *pos, *n;
+	list_for_each_entry_safe(pos, n, &router->routing_table, node) {
+		list_del(&pos->node);
+		free(pos);
+	}
+
 	spdnet_node_fini(snode);
 	free(router);
 }

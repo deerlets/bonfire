@@ -105,6 +105,7 @@ static void test_spdnet_pub_sub(void **status)
 	spdnet_recvmsg(sub, &msg);
 	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic#test", 10);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
+	spdnet_msg_close(&msg);
 
 	spdnet_node_destroy(pub);
 	spdnet_node_destroy(sub);
@@ -175,6 +176,7 @@ static void test_spdnet_forwarder(void **status)
 	spdnet_recvmsg(sub, &msg);
 	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic#test", 10);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
+	spdnet_msg_close(&msg);
 
 	task_destroy(spdnet_task);
 	spdnet_node_destroy(pub);
