@@ -68,8 +68,6 @@ int bonfire_connect(struct bonfire *bf, const char *remote_addr);
 void bonfire_disconnect(struct bonfire *bf);
 int bonfire_loop(struct bonfire *bf, long timeout);
 
-void bonfire_get_id(struct bonfire *bf, void *id, size_t *len);
-void bonfire_set_id(struct bonfire *bf, const void *id, size_t len);
 void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 

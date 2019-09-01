@@ -362,7 +362,7 @@ spdnet_router_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 	rc = zmq_msg_send(MSG_CONTENT(msg), socket, ZMQ_SNDMORE);
 	assert(rc != -1);
 
-	rc = zmq_send(socket, snode->id, snode->id_len, ZMQ_SNDMORE);
+	rc = zmq_send(socket, snode->id, strlen(snode->id), ZMQ_SNDMORE);
 	assert(rc != -1);
 	rc = zmq_msg_send(MSG_META(msg), socket, 0);
 	assert(rc != -1);
@@ -374,13 +374,12 @@ static int
 peer_remote(struct spdnet_ctx *ctx, const char *addr, void *id, size_t *len)
 {
 	int rc = 0;
-	char buf[32] = "peer";
 	struct spdnet_msg msg;
 	struct spdnet_node *snode;
 
-	SPDNET_MSG_INIT_DATA(&msg, buf, "hello", "world");
+	SPDNET_MSG_INIT_DATA(&msg, "peer", "hello", "world");
 	snode = spdnet_node_new(ctx, SPDNET_DEALER);
-	spdnet_set_id(snode, buf, strlen(buf));
+	spdnet_set_id(snode, "peer");
 
 	rc = spdnet_connect(snode, addr);
 	if (rc == -1) goto finally;

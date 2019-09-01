@@ -189,8 +189,8 @@ struct spdnet_node *spdnet_node_new(struct spdnet_ctx *ctx, int type);
 void spdnet_node_destroy(struct spdnet_node *snode);
 
 void *spdnet_get_socket(struct spdnet_node *snode);
-void spdnet_get_id(struct spdnet_node *snode, void *id, size_t *len);
-void spdnet_set_id(struct spdnet_node *snode, const void *id, size_t len);
+const char *spdnet_get_id(struct spdnet_node *snode);
+void spdnet_set_id(struct spdnet_node *snode, const char *id);
 void spdnet_set_alive(struct spdnet_node *snode, int64_t alive);
 void spdnet_set_filter(struct spdnet_node *snode, const void *prefix, size_t len);
 void *spdnet_get_user_data(struct spdnet_node *snode);

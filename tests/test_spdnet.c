@@ -23,7 +23,7 @@ static void test_spdnet_basic(void **status)
 {
 	struct spdnet_ctx *ctx = spdnet_ctx_new();
 	void *router = spdnet_node_new(ctx, SPDNET_ROUTER);
-	spdnet_set_id(router, "router", 6);
+	spdnet_set_id(router, "router");
 	spdnet_bind(router, INNER_ROUTER_ADDRESS);
 	spdnet_recvmsg_async(router, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
@@ -37,7 +37,7 @@ static void test_spdnet_basic(void **status)
 	struct spdnet_msg msg;
 
 	service = spdnet_node_new(ctx, SPDNET_DEALER);
-	spdnet_set_id(service, "service", strlen("service"));
+	spdnet_set_id(service, "service");
 	rc = spdnet_connect(service, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	rc = spdnet_register(service);
@@ -54,7 +54,7 @@ static void test_spdnet_basic(void **status)
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(service, &msg);
 	assert_true(rc == 0);
-	assert_true(MSG_SRCID_SIZE(&msg) == 5);
+	assert_true(MSG_SRCID_SIZE(&msg) == 36);
 	assert_true(MSG_HEADER_SIZE(&msg) == 5);
 	assert_true(MSG_CONTENT_SIZE(&msg) == 10);
 	assert_memory_equal(MSG_HEADER_DATA(&msg), "hello", 5);
@@ -235,7 +235,7 @@ static void test_spdnet_router(void **status)
 	// router inner
 	struct spdnet_node *inner = spdnet_node_new(ctx, SPDNET_ROUTER);
 	assert_true(inner);
-	spdnet_set_id(inner, "router-inner", 12);
+	spdnet_set_id(inner, "router-inner");
 	rc = spdnet_bind(inner, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
@@ -252,7 +252,7 @@ static void test_spdnet_router(void **status)
 	size_t inner_len;
 	struct spdnet_node *outer = spdnet_node_new(ctx, SPDNET_ROUTER);
 	assert_true(outer);
-	spdnet_set_id(outer, "router-outer", 12);
+	spdnet_set_id(outer, "router-outer");
 	rc = spdnet_bind(outer, OUTER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
 	rc = spdnet_associate(outer, INNER_ROUTER_ADDRESS, inner_id, &inner_len);
@@ -264,9 +264,9 @@ static void test_spdnet_router(void **status)
 	void *requester, *service;
 	spdnet_msg_init(&msg);
 	requester = spdnet_node_new(ctx, SPDNET_DEALER);
-	spdnet_set_id(requester, "requester", strlen("requester"));
+	spdnet_set_id(requester, "requester");
 	service = spdnet_node_new(ctx, SPDNET_DEALER);
-	spdnet_set_id(service, "service", strlen("service"));
+	spdnet_set_id(service, "service");
 
 	rc = spdnet_connect(requester, OUTER_ROUTER_ADDRESS);
 	assert_true(rc == 0);

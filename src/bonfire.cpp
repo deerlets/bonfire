@@ -45,7 +45,6 @@ struct bonfire_service {
 struct bonfire {
 	string broker_address;
 	string broker_sockid;
-	string local_sockid; // for local services
 
 	struct spdnet_ctx *ctx;
 	struct spdnet_node *snode; // for local services
@@ -200,9 +199,6 @@ struct bonfire *bonfire_new()
 
 	bf->broker_address = "";
 	bf->broker_sockid = BONFIRE_BROKER_SOCKID;
-	char *uuid = uuid_v4_gen();
-	bf->local_sockid = uuid;
-	free(uuid);
 
 	// ctx
 	bf->ctx = spdnet_ctx_new();
@@ -211,8 +207,6 @@ struct bonfire *bonfire_new()
 	// snode
 	bf->snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
 	assert(bf->snode);
-	spdnet_set_id(bf->snode, bf->local_sockid.c_str(),
-	              bf->local_sockid.size());
 
 	// pub
 	bf->pub = NULL;
@@ -284,17 +278,6 @@ int bonfire_loop(struct bonfire *bf, long timeout)
 	return 0;
 }
 
-void bonfire_get_id(struct bonfire *bf, void *id, size_t *len)
-{
-	spdnet_get_id(bf->snode, id, len);
-}
-
-void bonfire_set_id(struct bonfire *bf, const void *id, size_t len)
-{
-	spdnet_set_id(bf->snode, id, len);
-	bf->local_sockid = string((char *)id, len);
-}
-
 void *bonfire_get_user_data(struct bonfire *bf)
 {
 	return bf->user_data;
@@ -318,7 +301,7 @@ int bonfire_add_service(struct bonfire *bf, const char *header,
 
 	struct bonfire_service bs = {
 		.header = header,
-		.sockid = bf->local_sockid,
+		.sockid = spdnet_get_id(bf->snode),
 		.handler = handler,
 	};
 
@@ -933,8 +916,7 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	bbrk->router_id = uuid;
 	free(uuid);
 	bbrk->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
-	spdnet_set_id(bbrk->router, bbrk->router_id.c_str(),
-	              bbrk->router_id.size());
+	spdnet_set_id(bbrk->router, bbrk->router_id.c_str());
 	assert(bbrk->router);
 	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
 	spdnet_recvmsg_async(bbrk->router, router_recvmsg_cb, NULL, 0);
@@ -950,8 +932,7 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	// bonfire cli
 	bbrk->bf = bonfire_new();
 	assert(bbrk->bf);
-	bonfire_set_id(bbrk->bf, BONFIRE_BROKER_SOCKID,
-	               strlen(BONFIRE_BROKER_SOCKID));
+	spdnet_set_id(bbrk->bf->snode, BONFIRE_BROKER_SOCKID);
 	bonfire_set_user_data(bbrk->bf, bbrk);
 	bonfire_connect(bbrk->bf, listen_addr);
 

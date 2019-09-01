@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdlibx.h>
 #include "spdnet-inl.h"
 
 int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type)
@@ -10,8 +11,7 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 	memset(snode, 0, sizeof(*snode));
 
 	snode->ctx = ctx;
-	memset(snode->id, 0, sizeof(snode->id));
-	snode->id_len = 0;
+	snode->id = uuid_v4_gen();
 
 	snode->type = type;
 	snode->alive_interval = 0;
@@ -26,6 +26,8 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 		return -1;
 	int linger = 1000;
 	zmq_setsockopt(snode->socket, ZMQ_LINGER, &linger, sizeof(linger));
+	zmq_setsockopt(snode->socket, ZMQ_IDENTITY,
+	               snode->id, strlen(snode->id));
 
 	snode->user_data = NULL;
 
@@ -48,6 +50,7 @@ void spdnet_node_fini(struct spdnet_node *snode)
 	assert(!snode->is_bind);
 	assert(!snode->is_connect);
 	assert(zmq_close(snode->socket) == 0);
+	free(snode->id);
 }
 
 struct spdnet_node *spdnet_node_new(struct spdnet_ctx *ctx, int type)
@@ -83,24 +86,17 @@ void *spdnet_get_socket(struct spdnet_node *snode)
 	return snode->socket;
 }
 
-void spdnet_get_id(struct spdnet_node *snode, void *id, size_t *len)
+const char *spdnet_get_id(struct spdnet_node *snode)
 {
-	assert(id);
-	assert(len);
-
-	*len = snode->id_len;
-	memcpy(id, snode->id, *len);
+	return snode->id;
 }
 
-void spdnet_set_id(struct spdnet_node *snode, const void *id, size_t len)
+void spdnet_set_id(struct spdnet_node *snode, const char *id)
 {
-	assert(id);
-	assert(len <= SPDNET_SOCKID_SIZE);
-
-	memcpy(snode->id, id, len);
-	snode->id_len = len;
-
-	assert(zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, len) == 0);
+	assert(strlen(id) <= SPDNET_SOCKID_SIZE);
+	free(snode->id);
+	snode->id = strdup(id);
+	assert(zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, strlen(id)) == 0);
 }
 
 void spdnet_set_alive(struct spdnet_node *snode, int64_t alive)
@@ -154,6 +150,10 @@ void spdnet_unbind(struct spdnet_node *snode)
 
 int spdnet_connect(struct spdnet_node *snode, const char *addr)
 {
+#ifdef HAVE_ZMQ_BUG
+	usleep(200 * 1000);
+#endif
+
 	assert(snode->is_connect == 0);
 
 	if (zmq_connect(snode->socket, addr))
@@ -221,7 +221,6 @@ int spdnet_unregister(struct spdnet_node *snode)
 
 int spdnet_expose(struct spdnet_node *snode)
 {
-	assert(snode->id_len);
 	int rc;
 
 	struct spdnet_msg msg;

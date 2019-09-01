@@ -31,8 +31,7 @@ struct spdnet_interface {
 struct spdnet_node {
 	struct spdnet_ctx *ctx;
 
-	char id[SPDNET_SOCKID_SIZE];
-	size_t id_len;
+	char *id;
 
 	int type;
 	struct spdnet_interface *ifs;

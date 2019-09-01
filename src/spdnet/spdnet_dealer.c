@@ -34,8 +34,8 @@ spdnet_dealer_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 
 	// dstid
 	spdnet_frame_close(MSG_DSTID(msg));
-	spdnet_frame_init_size(MSG_DSTID(msg), snode->id_len);
-	memcpy(MSG_DSTID_DATA(msg), snode->id, snode->id_len);
+	spdnet_frame_init_size(MSG_DSTID(msg), strlen(snode->id));
+	memcpy(MSG_DSTID_DATA(msg), snode->id, strlen(snode->id));
 
 	// header
 	rc = z_recv_more(snode->socket, MSG_HEADER(msg), 0);
