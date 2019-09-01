@@ -5,6 +5,11 @@
 #include <zmq.h>
 #include "list.h"
 
+#define SPDNET_ROUTER_DEFAULT_GATEWAY "default_gateway"
+#define SPDNET_ROUTING_ITEM_STALL 3600
+#define SPDNET_ALIVE_INTERVAL 600
+#define SPDNET_MIN_ALIVE_INTERVAL 10
+
 typedef zmq_msg_t spdnet_frame_t;
 #include "spdnet.h"
 
@@ -41,8 +46,8 @@ struct spdnet_node {
 
 	int is_bind;
 	int is_connect;
-	char bind_addr[SPDNET_ADDRESS_SIZE];
-	char connect_addr[SPDNET_ADDRESS_SIZE];
+	char bind_addr[SPDNET_ADDR_SIZE];
+	char connect_addr[SPDNET_ADDR_SIZE];
 	void *socket;
 
 	void *user_data;
@@ -61,6 +66,9 @@ struct spdnet_node {
 
 int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type);
 void spdnet_node_fini(struct spdnet_node *snode);
+int spdnet_register(struct spdnet_node *snode);
+int spdnet_unregister(struct spdnet_node *snode);
+int spdnet_alive(struct spdnet_node *snode);
 
 struct spdnet_interface *spdnet_dealer_interface();
 struct spdnet_interface *spdnet_router_interface();

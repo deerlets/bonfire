@@ -93,7 +93,7 @@ const char *spdnet_get_id(struct spdnet_node *snode)
 
 void spdnet_set_id(struct spdnet_node *snode, const char *id)
 {
-	assert(strlen(id) <= SPDNET_SOCKID_SIZE);
+	assert(strlen(id) <= SPDNET_ID_SIZE);
 	free(snode->id);
 	snode->id = strdup(id);
 	assert(zmq_setsockopt(snode->socket, ZMQ_IDENTITY, id, strlen(id)) == 0);
@@ -101,7 +101,7 @@ void spdnet_set_id(struct spdnet_node *snode, const char *id)
 
 void spdnet_set_alive(struct spdnet_node *snode, int64_t alive)
 {
-	assert(snode->type == SPDNET_DEALER);
+	assert(snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER);
 
 	if (alive < SPDNET_MIN_ALIVE_INTERVAL)
 		snode->alive_interval = SPDNET_MIN_ALIVE_INTERVAL;
@@ -181,7 +181,7 @@ void spdnet_disconnect(struct spdnet_node *snode)
 {
 	assert(snode->is_connect == 1);
 
-	if (snode->type == SPDNET_DEALER) {
+	if (snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER) {
 		spdnet_unregister(snode);
 		snode->alive_interval = 0;
 		snode->alive_timeout = 0;
@@ -196,7 +196,7 @@ int spdnet_register(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	spdnet_msg_init_data(&msg, SPDNET_ID_NONE, -1,
 	                     SPDNET_REGISTER_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
@@ -210,22 +210,8 @@ int spdnet_unregister(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	spdnet_msg_init_data(&msg, SPDNET_ID_NONE, -1,
 	                     SPDNET_UNREGISTER_MSG, -1, NULL, 0);
-	rc = spdnet_sendmsg(snode, &msg);
-	spdnet_msg_close(&msg);
-
-	if (rc == -1) return -1;
-	return 0;
-}
-
-int spdnet_expose(struct spdnet_node *snode)
-{
-	int rc;
-
-	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
-	                     SPDNET_EXPOSE_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 
@@ -235,11 +221,11 @@ int spdnet_expose(struct spdnet_node *snode)
 
 int spdnet_alive(struct spdnet_node *snode)
 {
-	assert(snode->type == SPDNET_DEALER);
+	assert(snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER);
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	spdnet_msg_init_data(&msg, SPDNET_ID_NONE, -1,
 	                     SPDNET_ALIVE_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);

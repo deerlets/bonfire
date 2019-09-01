@@ -41,8 +41,6 @@ static void test_spdnet_basic(void **status)
 	spdnet_set_id(service, "service");
 	rc = spdnet_connect(service, INNER_ROUTER_ADDRESS);
 	assert_true(rc == 0);
-	rc = spdnet_register(service);
-	assert_true(rc == 0);
 
 	requester = spdnet_node_new(ctx, SPDNET_DEALER);
 	rc = spdnet_connect(requester, INNER_ROUTER_ADDRESS);
@@ -245,7 +243,7 @@ static void test_spdnet_router(void **status)
 	task_start(spdnet_task);
 	sleep(1);
 
-	char center_id[SPDNET_SOCKID_SIZE];
+	char center_id[SPDNET_ID_SIZE];
 	size_t center_len;
 
 	// router inner
@@ -254,7 +252,6 @@ static void test_spdnet_router(void **status)
 	assert_true(spdnet_bind(inner, INNER_ROUTER_ADDRESS) == 0);
 	spdnet_associate(inner, CENTER_ROUTER_ADDRESS, center_id, &center_len);
 	spdnet_set_gateway(inner, center_id, center_len);
-	spdnet_register(inner);
 	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// router outer
@@ -263,7 +260,6 @@ static void test_spdnet_router(void **status)
 	assert_true(spdnet_bind(outer, OUTER_ROUTER_ADDRESS) == 0);
 	spdnet_associate(outer, CENTER_ROUTER_ADDRESS, center_id, &center_len);
 	spdnet_set_gateway(outer, center_id, center_len);
-	spdnet_register(outer);
 	spdnet_recvmsg_async(outer, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct spdnet_msg msg;

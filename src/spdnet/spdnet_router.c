@@ -4,13 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "spdnet-inl.h"
 
 struct spdnet_routing_item {
-	char id[SPDNET_SOCKID_SIZE];
+	char id[SPDNET_ID_SIZE];
 	size_t len;
 
-	char nexthop_id[SPDNET_SOCKID_SIZE];
+	char nexthop_id[SPDNET_ID_SIZE];
 	size_t nexthop_len;
 	int nexthop_type;
 
@@ -92,8 +93,8 @@ void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
 	free(__content);
 #endif
 
-	if (memcmp(MSG_DSTID_DATA(msg), SPDNET_SOCKID_NONE,
-	           strlen(SPDNET_SOCKID_NONE)) != 0)
+	if (memcmp(MSG_DSTID_DATA(msg), SPDNET_ID_NONE,
+	           strlen(SPDNET_ID_NONE)) != 0)
 		spdnet_sendmsg(snode, msg);
 
 	spdnet_recvmsg_async(snode, spdnet_builtin_router_recvmsg_cb, arg, 0);
@@ -441,7 +442,7 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 	struct spdnet_router *router =
 		container_of(snode, struct spdnet_router, snode);
 
-	char remote_id[SPDNET_SOCKID_SIZE];
+	char remote_id[SPDNET_ID_SIZE];
 	size_t remote_len;
 
 	if (peer_remote(snode->ctx, addr, remote_id, &remote_len) == -1)
@@ -455,39 +456,42 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 		return -1;
 
 #if HAVE_ZMQ_BUG
-	zmq_sleep(1);
+	usleep(10 * 1000);
 #endif
 
+	void *socket = spdnet_get_socket(snode);
+
 	// rid
-	zmq_send(snode, remote_id, remote_len, ZMQ_SNDMORE);
+	zmq_send(socket, remote_id, remote_len, ZMQ_SNDMORE);
 
 	// srcid
-	zmq_send(snode, &snode->type, 1, ZMQ_SNDMORE);
-	zmq_send(snode, SPDNET_SOCKID_NONE,
-	         strlen(SPDNET_SOCKID_NONE), ZMQ_SNDMORE);
+	zmq_send(socket, &snode->type, 1, ZMQ_SNDMORE);
+	zmq_send(socket, snode->id, strlen(snode->id), ZMQ_SNDMORE);
 
 	// dstid
-	zmq_send(snode, "", 0, ZMQ_SNDMORE);
-	zmq_send(snode, SPDNET_SOCKID_NONE,
-	         strlen(SPDNET_SOCKID_NONE), ZMQ_SNDMORE);
+	zmq_send(socket, "", 0, ZMQ_SNDMORE);
+	zmq_send(socket, SPDNET_ID_NONE, strlen(SPDNET_ID_NONE), ZMQ_SNDMORE);
 
 	// header
-	zmq_send(snode, "", 0, ZMQ_SNDMORE);
-	zmq_send(snode, SPDNET_REGISTER_MSG,
+	zmq_send(socket, "", 0, ZMQ_SNDMORE);
+	zmq_send(socket, SPDNET_REGISTER_MSG,
 	         strlen(SPDNET_REGISTER_MSG), ZMQ_SNDMORE);
 
 	// content
-	zmq_send(snode, "", 0, ZMQ_SNDMORE);
-	zmq_send(snode, "", 0, ZMQ_SNDMORE);
+	zmq_send(socket, "", 0, ZMQ_SNDMORE);
+	zmq_send(socket, "", 0, ZMQ_SNDMORE);
 
 	// meta
-	zmq_send(snode, "", 0, ZMQ_SNDMORE);
-	zmq_send(snode, "", 0, 0);
+	zmq_send(socket, "", 0, ZMQ_SNDMORE);
+	zmq_send(socket, "", 0, 0);
 
 	struct spdnet_routing_item *item = malloc(sizeof(*item));
 	INIT_SPDNET_ROUTING_ITEM(item, remote_id, remote_len,
 	                         remote_id, remote_len, SPDNET_ROUTER);
 	list_add(&item->node, &router->routing_table);
+
+	snode->alive_interval = SPDNET_ALIVE_INTERVAL;
+	snode->alive_timeout = time(NULL) + SPDNET_ALIVE_INTERVAL;
 
 	return 0;
 }

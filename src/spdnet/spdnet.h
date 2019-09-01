@@ -53,20 +53,12 @@ extern "C" {
 #endif
 
 #define SPDNET_ID_DELIMITER '/'
-#define SPDNET_SOCKID_NONE "--none--"
+#define SPDNET_ID_SIZE 64
+#define SPDNET_ADDR_SIZE 64
+#define SPDNET_ID_NONE "--none--"
 #define SPDNET_REGISTER_MSG "snode-register"
 #define SPDNET_UNREGISTER_MSG "snode-unregister"
-#define SPDNET_EXPOSE_MSG "snode-expose"
 #define SPDNET_ALIVE_MSG "snode-alive"
-
-#define SPDNET_ROUTER_DEFAULT_GATEWAY "default_gateway"
-#define SPDNET_ROUTING_ITEM_STALL 3600
-#define SPDNET_ALIVE_INTERVAL 600
-#define SPDNET_MIN_ALIVE_INTERVAL 10
-
-#define SPDNET_ZMTP_DSTID_LEN 5
-#define SPDNET_SOCKID_SIZE 64
-#define SPDNET_ADDRESS_SIZE 64
 
 /*
  * spdnet errno & errmsg
@@ -201,11 +193,6 @@ int spdnet_bind(struct spdnet_node *snode, const char *addr);
 int spdnet_connect(struct spdnet_node *snode, const char *addr);
 void spdnet_unbind(struct spdnet_node *snode);
 void spdnet_disconnect(struct spdnet_node *snode);
-
-int spdnet_register(struct spdnet_node *snode);
-int spdnet_unregister(struct spdnet_node *snode);
-int spdnet_expose(struct spdnet_node *snode);
-int spdnet_alive(struct spdnet_node *snode);
 
 int spdnet_associate(struct spdnet_node *snode,
                      const char *addr, void *id, size_t *len);

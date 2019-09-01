@@ -259,7 +259,7 @@ void bonfire_destroy(struct bonfire *bf)
 
 int bonfire_connect(struct bonfire *bf, const char *broker_addr)
 {
-	assert(strlen(broker_addr) < SPDNET_ADDRESS_SIZE);
+	assert(strlen(broker_addr) < SPDNET_ADDR_SIZE);
 	bf->broker_address = broker_addr;
 	assert(spdnet_connect(bf->snode, bf->broker_address.c_str()) == 0);
 	spdnet_recvmsg_async(bf->snode, recvmsg_cb, bf, 0);
@@ -849,7 +849,7 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 	}
 	assert(msg);
 
-	// filter register & unregister & alive msg but expose msg
+	// filter register & unregister & alive msg
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
 	           strlen(SPDNET_REGISTER_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
@@ -904,7 +904,7 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *sub_addr)
 {
 	struct bonfire_broker *bbrk = new struct bonfire_broker;
-	assert(strlen(listen_addr) < SPDNET_ADDRESS_SIZE);
+	assert(strlen(listen_addr) < SPDNET_ADDR_SIZE);
 
 	// ctx
 	bbrk->ctx = spdnet_ctx_new();
@@ -985,7 +985,7 @@ void bonfire_broker_set_filter(struct bonfire_broker *bbrk,
 void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
                                 const char *gateway_addr)
 {
-	char gateway_id[SPDNET_SOCKID_SIZE];
+	char gateway_id[SPDNET_ID_SIZE];
 	size_t gateway_len;
 
 	spdnet_associate(bbrk->router, gateway_addr, gateway_id, &gateway_len);
