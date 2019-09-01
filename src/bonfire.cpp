@@ -868,11 +868,11 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 
 	// filter register & unregister & alive msg but expose msg
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-	           SPDNET_REGISTER_MSG_LEN) == 0 ||
+	           strlen(SPDNET_REGISTER_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-	           SPDNET_UNREGISTER_MSG_LEN) == 0 ||
+	           strlen(SPDNET_UNREGISTER_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_MSG,
-	           SPDNET_ALIVE_MSG_LEN) == 0 ||
+	           strlen(SPDNET_ALIVE_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_INFO,
 	           strlen(BONFIRE_SERVICE_INFO)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_ADD,

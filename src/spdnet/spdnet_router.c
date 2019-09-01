@@ -166,7 +166,7 @@ static int handle_msg_from_router(struct spdnet_node *snode,
 		spdnet_find_routing_item_ex(router, rid);
 	// handle unregister msg
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-	           SPDNET_UNREGISTER_MSG_LEN) == 0) {
+	           strlen(SPDNET_UNREGISTER_MSG)) == 0) {
 		if (router_routing) {
 			list_del(&router_routing->node);
 			free(router_routing);
@@ -186,7 +186,7 @@ static int handle_msg_from_router(struct spdnet_node *snode,
 
 	// filter register msg, after router routing, before src routing
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-	           SPDNET_REGISTER_MSG_LEN) == 0)
+	           strlen(SPDNET_REGISTER_MSG)) == 0)
 		return 0;
 
 	// save src routing
@@ -243,7 +243,7 @@ static int handle_msg_from_dealer(struct spdnet_node *snode,
 		spdnet_find_routing_item_ex(router, srcid);
 	// handle unregister msg
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-	           SPDNET_UNREGISTER_MSG_LEN) == 0) {
+	           strlen(SPDNET_UNREGISTER_MSG)) == 0) {
 		if (src_routing) {
 			list_del(&src_routing->node);
 			free(src_routing);
@@ -314,11 +314,11 @@ spdnet_router_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 
 	// filter register & unregister & alive msg but expose msg
 	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-	           SPDNET_REGISTER_MSG_LEN) == 0 ||
+	           strlen(SPDNET_REGISTER_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-	           SPDNET_UNREGISTER_MSG_LEN) == 0 ||
+	           strlen(SPDNET_UNREGISTER_MSG)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_MSG,
-	           SPDNET_ALIVE_MSG_LEN) == 0)
+	           strlen(SPDNET_ALIVE_MSG)) == 0)
 		return 0;
 
 	// find dst routing
@@ -458,17 +458,17 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 	// srcid
 	zmq_send(snode, &snode->type, 1, ZMQ_SNDMORE);
 	zmq_send(snode, SPDNET_SOCKID_NONE,
-	         SPDNET_SOCKID_NONE_LEN, ZMQ_SNDMORE);
+	         strlen(SPDNET_SOCKID_NONE), ZMQ_SNDMORE);
 
 	// dstid
 	zmq_send(snode, "", 0, ZMQ_SNDMORE);
 	zmq_send(snode, SPDNET_SOCKID_NONE,
-	            SPDNET_SOCKID_NONE_LEN, ZMQ_SNDMORE);
+	         strlen(SPDNET_SOCKID_NONE), ZMQ_SNDMORE);
 
 	// header
 	zmq_send(snode, "", 0, ZMQ_SNDMORE);
 	zmq_send(snode, SPDNET_REGISTER_MSG,
-	         SPDNET_REGISTER_MSG_LEN, ZMQ_SNDMORE);
+	         strlen(SPDNET_REGISTER_MSG), ZMQ_SNDMORE);
 
 	// content
 	zmq_send(snode, "", 0, ZMQ_SNDMORE);

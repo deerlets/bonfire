@@ -196,9 +196,8 @@ int spdnet_register(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
-	                     SPDNET_REGISTER_MSG, SPDNET_REGISTER_MSG_LEN,
-	                     NULL, 0);
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	                     SPDNET_REGISTER_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 
@@ -211,9 +210,8 @@ int spdnet_unregister(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
-	                     SPDNET_UNREGISTER_MSG, SPDNET_UNREGISTER_MSG_LEN,
-	                     NULL, 0);
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	                     SPDNET_UNREGISTER_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 
@@ -227,9 +225,8 @@ int spdnet_expose(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
-	                     SPDNET_EXPOSE_MSG, SPDNET_EXPOSE_MSG_LEN,
-	                     NULL, 0);
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	                     SPDNET_EXPOSE_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 
@@ -243,8 +240,8 @@ int spdnet_alive(struct spdnet_node *snode)
 	int rc;
 
 	struct spdnet_msg msg;
-	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, SPDNET_SOCKID_NONE_LEN,
-	                     SPDNET_ALIVE_MSG, SPDNET_ALIVE_MSG_LEN, NULL, 0);
+	spdnet_msg_init_data(&msg, SPDNET_SOCKID_NONE, -1,
+	                     SPDNET_ALIVE_MSG, -1, NULL, 0);
 	rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 

@@ -53,15 +53,10 @@ extern "C" {
 #endif
 
 #define SPDNET_SOCKID_NONE "--none--"
-#define SPDNET_SOCKID_NONE_LEN (sizeof(SPDNET_SOCKID_NONE)-1)
 #define SPDNET_REGISTER_MSG "snode-register"
-#define SPDNET_REGISTER_MSG_LEN (sizeof(SPDNET_REGISTER_MSG)-1)
 #define SPDNET_UNREGISTER_MSG "snode-unregister"
-#define SPDNET_UNREGISTER_MSG_LEN (sizeof(SPDNET_UNREGISTER_MSG)-1)
 #define SPDNET_EXPOSE_MSG "snode-expose"
-#define SPDNET_EXPOSE_MSG_LEN (sizeof(SPDNET_EXPOSE_MSG)-1)
 #define SPDNET_ALIVE_MSG "snode-alive"
-#define SPDNET_ALIVE_MSG_LEN (sizeof(SPDNET_ALIVE_MSG)-1)
 
 #define SPDNET_ROUTER_DEFAULT_GATEWAY "default_gateway"
 #define SPDNET_ROUTING_ITEM_STALL 3600
