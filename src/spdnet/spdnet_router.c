@@ -92,7 +92,10 @@ void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
 	free(__content);
 #endif
 
-	spdnet_sendmsg(snode, msg);
+	if (memcmp(MSG_DSTID_DATA(msg), SPDNET_SOCKID_NONE,
+	           strlen(SPDNET_SOCKID_NONE)) != 0)
+		spdnet_sendmsg(snode, msg);
+
 	spdnet_recvmsg_async(snode, spdnet_builtin_router_recvmsg_cb, arg, 0);
 }
 
@@ -182,25 +185,6 @@ static int handle_msg_from_router(struct spdnet_node *snode,
 		                         zmq_msg_size(rid),
 		                         SPDNET_ROUTER);
 		list_add(&router_routing->node, &router->routing_table);
-	}
-
-	// filter register msg, after router routing, before src routing
-	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-	           strlen(SPDNET_REGISTER_MSG)) == 0)
-		return 0;
-
-	// save src routing
-	struct spdnet_routing_item *src_routing =
-		spdnet_find_routing_item_ex(router, MSG_SRCID(msg));
-	if (!src_routing) {
-		src_routing = malloc(sizeof(*src_routing));
-		INIT_SPDNET_ROUTING_ITEM(src_routing,
-		                         MSG_SRCID_DATA(msg),
-		                         MSG_SRCID_SIZE(msg),
-		                         zmq_msg_data(rid),
-		                         zmq_msg_size(rid),
-		                         SPDNET_ROUTER);
-		list_add(&src_routing->node, &router->routing_table);
 	}
 
 	return 0;
@@ -312,18 +296,19 @@ spdnet_router_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 		container_of(snode, struct spdnet_router, snode);
 	void *socket = spdnet_get_socket(snode);
 
-	// filter register & unregister & alive msg but expose msg
-	if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-	           strlen(SPDNET_REGISTER_MSG)) == 0 ||
-	    memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-	           strlen(SPDNET_UNREGISTER_MSG)) == 0 ||
-	    memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_MSG,
-	           strlen(SPDNET_ALIVE_MSG)) == 0)
-		return 0;
-
 	// find dst routing
+	char *dstid = MSG_DSTID_DATA(msg);
+	size_t dstid_size = MSG_DSTID_SIZE(msg);
+	if (dstid_size > strlen(snode->id) + 1 &&
+	    memcmp(snode->id, dstid, strlen(snode->id)) == 0 &&
+	    *(dstid + strlen(snode->id)) == SPDNET_ID_DELIMITER) {
+		dstid += strlen(snode->id) + 1;
+		dstid_size -= (strlen(snode->id) + 1);
+	}
+	char *p = memchr(dstid, SPDNET_ID_DELIMITER, dstid_size);
+	if (p) dstid_size = p - dstid;
 	struct spdnet_routing_item *dst_routing =
-		spdnet_find_routing_item_ex(router, MSG_DSTID(msg));
+		spdnet_find_routing_item(router, dstid, dstid_size);
 	if (!dst_routing) {
 		dst_routing = spdnet_find_routing_item(
 			router, SPDNET_ROUTER_DEFAULT_GATEWAY,
@@ -342,13 +327,35 @@ spdnet_router_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 
 	rc = zmq_send(socket, &snode->type, 1, ZMQ_SNDMORE);
 	assert(rc != -1);
-	rc = zmq_msg_send(MSG_SRCID(msg), socket, ZMQ_SNDMORE);
-	assert(rc != -1);
+	if (dst_routing->nexthop_type == SPDNET_ROUTER) {
+		// insert self-rid as prefix
+		zmq_msg_t srcid_msg;
+		zmq_msg_init_size(&srcid_msg, strlen(snode->id) +
+		                  MSG_SRCID_SIZE(msg) + 1);
+		char *tmp = zmq_msg_data(&srcid_msg);
+		memcpy(tmp, snode->id, strlen(snode->id));
+		*(tmp + strlen(snode->id)) = SPDNET_ID_DELIMITER;
+		memcpy(tmp + strlen(snode->id) + 1, MSG_SRCID_DATA(msg),
+		       MSG_SRCID_SIZE(msg));
+		rc = zmq_msg_send(&srcid_msg, socket, ZMQ_SNDMORE);
+		assert(rc != -1);
+		zmq_msg_close(&srcid_msg);
+	} else {
+		rc = zmq_msg_send(MSG_SRCID(msg), socket, ZMQ_SNDMORE);
+		assert(rc != -1);
+	}
 
 	if (dst_routing->nexthop_type == SPDNET_ROUTER) {
 		rc = zmq_send(socket, "", 0, ZMQ_SNDMORE);
 		assert(rc != -1);
-		rc = zmq_msg_send(MSG_DSTID(msg), socket, ZMQ_SNDMORE);
+		// remove self-rid
+		zmq_msg_t dstid_msg;
+		size_t dstid_msg_size = (char *)MSG_DSTID_DATA(msg) +
+			MSG_DSTID_SIZE(msg) - dstid;
+		zmq_msg_init_size(&dstid_msg, dstid_msg_size);
+		memcpy(zmq_msg_data(&dstid_msg), dstid, dstid_msg_size);
+		rc = zmq_msg_send(&dstid_msg, socket, ZMQ_SNDMORE);
+		zmq_msg_close(&dstid_msg);
 		assert(rc != -1);
 	}
 

@@ -9,6 +9,7 @@
 #include <spdnet-inl.h>
 #include <task.h>
 
+#define CENTER_ROUTER_ADDRESS "tcp://127.0.0.1:8330"
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
 #define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:8339"
 #define PUB_SUB_ADDRESS "tcp://127.0.0.1:9330"
@@ -96,14 +97,14 @@ static void test_spdnet_pub_sub(void **status)
 
 	spdnet_bind(pub, PUB_SUB_ADDRESS);
 	spdnet_connect(sub, PUB_SUB_ADDRESS);
-	spdnet_set_filter(sub, "topic#test", 10);
+	spdnet_set_filter(sub, "topic/test", 10);
 
 	struct spdnet_msg msg;
-	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic#test", "hello");
+	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic/test", "hello");
 
 	spdnet_sendmsg(pub, &msg);
 	spdnet_recvmsg(sub, &msg);
-	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic#test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic/test", 10);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
 	spdnet_msg_close(&msg);
 
@@ -115,7 +116,7 @@ static void test_spdnet_pub_sub(void **status)
 static int pub_send(void *pub)
 {
 	struct spdnet_msg msg;
-	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic#test", "hello");
+	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic/test", "hello");
 	spdnet_sendmsg(pub, &msg);
 	spdnet_msg_close(&msg);
 
@@ -129,7 +130,7 @@ static void test_spdnet_pub_sub2(void **status)
 	void *sub = spdnet_node_new(ctx, SPDNET_SUB);
 
 	spdnet_bind(sub, PUB_SUB_ADDRESS);
-	spdnet_set_filter(sub, "topic#test", 10);
+	spdnet_set_filter(sub, "topic/test", 10);
 	spdnet_connect(pub, PUB_SUB_ADDRESS);
 
 	struct task *t = task_new("pub_send", pub_send, pub);
@@ -138,7 +139,7 @@ static void test_spdnet_pub_sub2(void **status)
 	struct spdnet_msg msg;
 	spdnet_msg_init(&msg);
 	spdnet_recvmsg(sub, &msg);
-	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic#test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic/test", 10);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
 	spdnet_msg_close(&msg);
 
@@ -167,14 +168,14 @@ static void test_spdnet_forwarder(void **status)
 
 	spdnet_connect(pub, FWD_SUB_ADDRESS);
 	spdnet_connect(sub, FWD_PUB_ADDRESS);
-	spdnet_set_filter(sub, "topic#test", 10);
+	spdnet_set_filter(sub, "topic/test", 10);
 
 	struct spdnet_msg msg;
-	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic#test", "hello");
+	SPDNET_MSG_INIT_DATA(&msg, NULL, "topic/test", "hello");
 
 	spdnet_sendmsg(pub, &msg);
 	spdnet_recvmsg(sub, &msg);
-	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic#test", 10);
+	assert_memory_equal(MSG_HEADER_DATA(&msg), "topic/test", 10);
 	assert_memory_equal(MSG_CONTENT_DATA(&msg), "hello", 5);
 	spdnet_msg_close(&msg);
 
@@ -229,16 +230,13 @@ static void test_spdnet_nodepool(void **status)
 
 static void test_spdnet_router(void **status)
 {
-	int rc;
 	struct spdnet_ctx *ctx = spdnet_ctx_new();
 
-	// router inner
-	struct spdnet_node *inner = spdnet_node_new(ctx, SPDNET_ROUTER);
-	assert_true(inner);
-	spdnet_set_id(inner, "router-inner");
-	rc = spdnet_bind(inner, INNER_ROUTER_ADDRESS);
-	assert_true(rc == 0);
-	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
+	// router center
+	struct spdnet_node *center = spdnet_node_new(ctx, SPDNET_ROUTER);
+	spdnet_set_id(center, "center");
+	assert_true(spdnet_bind(center, CENTER_ROUTER_ADDRESS) == 0);
+	spdnet_recvmsg_async(center, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// spdnet loop
 	struct task *spdnet_task = task_new_timeout(
@@ -247,46 +245,48 @@ static void test_spdnet_router(void **status)
 	task_start(spdnet_task);
 	sleep(1);
 
+	char center_id[SPDNET_SOCKID_SIZE];
+	size_t center_len;
+
+	// router inner
+	struct spdnet_node *inner = spdnet_node_new(ctx, SPDNET_ROUTER);
+	spdnet_set_id(inner, "router-inner");
+	assert_true(spdnet_bind(inner, INNER_ROUTER_ADDRESS) == 0);
+	spdnet_associate(inner, CENTER_ROUTER_ADDRESS, center_id, &center_len);
+	spdnet_set_gateway(inner, center_id, center_len);
+	spdnet_register(inner);
+	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
+
 	// router outer
-	char inner_id[SPDNET_SOCKID_SIZE];
-	size_t inner_len;
 	struct spdnet_node *outer = spdnet_node_new(ctx, SPDNET_ROUTER);
-	assert_true(outer);
 	spdnet_set_id(outer, "router-outer");
-	rc = spdnet_bind(outer, OUTER_ROUTER_ADDRESS);
-	assert_true(rc == 0);
-	rc = spdnet_associate(outer, INNER_ROUTER_ADDRESS, inner_id, &inner_len);
-	assert_true(rc == 0);
-	spdnet_set_gateway(outer, inner_id, inner_len);
+	assert_true(spdnet_bind(outer, OUTER_ROUTER_ADDRESS) == 0);
+	spdnet_associate(outer, CENTER_ROUTER_ADDRESS, center_id, &center_len);
+	spdnet_set_gateway(outer, center_id, center_len);
+	spdnet_register(outer);
 	spdnet_recvmsg_async(outer, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct spdnet_msg msg;
 	void *requester, *service;
 	spdnet_msg_init(&msg);
 	requester = spdnet_node_new(ctx, SPDNET_DEALER);
-	spdnet_set_id(requester, "requester");
 	service = spdnet_node_new(ctx, SPDNET_DEALER);
+	spdnet_set_id(requester, "requester");
 	spdnet_set_id(service, "service");
-
-	rc = spdnet_connect(requester, OUTER_ROUTER_ADDRESS);
-	assert_true(rc == 0);
-	rc = spdnet_connect(service, INNER_ROUTER_ADDRESS);
-	assert_true(rc == 0);
-	rc = spdnet_register(service);
-	assert_true(rc == 0);
+	spdnet_connect(requester, OUTER_ROUTER_ADDRESS);
+	spdnet_connect(service, INNER_ROUTER_ADDRESS);
 
 	// send from requester to service
 	spdnet_msg_close(&msg);
-	SPDNET_MSG_INIT_DATA(&msg, "service", "hello", "world");
-	rc = spdnet_sendmsg(requester, &msg);
-	assert_true(rc == 0);
+	SPDNET_MSG_INIT_DATA(&msg, "router-inner/service", "hello", "world");
+	spdnet_sendmsg(requester, &msg);
 	sleep(1);
-	rc = spdnet_recvmsg(service, &msg);
-	assert_true(rc == 0);
-	assert_true(MSG_SRCID_SIZE(&msg) == 9);
-	assert_true(MSG_HEADER_SIZE(&msg) == 5);
-	assert_memory_equal("requester", MSG_SRCID_DATA(&msg), 9);
+	spdnet_recvmsg(service, &msg);
+	assert_memory_equal("center/router-outer/requester",
+	                    MSG_SRCID_DATA(&msg), 29);
+	assert_true(MSG_SRCID_SIZE(&msg) == 29);
 	assert_memory_equal("hello", MSG_HEADER_DATA(&msg), 5);
+	assert_true(MSG_HEADER_SIZE(&msg) == 5);
 	sleep(1);
 
 	// reply from service to requester
@@ -294,15 +294,14 @@ static void test_spdnet_router(void **status)
 	spdnet_frame_close(MSG_HEADER(&msg));
 	spdnet_frame_init_size(MSG_HEADER(&msg), 5+6);
 	memcpy(MSG_HEADER_DATA(&msg), "hello_reply", 5+6);
-	rc = spdnet_sendmsg(service, &msg);
-	assert_true(rc == 0);
+	spdnet_sendmsg(service, &msg);
 	sleep(1);
-	rc = spdnet_recvmsg(requester, &msg);
-	assert_true(rc == 0);
-	assert_true(MSG_SRCID_SIZE(&msg) == 7);
-	assert_true(MSG_HEADER_SIZE(&msg) == 5+6);
-	assert_memory_equal("service", MSG_SRCID_DATA(&msg), 7);
-	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 5+6);
+	spdnet_recvmsg(requester, &msg);
+	assert_memory_equal("center/router-inner/service",
+	                    MSG_SRCID_DATA(&msg), 27);
+	assert_true(MSG_SRCID_SIZE(&msg) == 27);
+	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 11);
+	assert_true(MSG_HEADER_SIZE(&msg) == 11);
 	sleep(1);
 
 	task_destroy(spdnet_task);
@@ -311,6 +310,7 @@ static void test_spdnet_router(void **status)
 	spdnet_node_destroy(service);
 	spdnet_node_destroy(outer);
 	spdnet_node_destroy(inner);
+	spdnet_node_destroy(center);
 	spdnet_ctx_destroy(ctx);
 }
 

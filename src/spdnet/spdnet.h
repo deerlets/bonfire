@@ -52,6 +52,7 @@
 extern "C" {
 #endif
 
+#define SPDNET_ID_DELIMITER '/'
 #define SPDNET_SOCKID_NONE "--none--"
 #define SPDNET_REGISTER_MSG "snode-register"
 #define SPDNET_UNREGISTER_MSG "snode-unregister"
