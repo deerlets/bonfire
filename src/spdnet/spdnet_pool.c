@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -106,10 +107,20 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 	pthread_mutex_lock(&pool->snodes_lock);
 	items = calloc(1, sizeof(struct zmq_pollitem_t) * (pool->nr_snode + 1));
 
+	if (pool->nr_snode >= pool->water_mark) {
+		fprintf(stderr, "[spdnet_pool]: node count => %d/%d\n",
+		        pool->nr_snode, pool->water_mark);
+	}
+
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
-		if (!pos->used || !pos->recvmsg_cb ||
-		    (!pos->is_bind && !pos->is_connect))
+		if (!pos->used && pool->nr_snode >= pool->water_mark) {
+			list_del(&pos->node);
+			spdnet_node_destroy(pos);
+			continue;
+		}
+
+		if (!pos->recvmsg_cb || (!pos->is_bind && !pos->is_connect))
 			continue;
 
 		if (pos->recvmsg_timeout && pos->recvmsg_timeout < time(NULL)) {
