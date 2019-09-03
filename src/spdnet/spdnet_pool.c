@@ -83,8 +83,10 @@ void spdnet_pool_put(struct spdnet_pool *pool, struct spdnet_node *snode)
 	pthread_mutex_lock(&pool->snodes_del_lock);
 	assert(snode->used == 1);
 	snode->used = 0;
+#ifndef HAVE_ZMQ_BUG
 	if (snode->is_connect)
 		spdnet_disconnect(snode);
+#endif
 	if (snode->is_bind)
 		spdnet_unbind(snode);
 	pthread_mutex_unlock(&pool->snodes_del_lock);

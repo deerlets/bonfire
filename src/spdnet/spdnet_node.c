@@ -12,6 +12,7 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 
 	snode->ctx = ctx;
 	snode->id = uuid_v4_gen();
+	snode->id[13] = 0;
 
 	snode->type = type;
 	snode->alive_interval = 0;
@@ -48,7 +49,9 @@ void spdnet_node_fini(struct spdnet_node *snode)
 {
 	assert(snode != NULL);
 	assert(!snode->is_bind);
+#ifndef HAVE_ZMQ_BUG
 	assert(!snode->is_connect);
+#endif
 	assert(zmq_close(snode->socket) == 0);
 	free(snode->id);
 }
@@ -151,7 +154,11 @@ void spdnet_unbind(struct spdnet_node *snode)
 int spdnet_connect(struct spdnet_node *snode, const char *addr)
 {
 #ifdef HAVE_ZMQ_BUG
-	usleep(200 * 1000);
+	if (snode->is_connect) {
+		if (strcmp(addr, snode->connect_addr) == 0)
+			return 0;
+		spdnet_disconnect(snode);
+	}
 #endif
 
 	assert(snode->is_connect == 0);

@@ -53,7 +53,7 @@ static void test_spdnet_basic(void **status)
 	spdnet_msg_init(&msg);
 	rc = spdnet_recvmsg(service, &msg);
 	assert_true(rc == 0);
-	assert_true(MSG_SRCID_SIZE(&msg) == 36);
+	assert_true(MSG_SRCID_SIZE(&msg) == 13);
 	assert_true(MSG_HEADER_SIZE(&msg) == 5);
 	assert_true(MSG_CONTENT_SIZE(&msg) == 10);
 	assert_memory_equal(MSG_HEADER_DATA(&msg), "hello", 5);

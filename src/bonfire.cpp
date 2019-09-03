@@ -668,7 +668,6 @@ struct bonfire_broker {
 	struct spdnet_ctx *ctx;
 
 	string router_addr;
-	string router_id;
 	struct spdnet_node *router;
 	bonfire_broker_filter filter;
 
@@ -912,11 +911,7 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 
 	// router
 	bbrk->router_addr = listen_addr;
-	char *uuid = uuid_v4_gen();
-	bbrk->router_id = uuid;
-	free(uuid);
 	bbrk->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
-	spdnet_set_id(bbrk->router, bbrk->router_id.c_str());
 	assert(bbrk->router);
 	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
 	spdnet_recvmsg_async(bbrk->router, router_recvmsg_cb, NULL, 0);
