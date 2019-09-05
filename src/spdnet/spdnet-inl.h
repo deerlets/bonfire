@@ -78,16 +78,16 @@ struct spdnet_interface *spdnet_sub_interface();
 struct spdnet_pool {
 	struct spdnet_ctx *ctx;
 	int water_mark;
-	int nr_snode;
 
+	int nr_snode;
 	struct list_head snodes;
 	pthread_mutex_t snodes_lock;
-	pthread_mutex_t snodes_del_lock;
 
 	struct list_head pollins;
 	struct list_head pollouts;
 	struct list_head pollerrs;
 	struct list_head recvmsg_timeouts;
+	pthread_mutex_t polls_lock;
 };
 
 struct spdnet_pool *spdnet_pool_new(struct spdnet_ctx *ctx, int water_mark);

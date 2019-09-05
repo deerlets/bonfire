@@ -14,8 +14,8 @@ disable-rules:
   - ShortVariableName
   - GotoStatement
   - InvertedLogic
-  - ParameterReassignment
   - UnusedMethodParameter
   - BitwiseOperatorInConditional
   - ConstantConditionalOperator # switch, snprintf
   - UselessParentheses
+  - HighNPathComplexity

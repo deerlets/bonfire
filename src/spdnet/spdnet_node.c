@@ -15,7 +15,7 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 	snode->id[13] = 0;
 
 	snode->type = type;
-	snode->alive_interval = 0;
+	snode->alive_interval = SPDNET_ALIVE_INTERVAL;
 	snode->alive_timeout = 0;
 
 	snode->is_bind = 0;
@@ -27,8 +27,7 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 		return -1;
 	int linger = 1000;
 	zmq_setsockopt(snode->socket, ZMQ_LINGER, &linger, sizeof(linger));
-	zmq_setsockopt(snode->socket, ZMQ_IDENTITY,
-	               snode->id, strlen(snode->id));
+	zmq_setsockopt(snode->socket, ZMQ_IDENTITY, snode->id, strlen(snode->id));
 
 	snode->user_data = NULL;
 
@@ -48,9 +47,9 @@ int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type
 void spdnet_node_fini(struct spdnet_node *snode)
 {
 	assert(snode != NULL);
-	assert(!snode->is_bind);
+	assert(snode->is_bind == 0);
 #ifndef HAVE_ZMQ_BUG
-	assert(!snode->is_connect);
+	assert(snode->is_connect == 0);
 #endif
 	assert(zmq_close(snode->socket) == 0);
 	free(snode->id);
@@ -110,8 +109,6 @@ void spdnet_set_alive(struct spdnet_node *snode, int64_t alive)
 		snode->alive_interval = SPDNET_MIN_ALIVE_INTERVAL;
 	else
 		snode->alive_interval = alive;
-
-	snode->alive_timeout = time(NULL) + snode->alive_interval;
 }
 
 void spdnet_set_filter(struct spdnet_node *snode, const void *prefix, size_t len)
@@ -171,9 +168,6 @@ int spdnet_connect(struct spdnet_node *snode, const char *addr)
 			zmq_disconnect(snode->socket, addr);
 			return -1;
 		}
-
-		snode->alive_interval = SPDNET_ALIVE_INTERVAL;
-		snode->alive_timeout = time(NULL) + SPDNET_ALIVE_INTERVAL;
 	}
 
 	if (addr != snode->connect_addr)
@@ -188,11 +182,8 @@ void spdnet_disconnect(struct spdnet_node *snode)
 {
 	assert(snode->is_connect == 1);
 
-	if (snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER) {
+	if (snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER)
 		spdnet_unregister(snode);
-		snode->alive_interval = 0;
-		snode->alive_timeout = 0;
-	}
 
 	assert(zmq_disconnect(snode->socket, snode->connect_addr) == 0);
 	snode->is_connect = 0;
@@ -228,13 +219,13 @@ int spdnet_unregister(struct spdnet_node *snode)
 
 int spdnet_alive(struct spdnet_node *snode)
 {
-	assert(snode->type == SPDNET_DEALER || snode->type == SPDNET_ROUTER);
-	int rc;
+	if (snode->type != SPDNET_DEALER && snode->type != SPDNET_ROUTER)
+		return 0;
 
 	struct spdnet_msg msg;
 	spdnet_msg_init_data(&msg, SPDNET_ID_NONE, -1,
 	                     SPDNET_ALIVE_MSG, -1, NULL, 0);
-	rc = spdnet_sendmsg(snode, &msg);
+	int rc = spdnet_sendmsg(snode, &msg);
 	spdnet_msg_close(&msg);
 
 	if (rc == -1) return -1;
