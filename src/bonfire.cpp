@@ -89,7 +89,6 @@ static void from_json(const json &j, bonfire_service &bs)
 
 struct bonfire {
 	string broker_address;
-	string broker_sockid;
 
 	struct spdnet_ctx *ctx;
 	struct spdnet_node *snode; // for local services
@@ -228,9 +227,6 @@ static void recvmsg_cb(struct spdnet_node *snode,
 struct bonfire *bonfire_new()
 {
 	struct bonfire *bf = new struct bonfire;
-
-	bf->broker_address = "";
-	bf->broker_sockid = BONFIRE_BROKER_SOCKID;
 
 	// ctx
 	bf->ctx = spdnet_ctx_new();
@@ -934,8 +930,8 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	assert(strlen(listen_addr) < SPDNET_ADDR_SIZE);
 
 	// ctx
-	bbrk->ctx = spdnet_ctx_new();
-	assert(bbrk->ctx);
+	bbrk->bf = bonfire_new();
+	bbrk->ctx = bbrk->bf->ctx;
 
 	// router
 	bbrk->router_addr = listen_addr;
@@ -952,8 +948,6 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	assert(spdnet_forwarder_bind(bbrk->fwd, pub_addr, sub_addr) == 0);
 
 	// bonfire cli
-	bbrk->bf = bonfire_new();
-	assert(bbrk->bf);
 	spdnet_set_id(bbrk->bf->snode, BONFIRE_BROKER_SOCKID);
 	bonfire_set_user_data(bbrk->bf, bbrk);
 	bonfire_connect(bbrk->bf, listen_addr);
@@ -974,18 +968,16 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 
 void bonfire_broker_destroy(struct bonfire_broker *bbrk)
 {
-	bonfire_destroy(bbrk->bf);
 	spdnet_forwarder_destroy(bbrk->fwd);
 	spdnet_node_destroy(bbrk->router);
-	spdnet_ctx_destroy(bbrk->ctx);
+	bonfire_destroy(bbrk->bf); // bbrk->bf->ctx must be fini at last
 
 	delete bbrk;
 }
 
 int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout)
 {
-	spdnet_loop(bbrk->ctx, timeout);
-	bonfire_loop(bbrk->bf, 0);
+	bonfire_loop(bbrk->bf, timeout);
 	return 0;
 }
 
