@@ -24,7 +24,12 @@ using json = nlohmann::json;
 #define BONFIRE_SERVICE_INFO "bonfire://service/info"
 #define BONFIRE_SERVICE_ADD "bonfire://service/add"
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
+#define BONFIRE_SERVICE_CALL "bonfire://service/call"
 #define BONFIRE_FORWARDER_INFO "bonfire://forwarder/info"
+
+/*
+ * bonfire err
+ */
 
 #define BONFIRE_STRERROR_GEN(name, msg) case BONFIRE_ ## name: return msg;
 const char *bonfire_strerror(int err) {
@@ -36,11 +41,51 @@ const char *bonfire_strerror(int err) {
 }
 #undef BONFIRE_STRERROR_GEN
 
+/*
+ * bonfire utils
+ */
+
+static inline json unpack(struct spdnet_msg *msg)
+{
+	return json::parse((char *)MSG_CONTENT_DATA(msg),
+	                   (char *)MSG_CONTENT_DATA(msg)
+	                   + MSG_CONTENT_SIZE(msg));
+}
+
+static inline void pack(struct bmsg *bm, int err, json cnt)
+{
+	json resp = {
+		{"errno", err},
+		{"errmsg", bonfire_strerror(err)},
+		{"result", cnt}
+	};
+	bmsg_write_response(bm, resp.dump().c_str());
+}
+
+/*
+ * bonfire service
+ */
+
 struct bonfire_service {
 	string header;
 	string sockid;
-	bonfire_service_cb handler;
 };
+
+static void to_json(json &j, const struct bonfire_service &bs)
+{
+	j["header"] = bs.header;
+	j["sockid"] = bs.sockid;
+}
+
+static void from_json(const json &j, bonfire_service &bs)
+{
+	j.at("header").get_to(bs.header);
+	j.at("sockid").get_to(bs.sockid);
+}
+
+/*
+ * bonfire cli
+ */
 
 struct bonfire {
 	string broker_address;
@@ -58,7 +103,7 @@ struct bonfire {
 	long timeout;
 
 	// services
-	std::map<string, struct bonfire_service> services;
+	std::map<string, bonfire_service_cb> services;
 	pthread_mutex_t services_lock;
 
 	// bmsg
@@ -75,32 +120,19 @@ struct bonfire {
 	int msg_handled;
 };
 
-static void to_json(json &j, const struct bonfire_service &bs)
-{
-	j["header"] = bs.header;
-	j["sockid"] = bs.sockid;
-}
-
-static void from_json(const json &j, bonfire_service &bs)
-{
-	j.at("header").get_to(bs.header);
-	j.at("sockid").get_to(bs.sockid);
-	bs.handler = NULL;
-}
-
 static void handle_msg(struct bonfire *bf, struct bmsg *bm)
 {
 	string header((char *)MSG_HEADER_DATA(&bm->request),
 	              MSG_HEADER_SIZE(&bm->request));
 
 	auto it = bf->services.find(header);
-	if (it == bf->services.end() || !it->second.handler) {
+	if (it == bf->services.end() || !it->second) {
 		bmsg_filtered(bm);
 		return;
 	}
 
 	// call handler
-	it->second.handler(bm);
+	it->second(bm);
 	if (bm->state == BM_RAW)
 		bmsg_handled(bm);
 }
@@ -215,12 +247,7 @@ struct bonfire *bonfire_new()
 	// timeout
 	bf->timeout = BONFIRE_DEFAULT_TIMEOUT;
 
-	// default service
-	struct bonfire_service bs;
-	bs.header = BONFIRE_SERVICE_INFO;
-	bs.sockid = bf->broker_sockid;
-	bs.handler = NULL;
-	bf->services.insert(std::make_pair(bs.header, bs));
+	// services
 	pthread_mutex_init(&bf->services_lock, NULL);
 
 	// bmsg
@@ -288,6 +315,35 @@ void bonfire_set_user_data(struct bonfire *bf, void *data)
 	bf->user_data = data;
 }
 
+static int servcall(struct bonfire *bf,
+                    const char *header,
+                    const char *content,
+                    char **result)
+{
+	struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
+	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
+
+	struct spdnet_msg tmp;
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID, header, content);
+	assert(spdnet_sendmsg(snode, &tmp) == 0);
+	if (spdnet_recvmsg_timeout(snode, &tmp, bf->timeout)) {
+		spdnet_msg_close(&tmp);
+		spdnet_node_destroy(snode);
+		errno = BONFIRE_ETIMEOUT;
+		return -1;
+	}
+
+	if (result) {
+		string cnt((char *)MSG_CONTENT_DATA(&tmp),
+		           MSG_CONTENT_SIZE(&tmp));
+		*result = strdup(cnt.c_str());
+	}
+
+	spdnet_msg_close(&tmp);
+	spdnet_node_destroy(snode);
+	return 0;
+}
+
 int bonfire_add_service(struct bonfire *bf, const char *header,
                         bonfire_service_cb handler)
 {
@@ -302,12 +358,10 @@ int bonfire_add_service(struct bonfire *bf, const char *header,
 	struct bonfire_service bs = {
 		.header = header,
 		.sockid = spdnet_get_id(bf->snode),
-		.handler = handler,
 	};
 
 	char *result = NULL;
-	if (bonfire_servcall(bf, BONFIRE_SERVICE_ADD,
-	                     json(bs).dump().c_str(), &result))
+	if (servcall(bf, BONFIRE_SERVICE_ADD, json(bs).dump().c_str(), &result))
 		return -1;
 
 	try {
@@ -324,7 +378,7 @@ int bonfire_add_service(struct bonfire *bf, const char *header,
 	}
 
 	pthread_mutex_lock(&bf->services_lock);
-	bf->services.insert(std::make_pair(bs.header, bs));
+	bf->services.insert(std::make_pair(header, handler));
 	pthread_mutex_unlock(&bf->services_lock);
 	return 0;
 }
@@ -341,8 +395,7 @@ int bonfire_del_service(struct bonfire *bf, const char *header)
 
 	json cnt = {{"header", header}};
 	char *result = NULL;
-	if (bonfire_servcall(bf, BONFIRE_SERVICE_DEL,
-	                     cnt.dump().c_str(), &result))
+	if (servcall(bf, BONFIRE_SERVICE_DEL, cnt.dump().c_str(), &result))
 		return -1;
 
 	try {
@@ -371,94 +424,40 @@ void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout)
 	bf->timeout = timeout;
 }
 
-static int servcall(struct bonfire *bf,
-                    const char *sockid,
-                    const char *header,
-                    const char *content,
-                    char **result)
+int bonfire_servcall(struct bonfire *bf,
+                     const char *header,
+                     const char *content,
+                     char **result)
 {
-	struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
-	assert(snode);
-	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
+	json cnt;
+	cnt["header"] = header;
+	if (content == NULL)
+		cnt["content"] = nullptr;
+	else
+		cnt["content"] = content;
+	char *__result = NULL;
 
-	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, sockid, header, content);
-	assert(spdnet_sendmsg(snode, &tmp) == 0);
-	if (spdnet_recvmsg_timeout(snode, &tmp, bf->timeout)) {
-		spdnet_msg_close(&tmp);
-		spdnet_node_destroy(snode);
-		errno = BONFIRE_ETIMEOUT;
-		return -1;
-	}
-
-	if (result) {
-		string cnt((char *)MSG_CONTENT_DATA(&tmp),
-		           MSG_CONTENT_SIZE(&tmp));
-		*result = strdup(cnt.c_str());
-	}
-
-	spdnet_msg_close(&tmp);
-	spdnet_node_destroy(snode);
-	return 0;
-}
-
-static int call_service_info(struct bonfire *bf,
-                             const char *info_header,
-                             struct bonfire_service *bs)
-{
-	assert(string(info_header) != BONFIRE_SERVICE_INFO);
-
-	json j = {{"header", info_header}};
-	char *result = NULL;
-
-	if (servcall(bf, bf->broker_sockid.c_str(),
-	             BONFIRE_SERVICE_INFO,
-	             j.dump().c_str(), &result))
+	if (servcall(bf, BONFIRE_SERVICE_CALL, cnt.dump().c_str(), &__result))
 		return -1;
 
 	try {
-		json j = json::parse(result);
-		free(result);
-		result = NULL;
-
+		json j = json::parse(__result);
+		free(__result);
+		__result = NULL;
 		if (j["errno"] != 0) {
 			errno = j["errno"];
 			return -1;
 		}
-
-		*bs = j["result"];
+		if (result) {
+			string tmp = j["result"]["content"];
+			*result = strdup(tmp.c_str());
+		}
 	} catch (json::exception &ex) {
 		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
 		assert(0);
 	}
 
 	return 0;
-}
-
-int bonfire_servcall(struct bonfire *bf,
-                     const char *header,
-                     const char *content,
-                     char **result)
-{
-	string sockid;
-
-	pthread_mutex_lock(&bf->services_lock);
-	auto it = bf->services.find(header);
-	if (it != bf->services.end()) {
-		sockid = it->second.sockid;
-		pthread_mutex_unlock(&bf->services_lock);
-	} else {
-		pthread_mutex_unlock(&bf->services_lock);
-		struct bonfire_service bs;
-		if (call_service_info(bf, header, &bs))
-			return -1;
-		sockid = bs.sockid;
-		pthread_mutex_lock(&bf->services_lock);
-		bf->services.insert(std::make_pair(bs.header, bs));
-		pthread_mutex_unlock(&bf->services_lock);
-	}
-
-	return servcall(bf, sockid.c_str(), header, content, result);
 }
 
 struct servcall_struct {
@@ -482,32 +481,24 @@ static void servcall_cb(struct spdnet_node *snode,
 	if (flag) {
 		as->cb(as->bf, NULL, 0, as->arg, BONFIRE_ETIMEOUT);
 	} else {
-		as->cb(as->bf, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg),
-		       as->arg, BONFIRE_EOK);
+		try {
+			json j = unpack(msg);
+			int err = j["errno"];
+			if (err != 0) {
+				as->cb(as->bf, NULL, 0, as->arg, err);
+			} else {
+				string result = j["result"]["content"];
+				as->cb(as->bf, result.c_str(), result.size(),
+				       as->arg, BONFIRE_EOK);
+			}
+		} catch (json::exception &ex) {
+			fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
+			assert(0);
+		}
 	}
 
 	delete as;
 	spdnet_node_destroy(snode);
-}
-
-static void servcall_async(struct bonfire *bf,
-                           const char *sockid,
-                           const char *header,
-                           const char *content,
-                           bonfire_servcall_cb cb,
-                           void *arg)
-{
-	struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
-	assert(snode);
-	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
-
-	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, sockid, header, content);
-	assert(spdnet_sendmsg(snode, &tmp) == 0);
-	spdnet_msg_close(&tmp);
-
-	servcall_struct *as = new servcall_struct(bf, cb, arg);
-	spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 }
 
 void bonfire_servcall_async(struct bonfire *bf,
@@ -516,28 +507,21 @@ void bonfire_servcall_async(struct bonfire *bf,
                             bonfire_servcall_cb cb,
                             void *arg)
 {
-	string sockid;
+	struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
+	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
-	pthread_mutex_lock(&bf->services_lock);
-	auto it = bf->services.find(header);
-	if (it != bf->services.end()) {
-		sockid = it->second.sockid;
-		pthread_mutex_unlock(&bf->services_lock);
-	} else {
-		pthread_mutex_unlock(&bf->services_lock);
-		struct bonfire_service bs;
-		if (call_service_info(bf, header, &bs)) {
-			assert(errno != BONFIRE_EOK);
-			cb(bf, NULL, 0, arg, errno);
-			return;
-		}
-		sockid = bs.sockid;
-		pthread_mutex_lock(&bf->services_lock);
-		bf->services.insert(std::make_pair(bs.header, bs));
-		pthread_mutex_unlock(&bf->services_lock);
-	}
+	json j;
+	j["header"] = header;
+	j["content"] = content;
 
-	servcall_async(bf, sockid.c_str(), header, content, cb, arg);
+	struct spdnet_msg tmp;
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID,
+	                     BONFIRE_SERVICE_CALL, j.dump().c_str());
+	assert(spdnet_sendmsg(snode, &tmp) == 0);
+	spdnet_msg_close(&tmp);
+
+	servcall_struct *as = new servcall_struct(bf, cb, arg);
+	spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 }
 
 struct subscribe_struct {
@@ -564,7 +548,7 @@ static int get_forwarder_info(struct bonfire *bf)
 {
 	char *result = NULL;
 
-	if (bonfire_servcall(bf, BONFIRE_FORWARDER_INFO, NULL, &result))
+	if (servcall(bf, BONFIRE_FORWARDER_INFO, NULL, &result))
 		return -1;
 
 	try {
@@ -677,25 +661,11 @@ struct bonfire_broker {
 
 	struct bonfire *bf;
 
+	// global services
+	std::map<string, struct bonfire_service> services;
+
 	string cache_file;
 };
-
-static inline json unpack(struct spdnet_msg *msg)
-{
-	return json::parse((char *)MSG_CONTENT_DATA(msg),
-	                   (char *)MSG_CONTENT_DATA(msg)
-	                   + MSG_CONTENT_SIZE(msg));
-}
-
-static inline void pack(struct bmsg *bm, int err, json cnt)
-{
-	json resp = {
-		{"errno", err},
-		{"errmsg", bonfire_strerror(err)},
-		{"result", cnt}
-	};
-	bmsg_write_response(bm, resp.dump().c_str());
-}
 
 static void load_cache(struct bonfire_broker *bbrk)
 {
@@ -709,7 +679,7 @@ static void load_cache(struct bonfire_broker *bbrk)
 		for (auto it = j["services"].begin();
 		     it != j["services"].end(); ++it) {
 			struct bonfire_service bs = *it;
-			bbrk->bf->services.insert(
+			bbrk->services.insert(
 				std::make_pair(bs.header, bs));
 		}
 	} catch (json::exception &ex) {
@@ -729,7 +699,7 @@ static void save_cache(struct bonfire_broker *bbrk)
 	json cnt = {{"services", json::array()}};
 	int i = 0;
 
-	for (auto &item : bbrk->bf->services)
+	for (auto &item : bbrk->services)
 		cnt["services"][i++] = item.second;
 
 	ofs << std::setw(4) << cnt << std::endl;
@@ -746,8 +716,8 @@ static void on_service_info(struct bmsg *bm)
 		if (MSG_CONTENT_SIZE(&bm->request))
 			cnt = unpack(&bm->request);
 		if (cnt.find("header") != cnt.end()) {
-			auto it = bbrk->bf->services.find(cnt["header"]);
-			if (it != bbrk->bf->services.end()) {
+			auto it = bbrk->services.find(cnt["header"]);
+			if (it != bbrk->services.end()) {
 				pack(bm, BONFIRE_EOK, json(it->second));
 				return;
 			}
@@ -764,7 +734,7 @@ static void on_service_info(struct bmsg *bm)
 	json cnt = json::array();
 	int i = 0;
 
-	for (auto &item : bbrk->bf->services)
+	for (auto &item : bbrk->services)
 		cnt[i++] = item.second;
 
 	pack(bm, BONFIRE_EOK, cnt);
@@ -784,17 +754,17 @@ static void on_service_add(struct bmsg *bm)
 		return;
 	}
 
-	if (bbrk->bf->services.find(bs.header) !=
-	    bbrk->bf->services.end()) {
-		auto it = bbrk->bf->services.find(bs.header);
+	if (bbrk->services.find(bs.header) !=
+	    bbrk->services.end()) {
+		auto it = bbrk->services.find(bs.header);
 		fprintf(stderr, "[%s]: old_sockid => %s, new_sockid => %s\n",
 		        __func__, it->second.sockid.c_str(), bs.sockid.c_str());
-		bbrk->bf->services.erase(it);
+		bbrk->services.erase(it);
 		//pack(bm, BONFIRE_EEXIST, nullptr);
 		//return;
 	}
 
-	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
+	bbrk->services.insert(std::make_pair(bs.header, bs));
 	save_cache(bbrk);
 	pack(bm, BONFIRE_EOK, nullptr);
 }
@@ -814,15 +784,71 @@ static void on_service_del(struct bmsg *bm)
 		return;
 	}
 
-	auto it = bbrk->bf->services.find(header);
-	if (it == bbrk->bf->services.end()) {
+	auto it = bbrk->services.find(header);
+	if (it == bbrk->services.end()) {
 		pack(bm, BONFIRE_ENOSERV, nullptr);
 		return;
 	}
 
-	bbrk->bf->services.erase(it);
+	bbrk->services.erase(it);
 	save_cache(bbrk);
 	pack(bm, BONFIRE_EOK, nullptr);
+}
+
+static void __servcall_cb(struct spdnet_node *snode,
+                          struct spdnet_msg *msg,
+                          void *arg, int flag)
+{
+	struct bmsg *bm = (struct bmsg *)arg;
+
+	if (flag) {
+		pack(bm, BONFIRE_ETIMEOUT, nullptr);
+	} else {
+		json j;
+		j["header"] = string((char *)MSG_HEADER_DATA(msg),
+		                     MSG_HEADER_SIZE(msg));
+		j["content"] = string((char *)MSG_CONTENT_DATA(msg),
+		                      MSG_CONTENT_SIZE(msg));
+		pack(bm, BONFIRE_EOK, j);
+	}
+
+	bmsg_handled(bm);
+	spdnet_node_destroy(snode);
+}
+
+static void on_service_call(struct bmsg *bm)
+{
+	struct bonfire_broker *bbrk = (struct bonfire_broker *)
+		bonfire_get_user_data(bmsg_get_bonfire(bm));
+	string header;
+	string content;
+
+	try {
+		json cnt = unpack(&bm->request);
+		header = cnt["header"];
+		content = cnt["content"];
+	} catch (json::exception &ex) {
+		fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
+		pack(bm, BONFIRE_EINVAL, nullptr);
+		return;
+	}
+
+	auto it = bbrk->services.find(header);
+	if (it == bbrk->services.end()) {
+		pack(bm, BONFIRE_ENOSERV, nullptr);
+		return;
+	}
+
+	struct spdnet_node *snode = spdnet_node_new(bbrk->ctx, SPDNET_DEALER);
+	assert(spdnet_connect(snode, bbrk->router_addr.c_str()) == 0);
+	struct spdnet_msg tmp;
+	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(),
+	                     header.c_str(), content.c_str());
+	assert(spdnet_sendmsg(snode, &tmp) == 0);
+	spdnet_msg_close(&tmp);
+	spdnet_recvmsg_async(snode, __servcall_cb, bm, BONFIRE_DEFAULT_TIMEOUT);
+
+	bmsg_pending(bm);
 }
 
 static void on_forwarder_info(struct bmsg *bm)
@@ -861,6 +887,8 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 	           strlen(BONFIRE_SERVICE_ADD)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_DEL,
 	           strlen(BONFIRE_SERVICE_DEL)) == 0 ||
+	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_CALL,
+	           strlen(BONFIRE_SERVICE_CALL)) == 0 ||
 	    memcmp(MSG_HEADER_DATA(msg), BONFIRE_FORWARDER_INFO,
 	           strlen(BONFIRE_FORWARDER_INFO)) == 0) {
 		spdnet_builtin_router_recvmsg_cb(snode, msg, arg, flag);
@@ -912,7 +940,6 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	// router
 	bbrk->router_addr = listen_addr;
 	bbrk->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
-	assert(bbrk->router);
 	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
 	spdnet_recvmsg_async(bbrk->router, router_recvmsg_cb, NULL, 0);
 	spdnet_set_user_data(bbrk->router, bbrk);
@@ -931,25 +958,16 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	bonfire_set_user_data(bbrk->bf, bbrk);
 	bonfire_connect(bbrk->bf, listen_addr);
 
-	struct bonfire_service bs = {};
-	bs.sockid = BONFIRE_BROKER_SOCKID;
-	bbrk->bf->services.clear();
-
-	bs.header = BONFIRE_SERVICE_INFO;
-	bs.handler = on_service_info;
-	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
-
-	bs.header = BONFIRE_SERVICE_ADD;
-	bs.handler = on_service_add;
-	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
-
-	bs.header = BONFIRE_SERVICE_DEL;
-	bs.handler = on_service_del;
-	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
-
-	bs.header = BONFIRE_FORWARDER_INFO;
-	bs.handler = on_forwarder_info;
-	bbrk->bf->services.insert(std::make_pair(bs.header, bs));
+	bbrk->bf->services.insert(
+		std::make_pair(BONFIRE_SERVICE_INFO, on_service_info));
+	bbrk->bf->services.insert(
+		std::make_pair(BONFIRE_SERVICE_ADD, on_service_add));
+	bbrk->bf->services.insert(
+		std::make_pair(BONFIRE_SERVICE_DEL, on_service_del));
+	bbrk->bf->services.insert(
+		std::make_pair(BONFIRE_SERVICE_CALL, on_service_call));
+	bbrk->bf->services.insert(
+		std::make_pair(BONFIRE_FORWARDER_INFO, on_forwarder_info));
 
 	return bbrk;
 }
