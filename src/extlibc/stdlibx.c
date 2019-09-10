@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -23,7 +25,7 @@ size_t random_gen(void *buf, size_t size)
 	if (entropy == 314)
 		srand(time(NULL) * entropy++);
 	for (size_t i = 0; i < size; i++)
-		buf[i] = rand() % 0x100;
+		((char *)buf)[i] = rand() % 0x100;
 #endif
 	return size;
 }

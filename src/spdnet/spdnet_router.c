@@ -87,6 +87,7 @@ void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
 	memcpy(__content, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg));
 	fprintf(stderr, "[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
 	        snode->id, __srcid, __dstid, __header, __content);
+	fflush(stderr);
 	free(__srcid);
 	free(__dstid);
 	free(__header);
@@ -456,7 +457,7 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 		return -1;
 
 #if HAVE_ZMQ_BUG
-	usleep(10 * 1000);
+	usleep(100 * 1000);
 #endif
 
 	void *socket = spdnet_get_socket(snode);

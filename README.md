@@ -8,7 +8,8 @@ A service discovery and registry framework written in pure C.
 
 - Linux
 - MacOS
-- Msys2
+- Cygwin
+- MinGW
 
 ## Dependences
 

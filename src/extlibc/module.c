@@ -9,18 +9,18 @@
 
 #define MODULE_ERRMSG_SIZE 512
 
-static int __errno;
-static char __errmsg[MODULE_ERRMSG_SIZE];
+static int _err;
+static char _errmsg[MODULE_ERRMSG_SIZE];
 static LIST_HEAD(modules);
 
 int mod_errno(void)
 {
-	return __errno;
+	return _err;
 }
 
 char *mod_error(void)
 {
-	return __errmsg;
+	return _errmsg;
 }
 
 static char *get_filename(const char *filepath)
@@ -28,15 +28,15 @@ static char *get_filename(const char *filepath)
 	char *retval;
 
 	// strrchr not accept const char *
-	char *__filepath = strdup(filepath);
+	char *_filepath = strdup(filepath);
 
 	// FIXME: windows may use '\\'
-	char *start = strrchr(__filepath, '/');
-	if (!start) start = __filepath;
+	char *start = strrchr(_filepath, '/');
+	if (!start) start = _filepath;
 	else start++;
 
 	retval = strdup(start);
-	free(__filepath);
+	free(_filepath);
 
 	return retval;
 }
@@ -57,15 +57,15 @@ struct module *load_module(const char *filepath, const char *param)
 	char *filename = get_filename(filepath);
 
 	if (find_module(filename)) {
-		__errno = MOD_ERELOAD;
+		_err = MOD_ERELOAD;
 		free(filename);
 		return NULL;
 	}
 
 	void *handle = dlopen(filepath, RTLD_LAZY | RTLD_GLOBAL);
 	if (handle == NULL) {
-		__errno = MOD_EOPEN;
-		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
+		_err = MOD_EOPEN;
+		snprintf(_errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
 		free(filename);
 		return NULL;
 	}
@@ -73,8 +73,8 @@ struct module *load_module(const char *filepath, const char *param)
 	module_init_func_t func = dlsym(handle, "__module_init");
 	if (!func) {
 		dlclose(handle);
-		__errno = MOD_ESYM;
-		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
+		_err = MOD_ESYM;
+		snprintf(_errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
 		free(filename);
 		return NULL;
 	}
@@ -93,8 +93,8 @@ struct module *load_module(const char *filepath, const char *param)
 
 	if ((*func)(m)) {
 		dlclose(handle);
-		__errno = MOD_EINIT;
-		snprintf(__errmsg, MODULE_ERRMSG_SIZE,
+		_err = MOD_EINIT;
+		snprintf(_errmsg, MODULE_ERRMSG_SIZE,
 		         "module_init of %s failed!\n", filepath);
 		list_del(&m->node);
 		__free_module(m);
@@ -108,8 +108,8 @@ int unload_module(struct module *m)
 {
 	module_exit_func_t func = dlsym(m->handle, "__module_exit");
 	if (!func) {
-		__errno = MOD_ESYM;
-		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
+		_err = MOD_ESYM;
+		snprintf(_errmsg, MODULE_ERRMSG_SIZE, "%s", dlerror());
 	} else {
 		(*func)();
 	}
@@ -126,15 +126,15 @@ int load_modules_from_dir(const char *dirname)
 
 	DIR *dir = opendir(dirname);
 	if (dir == NULL) {
-		__errno = MOD_EOPEN;
-		snprintf(__errmsg, MODULE_ERRMSG_SIZE, "%s", strerror(errno));
+		_err = MOD_EOPEN;
+		snprintf(_errmsg, MODULE_ERRMSG_SIZE, "%s", strerror(errno));
 		return -1;
 	}
 
 	struct dirent *entry;
 	char buf[512];
 	while ((entry = readdir(dir))) {
-#ifdef __unix
+#if defined(__unix__) || defined(__APPLE__)
 		if (strncmp(entry->d_name, ".", 2) == 0 ||
 		    strncmp(entry->d_name, "..", 3) == 0 ||
 		    (entry->d_type != DT_REG && entry->d_type != DT_LNK))

@@ -11,7 +11,7 @@
 
 #define CENTER_ROUTER_ADDRESS "tcp://127.0.0.1:8330"
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
-#define OUTER_ROUTER_ADDRESS "tcp://0.0.0.0:8339"
+#define OUTER_ROUTER_ADDRESS "tcp://127.0.0.1:8339"
 #define PUB_SUB_ADDRESS "tcp://127.0.0.1:9330"
 #define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
 #define FWD_SUB_ADDRESS "tcp://127.0.0.1:9339"

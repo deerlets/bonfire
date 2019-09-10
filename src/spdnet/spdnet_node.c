@@ -264,8 +264,11 @@ int spdnet_recvmsg_timeout(struct spdnet_node *snode,
 		return SPDNET_ETIMEOUT;
 	else if (rc == 1)
 		return spdnet_recvmsg(snode, msg);
-	else
+	else {
+		// Never come here
 		assert(0);
+		return 0;
+	}
 }
 
 void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
@@ -282,7 +285,7 @@ void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
 #ifdef HAVE_ZMQ_BUG
-	usleep(10000);
+	usleep(10 * 1000);
 #endif
 
 	return snode->ifs->sendmsg(snode, msg);

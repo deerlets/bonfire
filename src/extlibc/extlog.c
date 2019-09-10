@@ -4,19 +4,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#ifdef _WIN32
-#define CL_RESET ""
-#define CL_NORMAL CL_RESET
-#define CL_NONE  CL_RESET
-#define CL_WHITE ""
-#define CL_GRAY  ""
-#define CL_RED  ""
-#define CL_GREEN ""
-#define CL_YELLOW ""
-#define CL_BLUE  ""
-#define CL_MAGENTA ""
-#define CL_CYAN  ""
-#else
+#if defined(__unix__) || defined(__APPLE__)
 #define CL_RESET "\033[0;0m"
 #define CL_NORMAL CL_RESET
 #define CL_NONE  CL_RESET
@@ -28,6 +16,18 @@
 #define CL_BLUE  "\033[1;34m"
 #define CL_MAGENTA "\033[1;35m"
 #define CL_CYAN  "\033[1;36m"
+#else
+#define CL_RESET ""
+#define CL_NORMAL CL_RESET
+#define CL_NONE  CL_RESET
+#define CL_WHITE ""
+#define CL_GRAY  ""
+#define CL_RED  ""
+#define CL_GREEN ""
+#define CL_YELLOW ""
+#define CL_BLUE  ""
+#define CL_MAGENTA ""
+#define CL_CYAN  ""
 #endif
 
 static int limit = LOG_LV_INFO;

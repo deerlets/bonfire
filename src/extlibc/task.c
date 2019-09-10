@@ -4,9 +4,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#ifdef __unix
-#include <sys/prctl.h>
-#endif
 #include "task.h"
 
 struct task {
@@ -27,9 +24,6 @@ struct task {
 static void *task_routine(void *arg)
 {
 	struct task *t = (struct task *)arg;
-#ifdef __unix
-	prctl(PR_SET_NAME, t->t_name, NULL, NULL, NULL);
-#endif
 	t->t_state = TASK_S_RUNNING;
 
 	while (1) {

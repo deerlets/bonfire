@@ -8,9 +8,6 @@ set_target_properties(spdnet PROPERTIES PUBLIC_HEADER "${INC}")
 set_target_properties(spdnet PROPERTIES VERSION 1.0.0 SOVERSION 1)
 
 target_link_libraries(spdnet zmq pthread cx)
-if (WIN32)
-    target_link_libraries(spdnet ws2_32)
-endif ()
 
 install(TARGETS spdnet
     RUNTIME DESTINATION bin
