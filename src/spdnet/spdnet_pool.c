@@ -222,6 +222,7 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 #ifdef HAVE_ZMQ_BUG
 		if (!pos->recvmsg_cb) {
 			spdnet_msg_close(&msg);
+			list_del(&pos->pollin_node);
 			continue;
 		}
 #endif
