@@ -72,6 +72,7 @@ static int __log_message(int level, const char *format, va_list ap)
 
 	printf("%s", prefix);
 	vprintf(format, ap);
+	printf("\n");
 	fflush(stdout);
 
 	return 0;
