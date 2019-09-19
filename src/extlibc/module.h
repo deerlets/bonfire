@@ -2,7 +2,6 @@
 #define __EXT_MODULE_H
 
 #include <stddef.h>
-#include "extlist.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,19 +56,6 @@ static __attribute__((unused)) struct module *__module_self(struct module *m)
  * module & param
  */
 
-struct module {
-	char *filepath;
-	char *filename;
-	char *name;
-	char *param;
-	char *alias;
-	char *desc;
-	int version;
-	void *handle;
-	module_init_func_t init_fn;
-	struct list_head node;
-};
-
 struct module *load_module(const char *filepath, const char *param);
 int unload_module(struct module *m);
 
@@ -77,21 +63,22 @@ int load_modules_from_dir(const char *dirname);
 int unload_all_modules(void);
 
 struct module *find_module(const char *name);
-size_t get_modules_count();
+int get_modules_count();
 void get_modules(struct module *buf[]);
 
 void module_set_name(struct module *m, const char *name);
 void module_set_info(struct module *m, const char *alias, const char *desc);
 void module_set_version(struct module *m, int version);
+const char *module_get_param(struct module *m);
 
 int param_get_int(const char *name, int *value, const char *param);
 int param_get_string(const char *name, void *buf,
                      size_t size, const char *param);
 
 #define MODULE_PARAM_GET_INT(name, value) \
-	param_get_int(name, value, THIS_MODULE->param)
+	param_get_int(name, value, module_get_param(THIS_MODULE))
 #define MODULE_PARAM_GET_STRING(name, buf, size) \
-	param_get_string(name, buf, size, THIS_MODULE->param)
+	param_get_string(name, buf, size, module_get_param(THIS_MODULE))
 
 #ifdef __cplusplus
 }

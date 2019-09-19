@@ -1,4 +1,3 @@
-#include "module.h"
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -6,8 +5,24 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <dirent.h>
+#include "extlist.h"
+#include "module.h"
 
 #define MODULE_ERRMSG_SIZE 512
+
+
+struct module {
+	char *filepath;
+	char *filename;
+	char *name;
+	char *param;
+	char *alias;
+	char *desc;
+	int version;
+	void *handle;
+	module_init_func_t init_fn;
+	struct list_head node;
+};
 
 static int _err;
 static char _errmsg[MODULE_ERRMSG_SIZE];
@@ -181,9 +196,9 @@ struct module *find_module(const char *name)
 	return NULL;
 }
 
-size_t get_modules_count()
+int get_modules_count()
 {
-	size_t i = 0;
+	int i = 0;
 	struct module *pos;
 	list_for_each_entry(pos, &modules, node) {
 		i++;
@@ -226,6 +241,11 @@ void module_set_info(struct module *m, const char *alias, const char *desc)
 void module_set_version(struct module *m, int version)
 {
 	m->version = version;
+}
+
+const char *module_get_param(struct module *m)
+{
+	return m->param;
 }
 
 int param_get_int(const char *name, int *value, const char *param)

@@ -20,7 +20,7 @@ static void test_module(void **status)
 	mod = load_module("../lib/mock_module.zo", "myint=1");
 #endif
 	assert_true(mod);
-	param_get_int("myint", &value, mod->param);
+	param_get_int("myint", &value, module_get_param(mod));
 	assert_true(value == 1);
 	unload_module(mod);
 
@@ -32,9 +32,9 @@ static void test_module(void **status)
 	                  "myint=1 mystr=\"hello world\"");
 #endif
 	assert_true(mod);
-	param_get_int("myint", &value, mod->param);
+	param_get_int("myint", &value, module_get_param(mod));
 	assert_true(value == 1);
-	param_get_string("mystr", buf, sizeof(buf), mod->param);
+	param_get_string("mystr", buf, sizeof(buf), module_get_param(mod));
 	assert_string_equal(buf, "hello world");
 	module_set_info(mod, "alias for mock_module", "I'm a mock module");
 	unload_module(mod);
