@@ -1,134 +1,129 @@
-#include "timer.h"
+#include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include "extlist.h"
+#include "timer.h"
 
-#ifdef __MINGW32__
-/* Convenience macros for operations on timevals.
-   NOTE: `timercmp' does not work for >= or <=.  */
-# define timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
-#if 0
-# define timerclear(tvp)	((tvp)->tv_sec = (tvp)->tv_usec = 0)
-# define timercmp(a, b, CMP)                                          \
-  (((a)->tv_sec == (b)->tv_sec) ? 					      \
-   ((a)->tv_usec CMP (b)->tv_usec) : 					      \
-   ((a)->tv_sec CMP (b)->tv_sec))
-#endif
-# define timeradd(a, b, result)						      \
-  do {									      \
-    (result)->tv_sec = (a)->tv_sec + (b)->tv_sec;			      \
-    (result)->tv_usec = (a)->tv_usec + (b)->tv_usec;			      \
-    if ((result)->tv_usec >= 1000000)					      \
-      {									      \
-	++(result)->tv_sec;						      \
-	(result)->tv_usec -= 1000000;					      \
-      }									      \
-  } while (0)
-# define timersub(a, b, result)						      \
-  do {									      \
-    (result)->tv_sec = (a)->tv_sec - (b)->tv_sec;			      \
-    (result)->tv_usec = (a)->tv_usec - (b)->tv_usec;			      \
-    if ((result)->tv_usec < 0) {					      \
-      --(result)->tv_sec;						      \
-      (result)->tv_usec += 1000000;					      \
-    }									      \
-  } while (0)
-#endif	/* Misc.  */
+struct timer {
+	timer_handler_func_t handler;
+	void *arg;
 
-struct timer_loop *default_timer_loop(void)
+	// timeout & repeat: millisecond
+	struct timeval timeout;
+	struct timeval repeat;
+
+	struct timer_loop *loop;
+	struct list_head node;
+};
+
+struct timer_loop {
+	pthread_t pid;
+	struct list_head node;
+	struct list_head timers;
+};
+
+static LIST_HEAD(_loops);
+
+static struct timer_loop *timer_loop_new()
 {
-	static struct timer_loop timer_loop;
-	return &timer_loop;
+	struct timer_loop *loop = malloc(sizeof(*loop));
+	if (!loop) return NULL;
+	memset(loop, 0, sizeof(*loop));
+
+	loop->pid = pthread_self();
+	INIT_LIST_HEAD(&loop->node);
+	INIT_LIST_HEAD(&loop->timers);
+
+	return loop;
 }
 
-int timer_init(struct timer *timer, struct timer_loop *loop)
+static void timer_loop_destroy(struct timer_loop *loop)
 {
+	assert(list_empty(&loop->timers));
+	list_del(&loop->node);
+	free(loop);
+}
+
+static struct timer_loop *find_timer_loop(pthread_t pid)
+{
+	struct timer_loop *pos;
+	list_for_each_entry(pos, &_loops, node) {
+		if (pos->pid == pid)
+			return pos;
+	}
+	return NULL;
+}
+
+struct timer *timer_new()
+{
+	struct timer_loop *loop = find_timer_loop(pthread_self());
+	if (!loop) {
+		loop = timer_loop_new();
+		list_add(&loop->node, &_loops);
+	}
+
+	struct timer *timer = malloc(sizeof(*timer));
+	if (!timer) return NULL;
 	memset(timer, 0, sizeof(*timer));
 
 	timer->loop = loop;
 	INIT_LIST_HEAD(&timer->node);
-	pthread_mutex_init(&timer->lock, NULL);
+	list_add(&timer->node, &timer->loop->timers);
 
-	pthread_mutex_lock(&loop->timers_lock);
-	list_add(&timer->node, &loop->timers);
-	pthread_mutex_unlock(&loop->timers_lock);
-
-	return 0;
+	return timer;
 }
 
-int timer_close(struct timer *timer)
+void timer_destroy(struct timer *timer)
 {
-	pthread_mutex_lock(&timer->loop->timers_lock);
+	assert(pthread_self() == timer->loop->pid);
 	list_del(&timer->node);
-	pthread_mutex_unlock(&timer->loop->timers_lock);
-
-	timer->loop = NULL;
-	pthread_mutex_destroy(&timer->lock);
-	return 0;
+	if (list_empty(&timer->loop->timers))
+		timer_loop_destroy(timer->loop);
+	free(timer);
 }
 
 void timer_start(struct timer *timer, timer_handler_func_t handler,
                  void *arg, uint64_t timeout, uint64_t repeat)
 {
-	pthread_mutex_lock(&timer->lock);
-
+	assert(pthread_self() == timer->loop->pid);
 	timer->handler = handler;
 	timer->arg = arg;
 	timer->timeout.tv_sec = time(NULL) + timeout / 1000;
 	timer->timeout.tv_usec = timeout % 1000 * 1000;
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
-
-	pthread_mutex_unlock(&timer->lock);
 }
 
 void timer_stop(struct timer *timer)
 {
-	pthread_mutex_lock(&timer->lock);
-
+	assert(pthread_self() == timer->loop->pid);
 	timer->handler = NULL;
 	timer->arg = 0;
 	timer->timeout.tv_sec = 0;
 	timer->timeout.tv_usec = 0;
 	timer->repeat.tv_sec = 0;
 	timer->repeat.tv_usec = 0;
-
-	pthread_mutex_unlock(&timer->lock);
 }
 
 void timer_trigger(struct timer *timer)
 {
-	pthread_mutex_lock(&timer->lock);
+	assert(pthread_self() == timer->loop->pid);
 	gettimeofday(&timer->timeout, NULL);
-	pthread_mutex_unlock(&timer->lock);
 }
 
-int timer_loop_init(struct timer_loop *loop)
+int timer_loop(struct timeval *next)
 {
-	INIT_LIST_HEAD(&loop->timers);
-	pthread_mutex_init(&loop->timers_lock, NULL);
-	return 0;
-}
+	struct timer_loop *loop = find_timer_loop(pthread_self());
+	assert(loop);
 
-int timer_loop_close(struct timer_loop *loop)
-{
-	if (!list_empty(&loop->timers))
-		return -1;
-
-	pthread_mutex_destroy(&loop->timers_lock);
-	return 0;
-}
-
-int timer_loop_run(struct timer_loop *loop, struct timeval *next)
-{
 	struct timeval now;
 	gettimeofday(&now, NULL);
 	if (next) timerclear(next);
 
 	struct timer *pos, *n;
-	pthread_mutex_lock(&loop->timers_lock);
 	list_for_each_entry_safe(pos, n, &loop->timers, node) {
 		if (!timerisset(&pos->timeout)) continue;
-
-		pthread_mutex_lock(&pos->lock);
 
 		if (timercmp(&pos->timeout, &now, >)) {
 			if (next) {
@@ -138,7 +133,6 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 				    !timerisset(next))
 					*next = __next;
 			}
-			pthread_mutex_unlock(&pos->lock);
 			continue;
 		}
 
@@ -161,17 +155,14 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 			}
 		}
 
-		pthread_mutex_unlock(&pos->lock);
-
 		// call handler
-		pos->handler(pos);
+		pos->handler(pos, pos->arg);
 
 		/*
 		 * do nothing after call handler as current timer
 		 * will be killed in handler
 		 */
 	}
-	pthread_mutex_unlock(&loop->timers_lock);
 
 	return 0;
 }
