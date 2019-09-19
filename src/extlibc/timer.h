@@ -25,6 +25,7 @@ struct timer {
 
 	struct timer_loop *loop;
 	struct list_head node;
+	pthread_mutex_t lock;
 };
 
 int timer_init(struct timer *timer, struct timer_loop *loop);

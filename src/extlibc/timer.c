@@ -45,6 +45,7 @@ int timer_init(struct timer *timer, struct timer_loop *loop)
 
 	timer->loop = loop;
 	INIT_LIST_HEAD(&timer->node);
+	pthread_mutex_init(&timer->lock, NULL);
 
 	pthread_mutex_lock(&loop->timers_lock);
 	list_add(&timer->node, &loop->timers);
@@ -60,13 +61,14 @@ int timer_close(struct timer *timer)
 	pthread_mutex_unlock(&timer->loop->timers_lock);
 
 	timer->loop = NULL;
+	pthread_mutex_destroy(&timer->lock);
 	return 0;
 }
 
 void timer_start(struct timer *timer, timer_handler_func_t handler,
                  void *arg, uint64_t timeout, uint64_t repeat)
 {
-	pthread_mutex_lock(&timer->loop->timers_lock);
+	pthread_mutex_lock(&timer->lock);
 
 	timer->handler = handler;
 	timer->arg = arg;
@@ -75,12 +77,12 @@ void timer_start(struct timer *timer, timer_handler_func_t handler,
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
 
-	pthread_mutex_unlock(&timer->loop->timers_lock);
+	pthread_mutex_unlock(&timer->lock);
 }
 
 void timer_stop(struct timer *timer)
 {
-	pthread_mutex_lock(&timer->loop->timers_lock);
+	pthread_mutex_lock(&timer->lock);
 
 	timer->handler = NULL;
 	timer->arg = 0;
@@ -89,14 +91,14 @@ void timer_stop(struct timer *timer)
 	timer->repeat.tv_sec = 0;
 	timer->repeat.tv_usec = 0;
 
-	pthread_mutex_unlock(&timer->loop->timers_lock);
+	pthread_mutex_unlock(&timer->lock);
 }
 
 void timer_trigger(struct timer *timer)
 {
-	pthread_mutex_lock(&timer->loop->timers_lock);
+	pthread_mutex_lock(&timer->lock);
 	gettimeofday(&timer->timeout, NULL);
-	pthread_mutex_unlock(&timer->loop->timers_lock);
+	pthread_mutex_unlock(&timer->lock);
 }
 
 int timer_loop_init(struct timer_loop *loop)
@@ -126,6 +128,8 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 	list_for_each_entry_safe(pos, n, &loop->timers, node) {
 		if (!timerisset(&pos->timeout)) continue;
 
+		pthread_mutex_lock(&pos->lock);
+
 		if (timercmp(&pos->timeout, &now, >)) {
 			if (next) {
 				struct timeval __next;
@@ -134,6 +138,7 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 				    !timerisset(next))
 					*next = __next;
 			}
+			pthread_mutex_unlock(&pos->lock);
 			continue;
 		}
 
@@ -155,6 +160,8 @@ int timer_loop_run(struct timer_loop *loop, struct timeval *next)
 					*next = __next;
 			}
 		}
+
+		pthread_mutex_unlock(&pos->lock);
 
 		// call handler
 		pos->handler(pos);
