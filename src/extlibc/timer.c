@@ -89,8 +89,11 @@ void timer_start(struct timer *timer, timer_handler_func_t handler,
 	assert(pthread_self() == timer->loop->pid);
 	timer->handler = handler;
 	timer->arg = arg;
-	timer->timeout.tv_sec = time(NULL) + timeout / 1000;
-	timer->timeout.tv_usec = timeout % 1000 * 1000;
+	timerclear(&timer->timeout);
+	struct timeval now;
+	gettimeofday(&now, NULL);
+	timer->timeout.tv_sec = now.tv_sec + timeout / 1000;
+	timer->timeout.tv_usec = now.tv_usec + timeout % 1000 * 1000;
 	timer->repeat.tv_sec = repeat / 1000;
 	timer->repeat.tv_usec = repeat % 1000 * 1000;
 }
@@ -117,46 +120,40 @@ int timer_loop(struct timeval *next)
 	struct timer_loop *loop = find_timer_loop(pthread_self());
 	assert(loop);
 
-	struct timeval now;
+	struct timeval now, _next;
 	gettimeofday(&now, NULL);
-	if (next) timerclear(next);
+	_next = now;
+	_next.tv_sec += 1;
 
 	struct timer *pos, *n;
 	list_for_each_entry_safe(pos, n, &loop->timers, node) {
 		if (!timerisset(&pos->timeout)) continue;
 
 		if (timercmp(&pos->timeout, &now, >)) {
-			if (next) {
-				struct timeval __next;
-				timersub(&pos->timeout, &now, &__next);
-				if (timercmp(&__next, next, <) ||
-				    !timerisset(next))
-					*next = __next;
-			}
+			if (timercmp(&pos->timeout, &_next, <))
+				_next = pos->timeout;
 			continue;
 		}
 
-		// calculate new timeout & next
+		// calculate new timeout & _next
 		if (!timerisset(&pos->repeat)) {
-			pos->timeout.tv_sec = 0;
-			pos->timeout.tv_usec = 0;
+			timerclear(&pos->timeout);
 		} else {
 			do {
 				timeradd(&pos->timeout, &pos->repeat,
 				         &pos->timeout);
 			} while (timercmp(&pos->timeout, &now, <));
 
-			if (next) {
-				struct timeval __next;
-				timersub(&pos->timeout, &now, &__next);
-				if (timercmp(&__next, next, <) ||
-				    !timerisset(next))
-					*next = __next;
-			}
+			if (timercmp(&pos->timeout, &_next, <))
+				_next = pos->timeout;
 		}
 
 		// call handler
 		pos->handler(pos, pos->arg);
+		if (timerisset(&pos->timeout)) {
+			if (timercmp(&pos->timeout, &_next, <))
+				_next = pos->timeout;
+		}
 
 		/*
 		 * do nothing after call handler as current timer
@@ -164,5 +161,11 @@ int timer_loop(struct timeval *next)
 		 */
 	}
 
+	if (next) {
+		timerclear(next);
+		gettimeofday(&now, NULL);
+		if (timercmp(&_next, &now, >))
+			timersub(&_next, &now, next);
+	}
 	return 0;
 }

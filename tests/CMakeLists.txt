@@ -24,6 +24,10 @@ add_executable(test-module test_module.c)
 target_link_libraries(test-module cmocka cx)
 add_test(test-module ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-module)
 
+add_executable(test-timer test_timer.c)
+target_link_libraries(test-timer cmocka cx)
+add_test(test-timer ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-timer)
+
 #
 # spdnet
 #
