@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include "extlist.h"
 #include "timer.h"
 
@@ -115,7 +116,7 @@ void timer_trigger(struct timer *timer)
 	gettimeofday(&timer->timeout, NULL);
 }
 
-int timer_loop(struct timeval *next)
+int timer_loop(long *next)
 {
 	struct timer_loop *loop = find_timer_loop(pthread_self());
 	assert(loop);
@@ -150,10 +151,6 @@ int timer_loop(struct timeval *next)
 
 		// call handler
 		pos->handler(pos, pos->arg);
-		if (timerisset(&pos->timeout)) {
-			if (timercmp(&pos->timeout, &_next, <))
-				_next = pos->timeout;
-		}
 
 		/*
 		 * do nothing after call handler as current timer
@@ -162,10 +159,13 @@ int timer_loop(struct timeval *next)
 	}
 
 	if (next) {
-		timerclear(next);
 		gettimeofday(&now, NULL);
 		if (timercmp(&_next, &now, >))
-			timersub(&_next, &now, next);
+			*next = (_next.tv_sec - now.tv_sec) * 1000 +
+				(_next.tv_usec - now.tv_usec) / 1000;
+		else
+			*next = 0;
 	}
+
 	return 0;
 }

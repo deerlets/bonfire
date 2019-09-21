@@ -24,10 +24,10 @@ static void *second_timer_thread(void *arg)
 	struct timer *timer = timer_new();
 	timer_start(timer, second_do_sth, &exit_flag, 1000, 0);
 
-	struct timeval next;
+	long next;
 	while (exit_flag == 0) {
 		timer_loop(&next);
-		usleep(next.tv_sec * 1000 * 1000 + next.tv_usec);
+		usleep(next * 1000);
 	}
 
 	timer_destroy(timer);
@@ -55,22 +55,21 @@ static void test_timer(void **status)
 	struct timer *timer = timer_new();
 	timer_start(timer, do_sth, &exit_flag, 1000, 0);
 
-	struct timeval next;
+	long next;
 	timer_loop(&next);
-	assert_true(next.tv_sec * 1000 * 1000 + next.tv_usec <= 1000 * 1000);
-	assert_true(next.tv_sec * 1000 * 1000 + next.tv_usec > 990 * 1000);
+	assert_true(next <= 1000);
+	assert_true(next > 990);
 	assert_true(exit_flag == 0);
-	usleep(next.tv_sec * 1000 * 1000 + next.tv_usec);
+	usleep(next * 1000);
 	timer_loop(&next);
 	assert_true(exit_flag == 0);
-	assert_true(next.tv_sec == 0);
-	assert_true(next.tv_usec > 490);
-	assert_true(next.tv_usec <= 500 * 1000);
-	usleep(next.tv_sec * 1000 * 1000 + next.tv_usec);
+	assert_true(next <= 1000); // not 500
+	assert_true(next > 990); // not 490
+	usleep(next * 1000);
 	timer_loop(&next);
 	assert_true(exit_flag == 1);
-	assert_true(next.tv_sec * 1000 * 1000 + next.tv_usec <= 1000 * 1000);
-	assert_true(next.tv_sec * 1000 * 1000 + next.tv_usec > 990 * 1000);
+	assert_true(next <= 1000);
+	assert_true(next > 990);
 
 	timer_destroy(timer);
 

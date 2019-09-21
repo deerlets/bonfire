@@ -2,7 +2,6 @@
 #define __EXT_TIMER_H
 
 #include <stdint.h>
-#include <sys/time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,7 +17,7 @@ void timer_start(struct timer *timer, timer_handler_func_t handler,
 void timer_stop(struct timer *timer);
 void timer_trigger(struct timer *timer);
 
-int timer_loop(struct timeval *next);
+int timer_loop(long *next);
 
 #ifdef __cplusplus
 }
