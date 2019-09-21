@@ -33,7 +33,8 @@ void spdnet_pool_destroy(struct spdnet_pool *pool)
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
 		assert(pos->used == 0);
-		spdnet_node_destroy(pos);
+		spdnet_pool_del(pool, pos);
+		pos->ifs->destroy(pos);
 	}
 	pthread_mutex_destroy(&pool->snodes_lock);
 	pthread_mutex_destroy(&pool->polls_lock);
@@ -45,7 +46,6 @@ void spdnet_pool_add(struct spdnet_pool *pool, struct spdnet_node *snode)
 {
 	pthread_mutex_lock(&pool->snodes_lock);
 	assert(snode->used == 0);
-	snode->used = 0;
 	snode->used = 1;
 	list_add(&snode->node, &pool->snodes);
 	pool->nr_snode++;
@@ -56,8 +56,7 @@ void spdnet_pool_del(struct spdnet_pool *pool, struct spdnet_node *snode)
 {
 	pthread_mutex_lock(&pool->snodes_lock);
 	pthread_mutex_lock(&pool->polls_lock);
-	assert(snode->used == 1);
-	snode->used = 0;
+	assert(snode->used == 0);
 	list_del(&snode->node);
 	if (!list_empty(&snode->pollin_node))
 		list_del(&snode->pollin_node);
@@ -78,7 +77,13 @@ void *spdnet_pool_get(struct spdnet_pool *pool, int type)
 	struct spdnet_node *pos;
 	list_for_each_entry(pos, &pool->snodes, node) {
 		if (pos->used == 0 && pos->type == type) {
+#ifdef HAVE_ZMQ_BUG
+			pthread_mutex_lock(&pool->polls_lock);
+#endif
 			pos->used = 1;
+#ifdef HAVE_ZMQ_BUG
+			pthread_mutex_unlock(&pool->polls_lock);
+#endif
 			pthread_mutex_unlock(&pool->snodes_lock);
 			return pos;
 		}
@@ -130,8 +135,11 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 		// gc
 		if (!pos->used) {
 			if (pool->nr_snode >= pool->water_mark) {
+				fprintf(stderr, "[spdnet_pool]: destroy node\n");
+				// to avoid dead lock, not call spdnet_pool_del
 				list_del(&pos->node);
-				spdnet_node_destroy(pos);
+				pool->nr_snode--;
+				pos->ifs->destroy(pos);
 				continue;
 			}
 #ifdef HAVE_ZMQ_BUG

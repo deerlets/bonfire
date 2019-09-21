@@ -12,7 +12,7 @@ struct spdnet_ctx *spdnet_ctx_new(void)
 	struct spdnet_ctx *ctx = malloc(sizeof(*ctx));
 	if (!ctx) return NULL;
 	ctx->zmq_ctx = zmq_ctx_new();
-	ctx->pool = spdnet_pool_new(ctx, 100);
+	ctx->pool = spdnet_pool_new(ctx, 20);
 	return ctx;
 }
 

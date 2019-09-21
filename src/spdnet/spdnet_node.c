@@ -77,10 +77,8 @@ struct spdnet_node *spdnet_node_new(struct spdnet_ctx *ctx, int type)
 
 void spdnet_node_destroy(struct spdnet_node *snode)
 {
-	if (snode->used)
-		spdnet_pool_put(snode->ctx->pool, snode);
-	else
-		snode->ifs->destroy(snode);
+	assert(snode->used);
+	spdnet_pool_put(snode->ctx->pool, snode);
 }
 
 void *spdnet_get_socket(struct spdnet_node *snode)
