@@ -57,15 +57,15 @@ void spdnet_pool_del(struct spdnet_pool *pool, struct spdnet_node *snode)
 	pthread_mutex_lock(&pool->snodes_lock);
 	pthread_mutex_lock(&pool->polls_lock);
 	assert(snode->used == 0);
-	list_del(&snode->node);
+	list_del_init(&snode->node);
 	if (!list_empty(&snode->pollin_node))
-		list_del(&snode->pollin_node);
+		list_del_init(&snode->pollin_node);
 	if (!list_empty(&snode->pollout_node))
-		list_del(&snode->pollout_node);
+		list_del_init(&snode->pollout_node);
 	if (!list_empty(&snode->pollerr_node))
-		list_del(&snode->pollerr_node);
+		list_del_init(&snode->pollerr_node);
 	if (!list_empty(&snode->recvmsg_timeout_node))
-		list_del(&snode->recvmsg_timeout_node);
+		list_del_init(&snode->recvmsg_timeout_node);
 	pool->nr_snode--;
 	pthread_mutex_unlock(&pool->polls_lock);
 	pthread_mutex_unlock(&pool->snodes_lock);
@@ -137,7 +137,7 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 			if (pool->nr_snode >= pool->water_mark) {
 				fprintf(stderr, "[spdnet_pool]: destroy node\n");
 				// to avoid dead lock, not call spdnet_pool_del
-				list_del(&pos->node);
+				list_del_init(&pos->node);
 				pool->nr_snode--;
 				pos->ifs->destroy(pos);
 				continue;
@@ -187,7 +187,7 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 	rc = zmq_poll(items, item_index, timeout);
 	if (rc == -1 || rc == 0) {
 		list_for_each_entry_safe(pos, n, &pool->pollins, pollin_node)
-			list_del(&pos->pollin_node);
+			list_del_init(&pos->pollin_node);
 		goto finally;
 	}
 
@@ -195,7 +195,7 @@ static int spdnet_pool_poll(struct spdnet_pool *pool, long timeout)
 	list_for_each_entry_safe(pos, n, &pool->pollins, pollin_node) {
 		assert(i < item_index);
 		if ((items[i].revents & ZMQ_POLLIN) == 0)
-			list_del(&pos->pollin_node);
+			list_del_init(&pos->pollin_node);
 		i++;
 	}
 
@@ -219,7 +219,7 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 		pos->recvmsg_arg = NULL;
 		pos->recvmsg_timeout = 0;
 		callback(pos, NULL, arg, SPDNET_ETIMEOUT);
-		list_del(&pos->recvmsg_timeout_node);
+		list_del_init(&pos->recvmsg_timeout_node);
 	}
 
 	list_for_each_entry_safe(pos, n, &pool->pollins, pollin_node) {
@@ -230,7 +230,7 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 #ifdef HAVE_ZMQ_BUG
 		if (!pos->recvmsg_cb) {
 			spdnet_msg_close(&msg);
-			list_del(&pos->pollin_node);
+			list_del_init(&pos->pollin_node);
 			continue;
 		}
 #endif
@@ -247,7 +247,7 @@ static void spdnet_pool_do_poll(struct spdnet_pool *pool)
 			callback(pos, &msg, arg, 0);
 
 		spdnet_msg_close(&msg);
-		list_del(&pos->pollin_node);
+		list_del_init(&pos->pollin_node);
 	}
 
 	pthread_mutex_unlock(&pool->polls_lock);
