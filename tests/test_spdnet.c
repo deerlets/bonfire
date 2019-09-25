@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <zmq.h>
 #include <spdnet-inl.h>
-#include <task.h>
+#include "task.h"
 
 #define CENTER_ROUTER_ADDRESS "tcp://127.0.0.1:8330"
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"

@@ -1,8 +1,7 @@
-#ifndef __STDLIBX_H
-#define __STDLIBX_H
+#ifndef __RANDOM_H
+#define __RANDOM_H
 
 #include <stddef.h>
-#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {

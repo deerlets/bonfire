@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <spdnet.h>
-#include <stdlibx.h>
 
 #include <fstream>
 #include <iomanip>

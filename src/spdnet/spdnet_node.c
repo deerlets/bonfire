@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
-#include <stdlibx.h>
 #include "spdnet-inl.h"
+#include "random.h"
 
 int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type)
 {

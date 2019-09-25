@@ -9,7 +9,7 @@
 #ifdef __linux__
 #include <sys/random.h>
 #endif
-#include "stdlibx.h"
+#include "random.h"
 
 size_t random_gen(void *buf, size_t size)
 {

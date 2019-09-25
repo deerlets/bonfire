@@ -3,8 +3,8 @@
 #include <setjmp.h>
 #include <cmocka.h>
 #include <unistd.h>
-#include <task.h>
 #include <bonfire.h>
+#include "task.h"
 
 #define BROKER_ADDRESS "tcp://127.0.0.1:8338"
 #define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"

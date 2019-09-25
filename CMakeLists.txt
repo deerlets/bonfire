@@ -31,10 +31,6 @@ if (HAVE_ZMQ_BUG)
     add_definitions(-DHAVE_ZMQ_BUG)
 endif ()
 
-# extlibc
-include_directories(src/extlibc)
-add_subdirectory(src/extlibc)
-
 # spdnet
 include_directories(src/spdnet)
 add_subdirectory(src/spdnet)
@@ -44,7 +40,7 @@ include_directories(src)
 add_subdirectory(src)
 
 # tests
-option(BUILD_TESTS "Build all tests." OFF)
+option(BUILD_TESTS "Build all tests." ON)
 if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
