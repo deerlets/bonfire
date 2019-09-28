@@ -865,7 +865,9 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
                               void *arg, int flag)
 {
 	if (flag) {
-		fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
+		fprintf(stderr, "[%s]: %s(%d)\n", __func__,
+		        spdnet_strerror(flag), flag);
+		spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
 		return;
 	}
 	assert(msg);
