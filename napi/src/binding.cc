@@ -17,7 +17,6 @@
 struct service_struct {
 	std::string header;
 	napi_env env;
-	napi_value this_obj;
 	napi_ref func_ref;
 	std::list<struct bmsg *> reqs;
 };
@@ -31,12 +30,13 @@ struct servcall_struct {
 struct subscribe_struct {
 	std::string topic;
 	napi_env env;
-	napi_value this_obj;
 	napi_ref func_ref;
 	std::list<std::string> resps;
 };
 
 struct binding {
+	napi_ref this_ref;
+
 	uv_async_t service_async;
 	std::map<std::string, service_struct *> service_list;
 	pthread_mutex_t service_lock;
@@ -60,7 +60,6 @@ static void service_async_cb(uv_async_t *handle)
 
 	for (auto &item : bd->service_list) {
 		napi_env env = item.second->env;
-		napi_value this_obj = item.second->this_obj;
 		napi_ref func_ref = item.second->func_ref;
 
 		napi_handle_scope scope;
@@ -73,6 +72,9 @@ static void service_async_cb(uv_async_t *handle)
 
 		napi_callback_scope cb_scope;
 		napi_open_callback_scope(env, nullptr, context, &cb_scope);
+
+		napi_value this_obj;
+		napi_get_reference_value(env, bd->this_ref, &this_obj);
 
 		napi_value func;
 		napi_get_reference_value(env, func_ref, &func);
@@ -143,7 +145,6 @@ static void subscribe_async_cb(uv_async_t *handle)
 
 	for (auto &item : bd->subscribe_list) {
 		napi_env env = item.second->env;
-		napi_value this_obj = item.second->this_obj;
 		napi_ref func_ref = item.second->func_ref;
 
 		napi_handle_scope scope;
@@ -156,6 +157,9 @@ static void subscribe_async_cb(uv_async_t *handle)
 
 		napi_callback_scope cb_scope;
 		napi_open_callback_scope(env, nullptr, context, &cb_scope);
+
+		napi_value this_obj;
+		napi_get_reference_value(env, bd->this_ref, &this_obj);
 
 		napi_value func;
 		napi_get_reference_value(env, func_ref, &func);
@@ -193,6 +197,8 @@ static void bonfire_finalize(napi_env env, void *data, void *hint)
 	uv_loop_t *loop;
 	napi_get_uv_event_loop(env, &loop);
 	uv_run(loop, UV_RUN_ONCE);
+
+	napi_delete_reference(env, bd->this_ref);
 	delete bd;
 	bonfire_destroy((struct bonfire *)data);
 }
@@ -205,6 +211,7 @@ static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 	napi_get_cb_info(env, info, &argc, argv, &this_obj, nullptr);
 
 	binding *bd = new binding;
+	napi_create_reference(env, this_obj, 1, &bd->this_ref);
 	uv_loop_t *loop;
 	napi_get_uv_event_loop(env, &loop);
 	uv_async_init(loop, &bd->service_async, service_async_cb);
@@ -301,7 +308,6 @@ static napi_value bonfire_add_service_wrap(napi_env env, napi_callback_info info
 	service_struct *ss = new struct service_struct;
 	ss->header = hdr;
 	ss->env = env;
-	ss->this_obj = this_obj;
 	napi_create_reference(env, argv[1], 1, &ss->func_ref);
 	pthread_mutex_lock(&bd->service_lock);
 	bd->service_list.insert(std::make_pair(hdr, ss));
@@ -322,6 +328,16 @@ static napi_value bonfire_del_service_wrap(napi_env env, napi_callback_info info
 
 	struct bonfire *bf;
 	napi_unwrap(env, this_obj, (void **)&bf);
+	binding *bd = (binding *)bonfire_get_user_data(bf);
+
+	pthread_mutex_lock(&bd->service_lock);
+	auto it = bd->service_list.find(hdr);
+	assert(it != bd->service_list.end());
+	service_struct *ss = it->second;
+	napi_delete_reference(env, ss->func_ref);
+	delete ss;
+	bd->service_list.erase(it);
+	pthread_mutex_unlock(&bd->service_lock);
 
 	bonfire_del_service(bf, hdr);
 	return nullptr;
@@ -401,9 +417,7 @@ static void subscribe_cb(struct bonfire *bf, const void *resp,
 	binding *bd = (binding *)bonfire_get_user_data(bf);
 
 	if (flag != BONFIRE_EOK) {
-		uint32_t count;
-		napi_reference_unref(ss->env, ss->func_ref, &count);
-		fprintf(stderr, "%s: %d\n", __func__, count);
+		napi_delete_reference(ss->env, ss->func_ref);
 		pthread_mutex_lock(&bd->subscribe_lock);
 		auto it = bd->subscribe_list.find(ss->topic);
 		assert(it != bd->subscribe_list.end());
@@ -441,7 +455,6 @@ static napi_value bonfire_subscribe_wrap(napi_env env, napi_callback_info info)
 	} else {
 		ss->topic = topic;
 		ss->env = env;
-		ss->this_obj = this_obj;
 		napi_create_reference(env, argv[1], 1, &ss->func_ref);
 		pthread_mutex_lock(&bd->subscribe_lock);
 		bd->subscribe_list.insert(std::make_pair(topic, ss));
