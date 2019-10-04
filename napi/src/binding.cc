@@ -5,7 +5,6 @@
 #include <node_api.h>
 #include <uv.h>
 #include <bonfire.h>
-#include <task.h>
 #include <string>
 #include <list>
 #include <map>
@@ -49,7 +48,8 @@ struct binding {
 	std::map<std::string, subscribe_struct *> subscribe_list;
 	pthread_mutex_t subscribe_lock;
 
-	struct task *t;
+	int exit_flag;
+	pthread_t pid;
 };
 
 static void service_async_cb(uv_async_t *handle)
@@ -186,7 +186,8 @@ static void subscribe_async_cb(uv_async_t *handle)
 static void bonfire_finalize(napi_env env, void *data, void *hint)
 {
 	binding *bd = (binding *)bonfire_get_user_data((struct bonfire *)data);
-	task_destroy(bd->t);
+	bd->exit_flag = 1;
+	pthread_join(bd->pid, NULL);
 	uv_close((uv_handle_t *)&bd->service_async, NULL);
 	uv_close((uv_handle_t *)&bd->servcall_async, NULL);
 	uv_close((uv_handle_t *)&bd->subscribe_async, NULL);
@@ -201,6 +202,15 @@ static void bonfire_finalize(napi_env env, void *data, void *hint)
 	napi_delete_reference(env, bd->this_ref);
 	delete bd;
 	bonfire_destroy((struct bonfire *)data);
+}
+
+static void *bonfire_thread(void *arg)
+{
+	struct bonfire *bf = (struct bonfire *)arg;
+	binding *bd = (binding *)bonfire_get_user_data(bf);
+	while (bd->exit_flag == 0)
+		bonfire_loop(bf, 1000);
+	return NULL;
 }
 
 static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
@@ -223,13 +233,13 @@ static napi_value bonfire_new_wrap(napi_env env, napi_callback_info info)
 	pthread_mutex_init(&bd->service_lock, NULL);
 	pthread_mutex_init(&bd->servcall_lock, NULL);
 	pthread_mutex_init(&bd->subscribe_lock, NULL);
+	bd->exit_flag = 0;
+	bd->pid = 0;
 
 	struct bonfire *bf = bonfire_new();
 	bonfire_set_user_data(bf, bd);
 	napi_wrap(env, this_obj, bf, bonfire_finalize, NULL, NULL);
-	bd->t = task_new_timeout(
-		"btask", (task_timeout_func_t)bonfire_loop, bf, 1000);
-	task_start(bd->t);
+	pthread_create(&bd->pid, NULL, bonfire_thread, bf);
 	return this_obj;
 }
 
