@@ -11,6 +11,7 @@
 
 #define ROOT_ROUTER_ADDRESS "tcp://127.0.0.1:8330"
 #define INNER_ROUTER_ADDRESS "tcp://127.0.0.1:8338"
+#define FILTER_ROUTER_ADDRESS "tcp://127.0.0.1:18339"
 #define OUTER_ROUTER_ADDRESS "tcp://127.0.0.1:8339"
 #define PUB_SUB_ADDRESS "tcp://127.0.0.1:9330"
 #define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
@@ -254,12 +255,20 @@ static void test_spdnet_router(void **status)
 	spdnet_set_gateway(inner, root_id, root_len);
 	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
+	// router filter
+	struct spdnet_node *filter = spdnet_node_new(ctx, SPDNET_ROUTER);
+	spdnet_set_id(filter, "filter");
+	assert_true(spdnet_bind(filter, FILTER_ROUTER_ADDRESS) == 0);
+	spdnet_associate(filter, ROOT_ROUTER_ADDRESS, root_id, &root_len);
+	spdnet_set_gateway(filter, root_id, root_len);
+	spdnet_recvmsg_async(filter, spdnet_builtin_router_recvmsg_cb, NULL, 0);
+
 	// router outer
 	struct spdnet_node *outer = spdnet_node_new(ctx, SPDNET_ROUTER);
 	spdnet_set_id(outer, "outer");
 	assert_true(spdnet_bind(outer, OUTER_ROUTER_ADDRESS) == 0);
-	spdnet_associate(outer, ROOT_ROUTER_ADDRESS, root_id, &root_len);
-	spdnet_set_gateway(outer, root_id, root_len);
+	spdnet_associate(outer, FILTER_ROUTER_ADDRESS, NULL, NULL);
+	spdnet_set_gateway(outer, "filter", 6);
 	spdnet_recvmsg_async(outer, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct spdnet_msg msg;
@@ -278,8 +287,8 @@ static void test_spdnet_router(void **status)
 	spdnet_sendmsg(request, &msg);
 	sleep(1);
 	spdnet_recvmsg(service, &msg);
-	assert_memory_equal("^/outer/request", MSG_SRCID_DATA(&msg), 15);
-	assert_true(MSG_SRCID_SIZE(&msg) == 15);
+	assert_memory_equal("^/filter/outer/request", MSG_SRCID_DATA(&msg), 22);
+	assert_true(MSG_SRCID_SIZE(&msg) == 22);
 	assert_memory_equal("hello", MSG_HEADER_DATA(&msg), 5);
 	assert_true(MSG_HEADER_SIZE(&msg) == 5);
 	sleep(1);
@@ -292,8 +301,8 @@ static void test_spdnet_router(void **status)
 	spdnet_sendmsg(service, &msg);
 	sleep(1);
 	spdnet_recvmsg(request, &msg);
-	assert_memory_equal("^/inner/service", MSG_SRCID_DATA(&msg), 15);
-	assert_true(MSG_SRCID_SIZE(&msg) == 15);
+	assert_memory_equal("filter/^/inner/service", MSG_SRCID_DATA(&msg), 22);
+	assert_true(MSG_SRCID_SIZE(&msg) == 22);
 	assert_memory_equal("hello_reply", MSG_HEADER_DATA(&msg), 11);
 	assert_true(MSG_HEADER_SIZE(&msg) == 11);
 	sleep(1);
@@ -303,6 +312,7 @@ static void test_spdnet_router(void **status)
 	spdnet_node_destroy(request);
 	spdnet_node_destroy(service);
 	spdnet_node_destroy(outer);
+	spdnet_node_destroy(filter);
 	spdnet_node_destroy(inner);
 	spdnet_node_destroy(root);
 	spdnet_ctx_destroy(ctx);
