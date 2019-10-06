@@ -245,30 +245,29 @@ static void test_spdnet_router(void **status)
 	sleep(1);
 
 	char root_id[SPDNET_ID_SIZE];
-	size_t root_len;
 
 	// router inner
 	struct spdnet_node *inner = spdnet_node_new(ctx, SPDNET_ROUTER);
 	spdnet_set_id(inner, "inner");
 	assert_true(spdnet_bind(inner, INNER_ROUTER_ADDRESS) == 0);
-	spdnet_associate(inner, ROOT_ROUTER_ADDRESS, root_id, &root_len);
-	spdnet_set_gateway(inner, root_id, root_len);
+	spdnet_associate(inner, ROOT_ROUTER_ADDRESS, root_id, SPDNET_ID_SIZE);
+	spdnet_set_gateway(inner, root_id);
 	spdnet_recvmsg_async(inner, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// router filter
 	struct spdnet_node *filter = spdnet_node_new(ctx, SPDNET_ROUTER);
 	spdnet_set_id(filter, "filter");
 	assert_true(spdnet_bind(filter, FILTER_ROUTER_ADDRESS) == 0);
-	spdnet_associate(filter, ROOT_ROUTER_ADDRESS, root_id, &root_len);
-	spdnet_set_gateway(filter, root_id, root_len);
+	spdnet_associate(filter, ROOT_ROUTER_ADDRESS, root_id, SPDNET_ID_SIZE);
+	spdnet_set_gateway(filter, root_id);
 	spdnet_recvmsg_async(filter, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	// router outer
 	struct spdnet_node *outer = spdnet_node_new(ctx, SPDNET_ROUTER);
 	spdnet_set_id(outer, "outer");
 	assert_true(spdnet_bind(outer, OUTER_ROUTER_ADDRESS) == 0);
-	spdnet_associate(outer, FILTER_ROUTER_ADDRESS, NULL, NULL);
-	spdnet_set_gateway(outer, "filter", 6);
+	spdnet_associate(outer, FILTER_ROUTER_ADDRESS, NULL, 0);
+	spdnet_set_gateway(outer, "filter");
 	spdnet_recvmsg_async(outer, spdnet_builtin_router_recvmsg_cb, NULL, 0);
 
 	struct spdnet_msg msg;

@@ -194,9 +194,9 @@ int spdnet_connect(struct spdnet_node *snode, const char *addr);
 void spdnet_unbind(struct spdnet_node *snode);
 void spdnet_disconnect(struct spdnet_node *snode);
 
-int spdnet_associate(struct spdnet_node *snode,
-                     const char *addr, void *id, size_t *len);
-int spdnet_set_gateway(struct spdnet_node *snode, void *id, size_t len);
+int spdnet_associate(struct spdnet_node *snode, const char *addr,
+                     char *buf_id, size_t buf_size);
+int spdnet_set_gateway(struct spdnet_node *snode, const char *id);
 
 typedef void (*spdnet_recvmsg_cb)(
 	struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag);

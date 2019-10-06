@@ -28,9 +28,9 @@ struct spdnet_interface {
 	int (*recvmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
 	int (*sendmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
 
-	int (*associate)(struct spdnet_node *snode,
-	                 const char *addr, void *id, size_t *len);
-	int (*set_gateway)(struct spdnet_node *snode, void *id, size_t len);
+	int (*associate)(struct spdnet_node *snode, const char *addr,
+	                 char *buf_id, size_t buf_len);
+	int (*set_gateway)(struct spdnet_node *snode, const char *id);
 };
 
 struct spdnet_node {

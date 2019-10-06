@@ -992,10 +992,8 @@ void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
                                 const char *gateway_addr)
 {
 	char gateway_id[SPDNET_ID_SIZE];
-	size_t gateway_len;
-
-	spdnet_associate(bbrk->router, gateway_addr, gateway_id, &gateway_len);
-	spdnet_set_gateway(bbrk->router, gateway_id, gateway_len);
+	spdnet_associate(bbrk->router, gateway_addr, gateway_id, SPDNET_ID_SIZE);
+	spdnet_set_gateway(bbrk->router, gateway_id);
 }
 
 void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,

@@ -436,9 +436,8 @@ finally:
 	return rc;
 }
 
-static int spdnet_router_associate(struct spdnet_node *snode,
-                                   const char *addr,
-                                   void *id, size_t *len)
+static int spdnet_router_associate(struct spdnet_node *snode, const char *addr,
+                                   char *buf_id, size_t buf_len)
 {
 	struct spdnet_router *router =
 		container_of(snode, struct spdnet_router, snode);
@@ -448,9 +447,10 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 
 	if (peer_remote(snode->ctx, addr, remote_id, &remote_len) == -1)
 		return -1;
-	if (id && len) {
-		memcpy(id, remote_id, remote_len);
-		*len = remote_len;
+	if (buf_id) {
+		if (buf_len < remote_len)
+			return -1;
+		strcpy(buf_id, remote_id);
 	}
 
 	if (spdnet_connect(snode, addr) == -1)
@@ -498,7 +498,7 @@ static int spdnet_router_associate(struct spdnet_node *snode,
 }
 
 static int
-spdnet_router_set_gateway(struct spdnet_node *snode, void *id, size_t len)
+spdnet_router_set_gateway(struct spdnet_node *snode, const char *id)
 {
 	struct spdnet_router *router =
 		container_of(snode, struct spdnet_router, snode);
@@ -511,11 +511,14 @@ spdnet_router_set_gateway(struct spdnet_node *snode, void *id, size_t len)
 	if (!item) {
 		item = malloc(sizeof(*item));
 		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw),
-		                         id, len, SPDNET_ROUTER);
+		                         id, strlen(id),
+		                         SPDNET_ROUTER);
 		list_add(&item->node, &router->routing_table);
-	} else
+	} else {
 		INIT_SPDNET_ROUTING_ITEM(item, gw, strlen(gw),
-		                         id, len, SPDNET_ROUTER);
+		                         id, strlen(id),
+		                         SPDNET_ROUTER);
+	}
 
 	return 0;
 }

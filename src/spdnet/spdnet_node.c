@@ -230,15 +230,15 @@ int spdnet_alive(struct spdnet_node *snode)
 	return 0;
 }
 
-int spdnet_associate(struct spdnet_node *snode,
-                     const char *addr, void *id, size_t *len)
+int spdnet_associate(struct spdnet_node *snode, const char *addr,
+                     char *buf_id, size_t buf_len)
 {
-	return snode->ifs->associate(snode, addr, id, len);
+	return snode->ifs->associate(snode, addr, buf_id, buf_len);
 }
 
-int spdnet_set_gateway(struct spdnet_node *snode, void *id, size_t len)
+int spdnet_set_gateway(struct spdnet_node *snode, const char *id)
 {
-	return snode->ifs->set_gateway(snode, id, len);
+	return snode->ifs->set_gateway(snode, id);
 }
 
 int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
