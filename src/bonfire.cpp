@@ -170,6 +170,11 @@ void bonfire_destroy(struct bonfire *bf)
 	spdnet_node_destroy(bf->snode);
 	spdnet_ctx_destroy(bf->ctx);
 
+	for (auto it = bf->bmsgs.begin(); it != bf->bmsgs.end();) {
+		bmsg_destroy(*it);
+	}
+	bf->bmsgs.clear();
+
 	delete bf;
 }
 
