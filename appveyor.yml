@@ -1,0 +1,41 @@
+version: 1.0.{build}
+
+image:
+  - Ubuntu
+  - macos
+
+for:
+  -
+    matrix:
+      only:
+        - image: Ubuntu
+    install:
+      - sh: sudo apt-get install -y libcmocka-dev
+      - sh: sudo apt-get install -y libzmq3-dev
+      - sh: git clone https://github.com/nlohmann/json.git
+      - sh: sudo cp -a json/single_include/nlohmann /usr/local/include/
+    build: off
+    build_script:
+      - mkdir build && cd build
+      - cmake .. -DBUILD_TESTS=on
+      - make
+    test_script:
+      - make test
+  -
+    matrix:
+      only:
+        - image: macos
+    install:
+      - sh: export C_INCLUDE_PATH=/usr/local/include
+      - sh: export LIBRARY_PATH=/usr/local/lib
+      - sh: HOMEBREW_NO_AUTO_UPDATE=1 brew install cmocka
+      - sh: HOMEBREW_NO_AUTO_UPDATE=1 brew install zmq
+      - sh: git clone https://github.com/nlohmann/json.git
+      - sh: cp -a json/single_include/nlohmann src/
+    build: off
+    build_script:
+      - mkdir build && cd build
+      - cmake .. -DBUILD_TESTS=on
+      - make
+    test_script:
+      - make test

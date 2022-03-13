@@ -40,7 +40,7 @@ include_directories(src)
 add_subdirectory(src)
 
 # tests
-option(BUILD_TESTS "Build all tests." ON)
+option(BUILD_TESTS "Build all tests." OFF)
 if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

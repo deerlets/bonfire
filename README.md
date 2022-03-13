@@ -1,24 +1,22 @@
 # Bonfire
 
-[![Build Status](https://travis-ci.com/deerlets/bonfire.svg?branch=master)](https://travis-ci.com/deerlets/bonfire)
+[![Build status](https://ci.appveyor.com/api/projects/status/ch9uh7ryd9camp5d?svg=true)](https://ci.appveyor.com/project/yonzkon/bonfire)
 
-A service discovery and registry framework written in pure C.
+A services framework written in C/C++, but can be used in pure C environment.
 
 ## Supported platforms
 
 - Linux
 - MacOS
-- Cygwin
-- MinGW
 
 ## Dependences
 
-- cmocka
-- libzmq
+- zeromq
+- nlohmann-json
 
 ## Build on Ubuntu
 ```
-apt-get install libcmocka-dev libzmq3-dev
+apt-get install libzmq3-dev nlohmann-json3-dev
 mkdir build && cd build
 cmake .. && make
 ```
