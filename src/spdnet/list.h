@@ -1,5 +1,5 @@
-#ifndef __LIST_H
-#define __LIST_H
+#ifndef __SPDNET_LIST_H
+#define __SPDNET_LIST_H
 
 #include <stddef.h>
 

@@ -1,5 +1,5 @@
-#ifndef __RANDOM_H
-#define __RANDOM_H
+#ifndef __SPDNET_RANDOM_H
+#define __SPDNET_RANDOM_H
 
 #include <stddef.h>
 

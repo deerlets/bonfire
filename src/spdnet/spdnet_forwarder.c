@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include "spdnet-inl.h"
 
 struct spdnet_forwarder {
@@ -24,8 +26,17 @@ static void forwarder_cb(struct spdnet_node *snode,
 	char *content = calloc(1, MSG_CONTENT_SIZE(msg) + 1);
 	memcpy(topic, MSG_DSTID_DATA(msg), MSG_DSTID_SIZE(msg));
 	memcpy(content, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg));
-	fprintf(stderr, "[forwarder-%p]: topic=%s, content=%s\n",
-		fwd, topic, content);
+
+	struct timeval tmnow;
+	char buf[32] = {0}, usec_buf[16] = {0};
+	gettimeofday(&tmnow, NULL);
+	strftime(buf, 30, "%Y-%m-%d %H:%M:%S", localtime(&tmnow.tv_sec));
+	sprintf(usec_buf, ".%04d", (int)tmnow.tv_usec / 100);
+	strcat(buf, usec_buf);
+
+	fprintf(stderr, "[%s] - fwdid=%p, topic=%s, content=%s\n",
+		buf, fwd, topic, content);
+
 	free(topic);
 	free(content);
 #endif

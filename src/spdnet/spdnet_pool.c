@@ -32,7 +32,10 @@ void spdnet_pool_destroy(struct spdnet_pool *pool)
 {
 	struct spdnet_node *pos, *n;
 	list_for_each_entry_safe(pos, n, &pool->snodes, node) {
-		assert(pos->used == 0);
+		if (pos->used != 0) {
+			assert(pos->recvmsg_timeout > time(NULL));
+			pos->used = 0;
+		}
 		spdnet_pool_del(pool, pos);
 		pos->ifs->destroy(pos);
 	}

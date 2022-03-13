@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include "spdnet-inl.h"
 
@@ -85,9 +86,18 @@ void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
 	memcpy(__dstid, MSG_DSTID_DATA(msg), MSG_DSTID_SIZE(msg));
 	memcpy(__header, MSG_HEADER_DATA(msg), MSG_HEADER_SIZE(msg));
 	memcpy(__content, MSG_CONTENT_DATA(msg), MSG_CONTENT_SIZE(msg));
-	fprintf(stderr, "[%s]: srcid=%s, dstid=%s, header=%s, content=%s\n",
-	        snode->id, __srcid, __dstid, __header, __content);
+
+	struct timeval tmnow;
+	char buf[32] = {0}, usec_buf[16] = {0};
+	gettimeofday(&tmnow, NULL);
+	strftime(buf, 30, "%Y-%m-%d %H:%M:%S", localtime(&tmnow.tv_sec));
+	sprintf(usec_buf, ".%04d", (int)tmnow.tv_usec / 100);
+	strcat(buf, usec_buf);
+
+	fprintf(stderr, "[%s] - srcid=%s, dstid=%s, header=%s\n",
+	        buf, __srcid, __dstid, __header);
 	fflush(stderr);
+
 	free(__srcid);
 	free(__dstid);
 	free(__header);
