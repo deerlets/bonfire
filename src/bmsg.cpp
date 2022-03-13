@@ -1,9 +1,6 @@
 #include <assert.h>
 #include <string.h>
-#include <nlohmann/json.hpp>
 #include "bonfire-inl.h"
-
-using json = nlohmann::json;
 
 struct bmsg *bmsg_new()
 {

@@ -45,7 +45,7 @@ void bmsg_write_response(struct bmsg *bm, const char *data);
 void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 
 /*
- * bonfire cli
+ * bonfire
  */
 
 #define BONFIRE_DEFAULT_TIMEOUT 5000
