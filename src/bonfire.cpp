@@ -218,7 +218,7 @@ static int servcall(struct bonfire *bf,
 	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
 	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID, header, content);
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER, header, content);
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	if (spdnet_recvmsg_timeout(snode, &tmp, bf->timeout)) {
 		spdnet_msg_close(&tmp);
@@ -409,7 +409,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	j["content"] = content;
 
 	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID,
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER,
 	                     BONFIRE_SERVICE_CALL, j.dump().c_str());
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	spdnet_msg_close(&tmp);

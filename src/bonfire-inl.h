@@ -58,7 +58,7 @@ void bmsg_destroy(struct bmsg *bm);
 using string =std::string;
 using json = nlohmann::json;
 
-#define BONFIRE_BROKER_SOCKID "bonfire-broker-sockid"
+#define BONFIRE_BROKER "bonfire-broker"
 #define BONFIRE_SERVICE_INFO "bonfire://service/info"
 #define BONFIRE_SERVICE_ADD "bonfire://service/add"
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
