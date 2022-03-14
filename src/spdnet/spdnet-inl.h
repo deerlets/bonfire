@@ -18,50 +18,50 @@ int z_recv_more(void *s, spdnet_frame_t *frame, int flags);
 int z_recv_not_more(void *s, spdnet_frame_t *frame, int flags);
 
 struct spdnet_ctx {
-	void *zmq_ctx;
-	struct spdnet_pool *pool;
+    void *zmq_ctx;
+    struct spdnet_pool *pool;
 };
 
 struct spdnet_interface {
-	struct spdnet_node *(*create)(struct spdnet_ctx *ctx);
-	void (*destroy)(struct spdnet_node *snode);
-	int (*recvmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
-	int (*sendmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
+    struct spdnet_node *(*create)(struct spdnet_ctx *ctx);
+    void (*destroy)(struct spdnet_node *snode);
+    int (*recvmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
+    int (*sendmsg)(struct spdnet_node *snode, struct spdnet_msg *msg);
 
-	int (*associate)(struct spdnet_node *snode,
-	                 const char *addr, void *id, size_t *len);
-	int (*set_gateway)(struct spdnet_node *snode, void *id, size_t len);
+    int (*associate)(struct spdnet_node *snode, const char *addr,
+                     void *id, size_t *len);
+    int (*set_gateway)(struct spdnet_node *snode, void *id, size_t len);
 };
 
 struct spdnet_node {
-	struct spdnet_ctx *ctx;
+    struct spdnet_ctx *ctx;
 
-	char *id;
+    char *id;
 
-	int type;
-	struct spdnet_interface *ifs;
+    int type;
+    struct spdnet_interface *ifs;
 
-	int64_t alive_interval;
-	int64_t alive_timeout;
+    int64_t alive_interval;
+    int64_t alive_timeout;
 
-	int is_bind;
-	int is_connect;
-	char bind_addr[SPDNET_ADDR_SIZE];
-	char connect_addr[SPDNET_ADDR_SIZE];
-	void *socket;
+    int is_bind;
+    int is_connect;
+    char bind_addr[SPDNET_ADDR_SIZE];
+    char connect_addr[SPDNET_ADDR_SIZE];
+    void *socket;
 
-	void *user_data;
+    void *user_data;
 
-	/* mainly used by spdnet_pool */
-	int used;
-	spdnet_recvmsg_cb recvmsg_cb;
-	void *recvmsg_arg;
-	int64_t recvmsg_timeout;
-	struct list_head node;
-	struct list_head pollin_node;
-	struct list_head pollout_node;
-	struct list_head pollerr_node;
-	struct list_head recvmsg_timeout_node;
+    /* mainly used by spdnet_pool */
+    int used;
+    spdnet_recvmsg_cb recvmsg_cb;
+    void *recvmsg_arg;
+    int64_t recvmsg_timeout;
+    struct list_head node;
+    struct list_head pollin_node;
+    struct list_head pollout_node;
+    struct list_head pollerr_node;
+    struct list_head recvmsg_timeout_node;
 };
 
 int spdnet_node_init(struct spdnet_node *snode, struct spdnet_ctx *ctx, int type);
@@ -76,18 +76,18 @@ struct spdnet_interface *spdnet_pub_interface();
 struct spdnet_interface *spdnet_sub_interface();
 
 struct spdnet_pool {
-	struct spdnet_ctx *ctx;
-	int water_mark;
+    struct spdnet_ctx *ctx;
+    int water_mark;
 
-	int nr_snode;
-	struct list_head snodes;
-	pthread_mutex_t snodes_lock;
+    int nr_snode;
+    struct list_head snodes;
+    pthread_mutex_t snodes_lock;
 
-	struct list_head pollins;
-	struct list_head pollouts;
-	struct list_head pollerrs;
-	struct list_head recvmsg_timeouts;
-	pthread_mutex_t polls_lock;
+    struct list_head pollins;
+    struct list_head pollouts;
+    struct list_head pollerrs;
+    struct list_head recvmsg_timeouts;
+    pthread_mutex_t polls_lock;
 };
 
 struct spdnet_pool *spdnet_pool_new(struct spdnet_ctx *ctx, int water_mark);

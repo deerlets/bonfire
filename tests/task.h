@@ -8,21 +8,21 @@ extern "C" {
 #define TASK_NAME_LEN 64
 
 enum task_type {
-	TASK_T_RUN = 0,
-	TASK_T_TIMEOUT,
+    TASK_T_RUN = 0,
+    TASK_T_TIMEOUT,
 };
 
 enum task_state {
-	TASK_S_PENDING = 0,
-	TASK_S_RUNNING = 1,
-	TASK_S_STOPPED = 2,
+    TASK_S_PENDING = 0,
+    TASK_S_RUNNING = 1,
+    TASK_S_STOPPED = 2,
 };
 
 enum task_control {
-	TASK_C_NONE = 0,
-	TASK_C_SUSPEND = 1,
-	TASK_C_RESUME = 2,
-	TASK_C_STOP = 3,
+    TASK_C_NONE = 0,
+    TASK_C_SUSPEND = 1,
+    TASK_C_RESUME = 2,
+    TASK_C_STOP = 3,
 };
 
 typedef int (*task_run_func_t)(void *);
