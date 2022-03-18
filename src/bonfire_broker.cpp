@@ -15,22 +15,25 @@
 typedef int (*bonfire_broker_filter)(struct bmsg *bm);
 
 struct bonfire_broker {
+    // ctx
     struct spdnet_ctx *ctx;
 
+    // router
     string router_addr;
     struct spdnet_node *router;
     bonfire_broker_filter filter;
 
+    // inner bf
+    struct bonfire *bf;
+
+    // services
+    std::map<string, struct bonfire_service> services;
+    string cache_file;
+
+    // forwarder
     string fwd_pub_addr;
     string fwd_sub_addr;
     struct spdnet_forwarder *fwd;
-
-    struct bonfire *bf;
-
-    // global services
-    std::map<string, struct bonfire_service> services;
-
-    string cache_file;
 };
 
 static void load_cache(struct bonfire_broker *brk)
@@ -292,8 +295,7 @@ static void router_recvmsg_cb(
     spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
 }
 
-struct bonfire_broker *bonfire_broker_new(
-    const char *listen_addr, const char *pub_addr, const char *sub_addr)
+struct bonfire_broker *bonfire_broker_new(const char *listen_addr)
 {
     struct bonfire_broker *brk = new struct bonfire_broker;
     assert(strlen(listen_addr) < SPDNET_ADDR_SIZE);
@@ -310,17 +312,12 @@ struct bonfire_broker *bonfire_broker_new(
     spdnet_set_user_data(brk->router, brk);
     brk->filter = NULL;
 
-    // forwarder
-    brk->fwd_pub_addr = pub_addr;
-    brk->fwd_sub_addr = sub_addr;
-    brk->fwd = spdnet_forwarder_new(brk->ctx);
-    assert(spdnet_forwarder_bind(brk->fwd, pub_addr, sub_addr) == 0);
-
     // bonfire
     spdnet_set_id(brk->bf->snode, BONFIRE_BROKER);
     bonfire_set_user_data(brk->bf, brk);
     bonfire_connect(brk->bf, listen_addr);
 
+    // services
     brk->bf->services.insert(
         std::make_pair(BONFIRE_SERVICE_INFO, at_service_info));
     brk->bf->services.insert(
@@ -332,12 +329,16 @@ struct bonfire_broker *bonfire_broker_new(
     brk->bf->services.insert(
         std::make_pair(BONFIRE_FORWARDER_INFO, at_forwarder_info));
 
+    // forwarder
+    brk->fwd = NULL;
+
     return brk;
 }
 
 void bonfire_broker_destroy(struct bonfire_broker *brk)
 {
-    spdnet_forwarder_destroy(brk->fwd);
+    if (brk->fwd)
+        spdnet_forwarder_destroy(brk->fwd);
     spdnet_node_destroy(brk->router);
     bonfire_destroy(brk->bf); // brk->bf->ctx must be fini at last
     delete brk;
@@ -370,4 +371,14 @@ void bonfire_broker_set_cache_file(
 {
     brk->cache_file = cache_file;
     load_cache(brk);
+}
+
+void bonfire_broker_enable_pubsub(
+    struct bonfire_broker *brk, const char *pub_addr, const char *sub_addr)
+{
+    // forwarder
+    brk->fwd_pub_addr = pub_addr;
+    brk->fwd_sub_addr = sub_addr;
+    brk->fwd = spdnet_forwarder_new(brk->ctx);
+    assert(spdnet_forwarder_bind(brk->fwd, pub_addr, sub_addr) == 0);
 }

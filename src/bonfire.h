@@ -94,16 +94,17 @@ typedef int (*bonfire_broker_filter_cb)(struct bmsg *bm);
 
 struct bonfire_broker;
 
-struct bonfire_broker *bonfire_broker_new(
-    const char *listen_addr, const char *pub_addr, const char *sub_addr);
-void bonfire_broker_destroy(struct bonfire_broker *bbrk);
-int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout);
+struct bonfire_broker *bonfire_broker_new(const char *listen_addr);
+void bonfire_broker_destroy(struct bonfire_broker *brk);
+int bonfire_broker_loop(struct bonfire_broker *brk, long timeout);
 void bonfire_broker_set_filter(
-    struct bonfire_broker *bbrk, bonfire_broker_filter_cb cb);
+    struct bonfire_broker *brk, bonfire_broker_filter_cb cb);
 void bonfire_broker_set_gateway(
-    struct bonfire_broker *bbrk, const char *gateway_addr);
+    struct bonfire_broker *brk, const char *gateway_addr);
 void bonfire_broker_set_cache_file(
-    struct bonfire_broker *bbrk, const char *cache_file);
+    struct bonfire_broker *brk, const char *cache_file);
+void bonfire_broker_enable_pubsub(
+    struct bonfire_broker *brk, const char *pub_addr, const char *sub_addr);
 
 #ifdef __cplusplus
 }

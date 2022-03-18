@@ -130,24 +130,15 @@ struct bonfire {
     string broker_address;
 
     struct spdnet_ctx *ctx;
-    struct spdnet_node *snode; // for local services
-
-    string fwd_pub_addr;
-    string fwd_sub_addr;
-    struct spdnet_node *pub;
-    std::map<string, struct spdnet_node *> subs;
-    pthread_mutex_t subs_lock;
-
-    long timeout;
 
     // services
+    struct spdnet_node *snode;
+    long timeout;
     std::map<string, bonfire_service_cb> services;
     pthread_mutex_t services_lock;
-
-    // bmsg
     std::list<struct bmsg *> bmsgs;
-
     void *user_data;
+
     bonfire_service_cb filter_cb;
     bonfire_service_cb prepare_cb;
     bonfire_service_cb finish_cb;
@@ -156,6 +147,13 @@ struct bonfire {
     int msg_doing;
     int msg_filtered;
     int msg_handled;
+
+    // pubsub
+    string fwd_pub_addr;
+    string fwd_sub_addr;
+    struct spdnet_node *pub;
+    std::map<string, struct spdnet_node *> subs;
+    pthread_mutex_t subs_lock;
 };
 
 #endif

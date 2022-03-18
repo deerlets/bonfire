@@ -129,10 +129,6 @@ struct bonfire *bonfire_new()
     bf->snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
     assert(bf->snode);
 
-    // pub
-    bf->pub = NULL;
-    pthread_mutex_init(&bf->subs_lock, NULL);
-
     // timeout
     bf->timeout = BONFIRE_DEFAULT_TIMEOUT;
 
@@ -149,6 +145,10 @@ struct bonfire *bonfire_new()
     bf->msg_doing = 0;
     bf->msg_filtered = 0;
     bf->msg_handled = 0;
+
+    // pub
+    bf->pub = NULL;
+    pthread_mutex_init(&bf->subs_lock, NULL);
 
     return bf;
 }
@@ -208,6 +208,10 @@ void bonfire_set_user_data(struct bonfire *bf, void *data)
 {
     bf->user_data = data;
 }
+
+/*
+ * services
+ */
 
 static int servcall(
     struct bonfire *bf, const char *header, const char *content, char **result)
@@ -411,6 +415,10 @@ void bonfire_servcall_async(
     spdnet_recvmsg_async(snode, servcall_cb, as, bf->timeout);
 }
 
+/*
+ * pubsub
+ */
+
 struct subscribe_struct {
     struct bonfire *bf;
     bonfire_subscribe_cb cb;
@@ -447,6 +455,8 @@ static int get_forwarder_info(struct bonfire *bf)
         assert(j["errno"] == 0);
         bf->fwd_pub_addr = j["result"]["pub_addr"];
         bf->fwd_sub_addr = j["result"]["sub_addr"];
+        if (bf->fwd_pub_addr.empty() || bf->fwd_sub_addr.empty())
+            return -1;
     } catch (json::exception &ex) {
         fprintf(stderr, "[%s]: %s\n", __func__, ex.what());
         assert(0);

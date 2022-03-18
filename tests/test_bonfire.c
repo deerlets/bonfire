@@ -52,13 +52,12 @@ static void hello_to_zerox_cb(
 
 static void test_bonfire_servcall(void **status)
 {
-    // bbrk init
-    struct bonfire_broker *bbrk = bonfire_broker_new(
-        BROKER_ADDRESS, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+    // brk init
+    struct bonfire_broker *brk = bonfire_broker_new(BROKER_ADDRESS);
     struct task *bonfire_broker_task = task_new_timeout(
-        "bonfire-bbrk-task",
+        "bonfire-brk-task",
         (task_timeout_func_t)bonfire_broker_loop,
-        bbrk, 500);
+        brk, 500);
     task_start(bonfire_broker_task);
 
     // hello client init
@@ -98,9 +97,9 @@ static void test_bonfire_servcall(void **status)
     task_destroy(bf_zerox_task);
     bonfire_destroy(bf_zerox);
 
-    // bbrk fini
+    // brk fini
     task_destroy(bonfire_broker_task);
-    bonfire_broker_destroy(bbrk);
+    bonfire_broker_destroy(brk);
 }
 
 static void subscribe_cb(
@@ -119,13 +118,13 @@ static void subscribe_cb(
 
 static void test_bonfire_pub_sub(void **status)
 {
-    // bbrk init
-    struct bonfire_broker *bbrk = bonfire_broker_new(
-        BROKER_ADDRESS, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+    // brk init
+    struct bonfire_broker *brk = bonfire_broker_new(BROKER_ADDRESS);
+    bonfire_broker_enable_pubsub(brk, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
     struct task *bonfire_broker_task = task_new_timeout(
-        "bonfire-bbrk-task",
+        "bonfire-brk-task",
         (task_timeout_func_t)bonfire_broker_loop,
-        bbrk, 500);
+        brk, 500);
     task_start(bonfire_broker_task);
 
     // sub client init
@@ -151,9 +150,9 @@ static void test_bonfire_pub_sub(void **status)
     // pub client fini
     bonfire_destroy(bf_pub);
 
-    // bbrk fini
+    // brk fini
     task_destroy(bonfire_broker_task);
-    bonfire_broker_destroy(bbrk);
+    bonfire_broker_destroy(brk);
 }
 
 int main(void)
