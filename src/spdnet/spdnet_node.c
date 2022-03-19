@@ -283,7 +283,7 @@ void spdnet_recvmsg_async(
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
 {
 #ifdef HAVE_ZMQ_BUG
-    usleep(10 * 1000);
+    usleep(1 * 1000);
 #endif
 
     return snode->ifs->sendmsg(snode, msg);
