@@ -10,9 +10,11 @@ function hello(content)
 end
 
 bflua.add_service(bf, "bonfirelua://hello", hello);
-print(bflua.servcall(bf, "bonfirelua://hello", ""));
 
-bflua.subscribe(bf, "point/update", function(content)
+-- servcall is synchronous
+print(bflua.servcall(bf, "tag://info", "{\"__token__\":\""..arg[1].."\"}"));
+
+bflua.subscribe(bf, "tag/update", function(content)
   print(content);
 end);
 
