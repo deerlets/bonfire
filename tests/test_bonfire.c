@@ -7,6 +7,7 @@
 #include "task.h"
 
 #define BROKER_ADDRESS "tcp://127.0.0.1:8338"
+#define BROKER_ADDRESS_GW "tcp://127.0.0.1:18338"
 #define FWD_PUB_ADDRESS "tcp://127.0.0.1:9338"
 #define FWD_SUB_ADDRESS "tcp://127.0.0.1:9339"
 
@@ -55,6 +56,7 @@ static void test_bonfire_servcall(void **status)
 	// bbrk init
 	struct bonfire_broker *bbrk = bonfire_broker_new(
 		BROKER_ADDRESS, FWD_PUB_ADDRESS, FWD_SUB_ADDRESS);
+	bonfire_broker_add_unit(bbrk, BROKER_ADDRESS_GW);
 	struct task *bonfire_broker_task = task_new_timeout(
 		"bonfire-bbrk-task",
 		(task_timeout_func_t)bonfire_broker_loop,
@@ -69,7 +71,7 @@ static void test_bonfire_servcall(void **status)
 
 	// zerox client init
 	struct bonfire *bf_zerox = bonfire_new();
-	bonfire_connect(bf_zerox, BROKER_ADDRESS);
+	bonfire_connect(bf_zerox, BROKER_ADDRESS_GW);
 	bonfire_add_service(bf_zerox, "test://zerox/t", on_zerox);
 	struct task *bf_zerox_task = task_new_timeout(
 		"bf_zerox_task",

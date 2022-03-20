@@ -109,13 +109,15 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *pub_addr,
                                           const char *sub_addr);
 void bonfire_broker_destroy(struct bonfire_broker *bbrk);
-int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout);
-void bonfire_broker_set_filter(struct bonfire_broker *bbrk,
-                               bonfire_broker_filter_cb cb);
-void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
-                                const char *gateway_addr);
 void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
                                    const char *cache_file);
+void *bonfire_broker_add_router(struct bonfire_broker *bbrk,
+                                const char *listen_addr,
+                                bonfire_broker_filter_cb cb,
+                                void *parent);
+void bonfire_broker_add_forwarder(struct bonfire_broker *bbrk,
+                                  const char *pub_addr,
+                                  const char *sub_addr);
 
 #ifdef __cplusplus
 }

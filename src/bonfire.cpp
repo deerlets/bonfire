@@ -19,7 +19,8 @@
 using string = std::string;
 using json = nlohmann::json;
 
-#define BONFIRE_BROKER_SOCKID "bonfire-broker-sockid"
+#define BONFIRE_BROKER "bonfire-broker"
+#define BONFIRE_BROKER_ROOT "^"
 #define BONFIRE_SERVICE_INFO "bonfire://service/info"
 #define BONFIRE_SERVICE_ADD "bonfire://service/add"
 #define BONFIRE_SERVICE_DEL "bonfire://service/del"
@@ -319,7 +320,7 @@ static int servcall(struct bonfire *bf,
 	assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
 
 	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID, header, content);
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER, header, content);
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	if (spdnet_recvmsg_timeout(snode, &tmp, bf->timeout)) {
 		spdnet_msg_close(&tmp);
@@ -510,7 +511,7 @@ void bonfire_servcall_async(struct bonfire *bf,
 	j["content"] = content;
 
 	struct spdnet_msg tmp;
-	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER_SOCKID,
+	SPDNET_MSG_INIT_DATA(&tmp, BONFIRE_BROKER,
 	                     BONFIRE_SERVICE_CALL, j.dump().c_str());
 	assert(spdnet_sendmsg(snode, &tmp) == 0);
 	spdnet_msg_close(&tmp);
@@ -643,12 +644,18 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
 
 typedef int (*bonfire_broker_filter)(struct bmsg *bm);
 
+struct bonfire_router {
+	string addr;
+	struct spdnet_node *router;
+	bonfire_broker_filter filter;
+	pthread_t pid;
+	int exit_flag;
+};
+
 struct bonfire_broker {
 	struct spdnet_ctx *ctx;
 
-	string router_addr;
-	struct spdnet_node *router;
-	bonfire_broker_filter filter;
+	std::vector<struct bonfire_router *> routers;
 
 	string fwd_pub_addr;
 	string fwd_sub_addr;
@@ -835,7 +842,7 @@ static void on_service_call(struct bmsg *bm)
 	}
 
 	struct spdnet_node *snode = spdnet_node_new(bbrk->ctx, SPDNET_DEALER);
-	assert(spdnet_connect(snode, bbrk->router_addr.c_str()) == 0);
+	assert(spdnet_connect(snode, bbrk->routers[0]->addr.c_str()) == 0);
 	struct spdnet_msg tmp;
 	SPDNET_MSG_INIT_DATA(&tmp, it->second.sockid.c_str(),
 	                     header.c_str(), content.c_str());
@@ -863,6 +870,8 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
                               struct spdnet_msg *msg,
                               void *arg, int flag)
 {
+	struct bonfire_router *br = (struct bonfire_router *)arg;
+
 	if (flag) {
 		fprintf(stderr, "[%s]: %s(%d)\n", __func__,
 		        spdnet_strerror(flag), flag);
@@ -893,12 +902,10 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 		return;
 	}
 
-	struct bonfire_broker *bbrk =
-		(struct bonfire_broker *)spdnet_get_user_data(snode);
-	if (bbrk->filter) {
+	if (br->filter) {
 		struct bmsg *bm = bmsg_new();
 		spdnet_msg_copy(&bm->request, msg);
-		if (bbrk->filter(bm) && MSG_CONTENT_SIZE(&bm->response)) {
+		if (br->filter(bm) && MSG_CONTENT_SIZE(&bm->response)) {
 			string resp_header((char *)MSG_HEADER_DATA(msg),
 			                   MSG_HEADER_SIZE(msg));
 			resp_header += BONFIRE_RESPONSE_SUBFIX;
@@ -923,6 +930,14 @@ static void router_recvmsg_cb(struct spdnet_node *snode,
 	spdnet_recvmsg_async(snode, router_recvmsg_cb, arg, 0);
 }
 
+static void *bonfire_broker_run(void *arg)
+{
+	struct bonfire_router *br = (struct bonfire_router *)arg;
+
+	while (!br->exit_flag)
+		spdnet_loop(br->router, 100);
+}
+
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
                                           const char *pub_addr,
                                           const char *sub_addr)
@@ -932,15 +947,19 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 
 	// ctx
 	bbrk->bf = bonfire_new();
-	bbrk->ctx = bbrk->bf->ctx;
+	bbrk->ctx = spdnet_ctx_new();
 
-	// router
-	bbrk->router_addr = listen_addr;
-	bbrk->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
-	assert(spdnet_bind(bbrk->router, listen_addr) == 0);
-	spdnet_recvmsg_async(bbrk->router, router_recvmsg_cb, NULL, 0);
-	spdnet_set_user_data(bbrk->router, bbrk);
-	bbrk->filter = NULL;
+	// root router
+	struct bonfire_router *br = new struct bonfire_router;
+	br->addr = listen_addr;
+	br->filter = NULL;
+	br->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
+	spdnet_set_id(br->router, BONFIRE_BROKER_ROOT);
+	assert(spdnet_bind(br->router, listen_addr) == 0);
+	spdnet_recvmsg_async(br->router, router_recvmsg_cb, br, 0);
+	br->exit_flag = 0;
+	pthread_create(&br->pid, NULL, bonfire_broker_run, br);
+	bbrk->routers.push_back(br);
 
 	// forwarder
 	bbrk->fwd_pub_addr = pub_addr;
@@ -949,7 +968,7 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 	assert(spdnet_forwarder_bind(bbrk->fwd, pub_addr, sub_addr) == 0);
 
 	// bonfire cli
-	spdnet_set_id(bbrk->bf->snode, BONFIRE_BROKER_SOCKID);
+	spdnet_set_id(bbrk->bf->snode, BONFIRE_BROKER);
 	bonfire_set_user_data(bbrk->bf, bbrk);
 	bonfire_connect(bbrk->bf, listen_addr);
 
@@ -970,30 +989,14 @@ struct bonfire_broker *bonfire_broker_new(const char *listen_addr,
 void bonfire_broker_destroy(struct bonfire_broker *bbrk)
 {
 	spdnet_forwarder_destroy(bbrk->fwd);
-	spdnet_node_destroy(bbrk->router);
+	for (auto &item : bbrk->routers) {
+		spdnet_node_destroy(item->router);
+		delete item;
+	}
+	bbrk->routers.clear();
 	bonfire_destroy(bbrk->bf); // bbrk->bf->ctx must be fini at last
 
 	delete bbrk;
-}
-
-int bonfire_broker_loop(struct bonfire_broker *bbrk, long timeout)
-{
-	bonfire_loop(bbrk->bf, timeout);
-	return 0;
-}
-
-void bonfire_broker_set_filter(struct bonfire_broker *bbrk,
-                               bonfire_broker_filter_cb cb)
-{
-	bbrk->filter = cb;
-}
-
-void bonfire_broker_set_gateway(struct bonfire_broker *bbrk,
-                                const char *gateway_addr)
-{
-	char gateway_id[SPDNET_ID_SIZE];
-	spdnet_associate(bbrk->router, gateway_addr, gateway_id, SPDNET_ID_SIZE);
-	spdnet_set_gateway(bbrk->router, gateway_id);
 }
 
 void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
@@ -1001,4 +1004,26 @@ void bonfire_broker_set_cache_file(struct bonfire_broker *bbrk,
 {
 	bbrk->cache_file = cache_file;
 	load_cache(bbrk);
+}
+
+void *bonfire_broker_add_router(struct bonfire_broker *bbrk,
+                                const char *listen_addr,
+                                bonfire_broker_filter_cb cb,
+                                void *parent)
+{
+	assert(parent);
+	struct bonfire_router *p = (struct bonfire_router *)parent;
+
+	struct bonfire_router *br = new struct bonfire_router;
+	br->addr = listen_addr;
+	br->filter = cb;
+	br->router = spdnet_node_new(bbrk->ctx, SPDNET_ROUTER);
+	// use random sockid
+	assert(spdnet_bind(br->router, listen_addr) == 0);
+	spdnet_associate(br->router, p->addr, NULL, 0);
+	spdnet_set_gateway(br->router, spdnet_get_id(p->router));
+	spdnet_recvmsg_async(br->router, router_recvmsg_cb, br, 0);
+	br->exit_flag = 0;
+	pthread_create(br->pid, NULL, bonfire_broker_run, br);
+	bbrk->routers.push_back(br);
 }
