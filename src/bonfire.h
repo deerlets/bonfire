@@ -51,10 +51,10 @@ void bmsg_write_response_size(struct bmsg *bm, const void *data, size_t size);
 #define BONFIRE_DEFAULT_TIMEOUT 5000
 
 typedef void (*bonfire_service_cb)(struct bmsg *bm);
-typedef void (*bonfire_servcall_cb)(
-    struct bonfire *bf, const void *resp, size_t len, void *arg, int flag);
-typedef void (*bonfire_subscribe_cb)(
-    struct bonfire *bf, const void *resp, size_t len, void *arg, int flag);
+typedef void (*bonfire_servcall_cb)(struct bonfire *bf, const void *resp,
+                                    size_t len, void *arg, int flag);
+typedef void (*bonfire_subscribe_cb)(struct bonfire *bf, const void *resp,
+                                     size_t len, void *arg, int flag);
 
 struct bonfire *bonfire_new();
 void bonfire_destroy(struct bonfire *bf);
@@ -65,24 +65,24 @@ int bonfire_loop(struct bonfire *bf, long timeout);
 void *bonfire_get_user_data(struct bonfire *bf);
 void bonfire_set_user_data(struct bonfire *bf, void *data);
 
-int bonfire_add_service(
-    struct bonfire *bf, const char *header, bonfire_service_cb cb);
+int bonfire_add_service(struct bonfire *bf, const char *header,
+                        bonfire_service_cb cb);
 int bonfire_del_service(struct bonfire *bf, const char *header);
 
 void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout);
 
 // if **result not null, user should free it
-int bonfire_servcall(
-    struct bonfire *bf, const char *header, const char *content, char **result);
+int bonfire_servcall(struct bonfire *bf, const char *header,
+                     const char *content, char **result);
 
-void bonfire_servcall_async(
-    struct bonfire *bf, const char *header, const char *content,
-    bonfire_servcall_cb cb, void *arg);
+void bonfire_servcall_async(struct bonfire *bf, const char *header,
+                            const char *content, bonfire_servcall_cb cb,
+                            void *arg);
 
 int bonfire_publish(struct bonfire *bf, const char *topic, const char *content);
 
-int bonfire_subscribe(
-    struct bonfire *bf, const char *topic, bonfire_subscribe_cb cb, void *arg);
+int bonfire_subscribe(struct bonfire *bf, const char *topic,
+                      bonfire_subscribe_cb cb, void *arg);
 
 int bonfire_unsubscribe(struct bonfire *bf, const char *topic);
 
@@ -97,14 +97,15 @@ struct bonfire_broker;
 struct bonfire_broker *bonfire_broker_new(const char *listen_addr);
 void bonfire_broker_destroy(struct bonfire_broker *brk);
 int bonfire_broker_loop(struct bonfire_broker *brk, long timeout);
-void bonfire_broker_set_filter(
-    struct bonfire_broker *brk, bonfire_broker_filter_cb cb);
-void bonfire_broker_set_gateway(
-    struct bonfire_broker *brk, const char *gateway_addr);
-void bonfire_broker_set_cache_file(
-    struct bonfire_broker *brk, const char *cache_file);
-void bonfire_broker_enable_pubsub(
-    struct bonfire_broker *brk, const char *pub_addr, const char *sub_addr);
+void bonfire_broker_set_filter(struct bonfire_broker *brk,
+                               bonfire_broker_filter_cb cb);
+void bonfire_broker_set_gateway(struct bonfire_broker *brk,
+                                const char *gateway_addr);
+void bonfire_broker_set_cache_file(struct bonfire_broker *brk,
+                                   const char *cache_file);
+void bonfire_broker_enable_pubsub(struct bonfire_broker *brk,
+                                  const char *pub_addr,
+                                  const char *sub_addr);
 
 #ifdef __cplusplus
 }

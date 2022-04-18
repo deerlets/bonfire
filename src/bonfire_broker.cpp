@@ -163,8 +163,8 @@ static void at_service_del(struct bmsg *bm)
     pack(bm, BONFIRE_EOK, nullptr);
 }
 
-static void __servcall_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void __servcall_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                          void *arg, int flag)
 {
     struct bmsg *bm = (struct bmsg *)arg;
 
@@ -231,8 +231,8 @@ static void at_forwarder_info(struct bmsg *bm)
     pack(bm, BONFIRE_EOK, cnt);
 }
 
-static void router_recvmsg_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void router_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                              void *arg, int flag)
 {
     if (flag) {
         fprintf(stderr, "[%s]: %s(%d)\n", __func__,
@@ -350,14 +350,14 @@ int bonfire_broker_loop(struct bonfire_broker *brk, long timeout)
     return 0;
 }
 
-void bonfire_broker_set_filter(
-    struct bonfire_broker *brk, bonfire_broker_filter_cb cb)
+void bonfire_broker_set_filter(struct bonfire_broker *brk,
+                               bonfire_broker_filter_cb cb)
 {
     brk->filter = cb;
 }
 
-void bonfire_broker_set_gateway(
-    struct bonfire_broker *brk, const char *gateway_addr)
+void bonfire_broker_set_gateway(struct bonfire_broker *brk,
+                                const char *gateway_addr)
 {
     char gateway_id[SPDNET_ID_SIZE];
     size_t gateway_len;
@@ -366,15 +366,16 @@ void bonfire_broker_set_gateway(
     spdnet_set_gateway(brk->router, gateway_id, gateway_len);
 }
 
-void bonfire_broker_set_cache_file(
-    struct bonfire_broker *brk, const char *cache_file)
+void bonfire_broker_set_cache_file(struct bonfire_broker *brk,
+                                   const char *cache_file)
 {
     brk->cache_file = cache_file;
     load_cache(brk);
 }
 
-void bonfire_broker_enable_pubsub(
-    struct bonfire_broker *brk, const char *pub_addr, const char *sub_addr)
+void bonfire_broker_enable_pubsub(struct bonfire_broker *brk,
+                                  const char *pub_addr,
+                                  const char *sub_addr)
 {
     // forwarder
     brk->fwd_pub_addr = pub_addr;

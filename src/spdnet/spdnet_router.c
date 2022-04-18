@@ -67,8 +67,9 @@ spdnet_find_routing_item_ex(struct spdnet_router *router, zmq_msg_t *id)
         router, zmq_msg_data(id), zmq_msg_size(id));
 }
 
-void spdnet_builtin_router_recvmsg_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
+                                      struct spdnet_msg *msg,
+                                      void *arg, int flag)
 {
     if (flag) {
         fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
@@ -141,8 +142,8 @@ static void spdnet_router_destroy(struct spdnet_node *snode)
     free(router);
 }
 
-static int handle_msg_from_router(
-    struct spdnet_node *snode, struct spdnet_msg *msg, zmq_msg_t *rid)
+static int handle_msg_from_router(struct spdnet_node *snode,
+                                  struct spdnet_msg *msg, zmq_msg_t *rid)
 {
     struct spdnet_router *router =
         container_of(snode, struct spdnet_router, snode);
@@ -201,8 +202,8 @@ static int handle_msg_from_router(
     return 0;
 }
 
-static int handle_msg_from_dealer(
-    struct spdnet_node *snode, struct spdnet_msg *msg, zmq_msg_t *srcid)
+static int handle_msg_from_dealer(struct spdnet_node *snode,
+                                  struct spdnet_msg *msg, zmq_msg_t *srcid)
 {
     struct spdnet_router *router =
         container_of(snode, struct spdnet_router, snode);
@@ -449,8 +450,8 @@ finally:
     return rc;
 }
 
-static int spdnet_router_associate(
-    struct spdnet_node *snode, const char *addr, void *id, size_t *len)
+static int spdnet_router_associate(struct spdnet_node *snode, const char *addr,
+                                   void *id, size_t *len)
 {
     struct spdnet_router *router =
         container_of(snode, struct spdnet_router, snode);
@@ -509,8 +510,8 @@ static int spdnet_router_associate(
     return 0;
 }
 
-static int
-spdnet_router_set_gateway(struct spdnet_node *snode, void *id, size_t len)
+static int spdnet_router_set_gateway(struct spdnet_node *snode,
+                                     void *id, size_t len)
 {
     struct spdnet_router *router =
         container_of(snode, struct spdnet_router, snode);

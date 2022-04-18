@@ -10,8 +10,8 @@ struct spdnet_forwarder {
     void *sub;
 };
 
-static void forwarder_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void forwarder_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                         void *arg, int flag)
 {
     if (flag) {
         fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
@@ -63,8 +63,8 @@ void spdnet_forwarder_destroy(struct spdnet_forwarder *fwd)
     free(fwd);
 }
 
-int spdnet_forwarder_bind(
-    struct spdnet_forwarder *fwd, const char *pub_addr, const char *sub_addr)
+int spdnet_forwarder_bind(struct spdnet_forwarder *fwd, const char *pub_addr,
+                          const char *sub_addr)
 {
     if (spdnet_bind(fwd->pub, pub_addr))
         return -1;

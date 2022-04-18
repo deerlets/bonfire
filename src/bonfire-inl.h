@@ -87,8 +87,8 @@ static inline const char *bonfire_strerror(int err) {
 static inline json unpack(struct spdnet_msg *msg)
 {
     return json::parse((char *)MSG_CONTENT_DATA(msg),
-               (char *)MSG_CONTENT_DATA(msg)
-               + MSG_CONTENT_SIZE(msg));
+                       (char *)MSG_CONTENT_DATA(msg)
+                       + MSG_CONTENT_SIZE(msg));
 }
 
 static inline void pack(struct bmsg *bm, int err, json cnt)

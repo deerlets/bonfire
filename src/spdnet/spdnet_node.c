@@ -230,8 +230,8 @@ int spdnet_alive(struct spdnet_node *snode)
     return 0;
 }
 
-int spdnet_associate(
-    struct spdnet_node *snode, const char *addr, void *id, size_t *len)
+int spdnet_associate(struct spdnet_node *snode, const char *addr,
+                     void *id, size_t *len)
 {
     return snode->ifs->associate(snode, addr, id, len);
 }
@@ -246,8 +246,8 @@ int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg)
     return snode->ifs->recvmsg(snode, msg);
 }
 
-int spdnet_recvmsg_timeout(
-    struct spdnet_node *snode, struct spdnet_msg *msg, int timeout)
+int spdnet_recvmsg_timeout(struct spdnet_node *snode, struct spdnet_msg *msg,
+                           int timeout)
 {
     zmq_pollitem_t item;
     item.socket = spdnet_get_socket(snode);
@@ -269,8 +269,8 @@ int spdnet_recvmsg_timeout(
     }
 }
 
-void spdnet_recvmsg_async(
-    struct spdnet_node *snode, spdnet_recvmsg_cb cb, void *arg, long timeout)
+void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
+                          void *arg, long timeout)
 {
     assert(cb);
 

@@ -75,8 +75,8 @@ static void do_all_msg(struct bonfire *bf)
     }
 }
 
-static void recvmsg_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                       void *arg, int flag)
 {
     if (flag) {
         fprintf(stderr, "[%s]: flag => %d\n", __func__, flag);
@@ -213,8 +213,8 @@ void bonfire_set_user_data(struct bonfire *bf, void *data)
  * services
  */
 
-static int servcall(
-    struct bonfire *bf, const char *header, const char *content, char **result)
+static int servcall(struct bonfire *bf, const char *header,
+                    const char *content, char **result)
 {
     struct spdnet_node *snode = spdnet_node_new(bf->ctx, SPDNET_DEALER);
     assert(spdnet_connect(snode, bf->broker_address.c_str()) == 0);
@@ -230,8 +230,7 @@ static int servcall(
     }
 
     if (result) {
-        string cnt((char *)MSG_CONTENT_DATA(&tmp),
-                   MSG_CONTENT_SIZE(&tmp));
+        string cnt((char *)MSG_CONTENT_DATA(&tmp), MSG_CONTENT_SIZE(&tmp));
         *result = strdup(cnt.c_str());
     }
 
@@ -240,8 +239,8 @@ static int servcall(
     return 0;
 }
 
-int bonfire_add_service(
-    struct bonfire *bf, const char *header, bonfire_service_cb handler)
+int bonfire_add_service(struct bonfire *bf, const char *header,
+                        bonfire_service_cb handler)
 {
     pthread_mutex_lock(&bf->services_lock);
     if (bf->services.find(header) != bf->services.end()) {
@@ -320,8 +319,8 @@ void bonfire_set_servcall_timeout(struct bonfire *bf, long timeout)
     bf->timeout = timeout;
 }
 
-int bonfire_servcall(
-    struct bonfire *bf, const char *header, const char *content, char **result)
+int bonfire_servcall(struct bonfire *bf, const char *header,
+                     const char *content, char **result)
 {
     json cnt;
     cnt["header"] = header;
@@ -366,8 +365,8 @@ struct servcall_struct {
     }
 };
 
-static void servcall_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void servcall_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                        void *arg, int flag)
 {
     servcall_struct *as = static_cast<servcall_struct *>(arg);
 
@@ -425,8 +424,8 @@ struct subscribe_struct {
     void *arg;
 };
 
-static void subscribe_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag)
+static void subscribe_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
+                         void *arg, int flag)
 {
     subscribe_struct *ss = static_cast<subscribe_struct *>(
         spdnet_get_user_data(snode));
@@ -485,8 +484,8 @@ int bonfire_publish(struct bonfire *bf, const char *topic, const char *content)
     return 0;
 }
 
-int bonfire_subscribe(
-    struct bonfire *bf, const char *topic, bonfire_subscribe_cb cb, void *arg)
+int bonfire_subscribe(struct bonfire *bf, const char *topic,
+                      bonfire_subscribe_cb cb, void *arg)
 {
     if (bf->fwd_pub_addr.empty() && get_forwarder_info(bf))
         return -1;
@@ -526,8 +525,7 @@ int bonfire_unsubscribe(struct bonfire *bf, const char *topic)
         return -1;
     }
 
-    subscribe_struct *ss = (subscribe_struct *)
-        spdnet_get_user_data(it->second);
+    subscribe_struct *ss = (subscribe_struct *)spdnet_get_user_data(it->second);
     ss->cb(bf, NULL, 0, ss->arg, BONFIRE_ECANCEL);
     free(ss);
 

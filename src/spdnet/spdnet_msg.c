@@ -18,6 +18,7 @@ int spdnet_frame_init(spdnet_frame_t *frame)
 {
     return zmq_msg_init(frame);
 }
+
 int spdnet_frame_init_size(spdnet_frame_t *frame, size_t size)
 {
     return zmq_msg_init_size(frame, size);
@@ -66,11 +67,9 @@ int spdnet_msg_init(struct spdnet_msg *msg)
     return 0;
 }
 
-int spdnet_msg_init_data(
-    struct spdnet_msg *msg,
-    const void *dstid, int id_size,
-    const void *header, int hdr_size,
-    const void *content, int cnt_size)
+int spdnet_msg_init_data(struct spdnet_msg *msg, const void *dstid, int id_size,
+                         const void *header, int hdr_size, const void *content,
+                         int cnt_size)
 {
     memset(msg, 0, sizeof(*msg));
 

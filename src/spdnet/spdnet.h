@@ -195,26 +195,28 @@ int spdnet_connect(struct spdnet_node *snode, const char *addr);
 void spdnet_unbind(struct spdnet_node *snode);
 void spdnet_disconnect(struct spdnet_node *snode);
 
-int spdnet_associate(
-    struct spdnet_node *snode, const char *addr, void *id, size_t *len);
+int spdnet_associate(struct spdnet_node *snode, const char *addr,
+                     void *id, size_t *len);
 int spdnet_set_gateway(struct spdnet_node *snode, void *id, size_t len);
 
-typedef void (*spdnet_recvmsg_cb)(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag);
+typedef void (*spdnet_recvmsg_cb)(struct spdnet_node *snode,
+                                  struct spdnet_msg *msg,
+                                  void *arg, int flag);
 
 int spdnet_recvmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
-int spdnet_recvmsg_timeout(
-    struct spdnet_node *snode, struct spdnet_msg *msg, int timeout);
-void spdnet_recvmsg_async(
-    struct spdnet_node *snode, spdnet_recvmsg_cb cb, void *arg, long timeout);
+int spdnet_recvmsg_timeout(struct spdnet_node *snode, struct spdnet_msg *msg,
+                           int timeout);
+void spdnet_recvmsg_async(struct spdnet_node *snode, spdnet_recvmsg_cb cb,
+                          void *arg, long timeout);
 int spdnet_sendmsg(struct spdnet_node *snode, struct spdnet_msg *msg);
 
 /*
  * built in device
  */
 
-void spdnet_builtin_router_recvmsg_cb(
-    struct spdnet_node *snode, struct spdnet_msg *msg, void *arg, int flag);
+void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
+                                      struct spdnet_msg *msg,
+                                      void *arg, int flag);
 
 /*
  * spdnet_forwarder
@@ -224,8 +226,8 @@ struct spdnet_forwarder;
 
 struct spdnet_forwarder *spdnet_forwarder_new(struct spdnet_ctx *ctx);
 void spdnet_forwarder_destroy(struct spdnet_forwarder *fwd);
-int spdnet_forwarder_bind(
-    struct spdnet_forwarder *fwd, const char *pub_addr, const char *sub_addr);
+int spdnet_forwarder_bind(struct spdnet_forwarder *fwd, const char *pub_addr,
+                          const char *sub_addr);
 
 #ifdef __cplusplus
 }
