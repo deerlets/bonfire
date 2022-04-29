@@ -202,6 +202,32 @@ static int bonfire_unsubscribe_wrap(lua_State *L)
     return 1;
 }
 
+static int bonfire_broker_new_wrap(lua_State *L) {
+    const char *address = luaL_checkstring(L, 1);
+    struct bonfire_broker *brk = bonfire_broker_new(address);
+    lua_newtable(L);
+    lua_pushlightuserdata(L, brk);
+    lua_setfield(L, -2, "brk");
+    return 1;
+}
+
+static int bonfire_broker_destroy_wrap(lua_State *L) {
+    stack_dump(L);
+    lua_getfield(L, 1, "brk");
+    struct bonfire_broker *brk = lua_touserdata(L, -1);
+    bonfire_broker_destroy(brk);
+    return 0;
+}
+
+static int bonfire_broker_loop_wrap(lua_State *L) {
+    lua_getfield(L, 1, "brk");
+    struct bonfire_broker *brk = lua_touserdata(L, -1);
+    long timeout = luaL_checkinteger(L, 2);
+    int rc = bonfire_broker_loop(brk, timeout);
+    lua_pushinteger(L, rc);
+    return 1;
+}
+
 static const struct luaL_Reg funcs[] = {
     {"new", bonfire_new_wrap},
     {"destroy", bonfire_destroy_wrap},
@@ -214,6 +240,9 @@ static const struct luaL_Reg funcs[] = {
     {"publish", bonfire_publish_wrap},
     {"subscribe", bonfire_subscribe_wrap},
     {"unsubscribe", bonfire_unsubscribe_wrap},
+    {"broker_new", bonfire_broker_new_wrap},
+    {"broker_destroy", bonfire_broker_destroy_wrap},
+    {"broker_loop", bonfire_broker_loop_wrap},
     {NULL, NULL},
 };
 

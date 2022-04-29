@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.12)
 project(bonfirelua)
 
 set(CMAKE_MACOSX_RPATH 1)
@@ -19,7 +19,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MODE_FLAGS} -std=gnu99 -Wall")
 file(GLOB SRC src/*.c)
 
 add_library(bonfirelua SHARED ${SRC})
-target_link_libraries(bonfirelua bonfire lua)
+target_link_libraries(bonfirelua bonfire lua5.3)
 
 set_target_properties(bonfirelua PROPERTIES PREFIX "")
 set_target_properties(bonfirelua PROPERTIES SUFFIX ".so")
