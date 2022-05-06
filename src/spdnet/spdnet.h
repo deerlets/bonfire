@@ -56,9 +56,9 @@ extern "C" {
 #define SPDNET_ID_SIZE 64
 #define SPDNET_ADDR_SIZE 64
 #define SPDNET_ID_NONE "--none--"
-#define SPDNET_REGISTER_MSG "snode-register"
-#define SPDNET_UNREGISTER_MSG "snode-unregister"
-#define SPDNET_ALIVE_MSG "snode-alive"
+#define SPDNET_REGISTER_HDR "spdnet://register"
+#define SPDNET_UNREGISTER_HDR "spdnet://unregister"
+#define SPDNET_ALIVE_HDR "spdnet://alive"
 
 /*
  * spdnet errno & errmsg

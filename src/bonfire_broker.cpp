@@ -243,12 +243,12 @@ static void router_recvmsg_cb(struct spdnet_node *snode, struct spdnet_msg *msg,
     assert(msg);
 
     // filter register & unregister & alive msg
-    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_MSG,
-               strlen(SPDNET_REGISTER_MSG)) == 0 ||
-        memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-               strlen(SPDNET_UNREGISTER_MSG)) == 0 ||
-        memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_MSG,
-               strlen(SPDNET_ALIVE_MSG)) == 0 ||
+    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_REGISTER_HDR,
+               strlen(SPDNET_REGISTER_HDR)) == 0 ||
+        memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_HDR,
+               strlen(SPDNET_UNREGISTER_HDR)) == 0 ||
+        memcmp(MSG_HEADER_DATA(msg), SPDNET_ALIVE_HDR,
+               strlen(SPDNET_ALIVE_HDR)) == 0 ||
         memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_INFO,
                strlen(BONFIRE_SERVICE_INFO)) == 0 ||
         memcmp(MSG_HEADER_DATA(msg), BONFIRE_SERVICE_ADD,

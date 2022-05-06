@@ -179,8 +179,8 @@ static int handle_msg_from_router(struct spdnet_node *snode,
     struct spdnet_routing_item *router_routing =
         spdnet_find_routing_item_ex(router, rid);
     // handle unregister msg
-    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-               strlen(SPDNET_UNREGISTER_MSG)) == 0) {
+    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_HDR,
+               strlen(SPDNET_UNREGISTER_HDR)) == 0) {
         if (router_routing) {
             list_del(&router_routing->node);
             free(router_routing);
@@ -237,8 +237,8 @@ static int handle_msg_from_dealer(struct spdnet_node *snode,
     struct spdnet_routing_item *src_routing =
         spdnet_find_routing_item_ex(router, srcid);
     // handle unregister msg
-    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_MSG,
-               strlen(SPDNET_UNREGISTER_MSG)) == 0) {
+    if (memcmp(MSG_HEADER_DATA(msg), SPDNET_UNREGISTER_HDR,
+               strlen(SPDNET_UNREGISTER_HDR)) == 0) {
         if (src_routing) {
             list_del(&src_routing->node);
             free(src_routing);
@@ -488,8 +488,8 @@ static int spdnet_router_associate(struct spdnet_node *snode, const char *addr,
 
     // header
     zmq_send(socket, "", 0, ZMQ_SNDMORE);
-    zmq_send(socket, SPDNET_REGISTER_MSG,
-             strlen(SPDNET_REGISTER_MSG), ZMQ_SNDMORE);
+    zmq_send(socket, SPDNET_REGISTER_HDR,
+             strlen(SPDNET_REGISTER_HDR), ZMQ_SNDMORE);
 
     // content
     zmq_send(socket, "", 0, ZMQ_SNDMORE);

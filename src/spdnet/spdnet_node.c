@@ -193,7 +193,7 @@ int spdnet_register(struct spdnet_node *snode)
 
     struct spdnet_msg msg;
     spdnet_msg_init_data(
-        &msg, SPDNET_ID_NONE, -1, SPDNET_REGISTER_MSG, -1, NULL, 0);
+        &msg, SPDNET_ID_NONE, -1, SPDNET_REGISTER_HDR, -1, NULL, 0);
     rc = spdnet_sendmsg(snode, &msg);
     spdnet_msg_close(&msg);
 
@@ -207,7 +207,7 @@ int spdnet_unregister(struct spdnet_node *snode)
 
     struct spdnet_msg msg;
     spdnet_msg_init_data(
-        &msg, SPDNET_ID_NONE, -1, SPDNET_UNREGISTER_MSG, -1, NULL, 0);
+        &msg, SPDNET_ID_NONE, -1, SPDNET_UNREGISTER_HDR, -1, NULL, 0);
     rc = spdnet_sendmsg(snode, &msg);
     spdnet_msg_close(&msg);
 
@@ -222,7 +222,7 @@ int spdnet_alive(struct spdnet_node *snode)
 
     struct spdnet_msg msg;
     spdnet_msg_init_data(
-        &msg, SPDNET_ID_NONE, -1, SPDNET_ALIVE_MSG, -1, NULL, 0);
+        &msg, SPDNET_ID_NONE, -1, SPDNET_ALIVE_HDR, -1, NULL, 0);
     int rc = spdnet_sendmsg(snode, &msg);
     spdnet_msg_close(&msg);
 
