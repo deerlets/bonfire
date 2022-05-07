@@ -48,9 +48,11 @@ void spdnet_node_fini(struct spdnet_node *snode)
 {
     assert(snode != NULL);
     assert(snode->is_bind == 0);
-#ifndef HAVE_ZMQ_BUG
-    assert(snode->is_connect == 0);
+#ifdef HAVE_ZMQ_BUG
+    if (snode->is_connect)
+        spdnet_disconnect(snode);
 #endif
+    assert(snode->is_connect == 0);
     assert(zmq_close(snode->socket) == 0);
     free(snode->id);
 }
