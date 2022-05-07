@@ -81,11 +81,11 @@ void *spdnet_pool_get(struct spdnet_pool *pool, int type)
     list_for_each_entry(pos, &pool->snodes, node) {
         if (pos->used == 0 && pos->type == type) {
 #ifdef HAVE_ZMQ_BUG
-            pthread_mutex_lock(&pool->polls_lock);
+            //pthread_mutex_lock(&pool->polls_lock);
 #endif
             pos->used = 1;
 #ifdef HAVE_ZMQ_BUG
-            pthread_mutex_unlock(&pool->polls_lock);
+            //pthread_mutex_unlock(&pool->polls_lock);
 #endif
             pthread_mutex_unlock(&pool->snodes_lock);
             return pos;
