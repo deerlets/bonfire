@@ -39,6 +39,10 @@ add_subdirectory(src/spdnet)
 include_directories(src)
 add_subdirectory(src)
 
+# bf-broker
+include_directories(src/bf-broker)
+add_subdirectory(src/bf-broker)
+
 # tests
 option(BUILD_TESTS "Build all tests." OFF)
 if (BUILD_TESTS)
