@@ -41,6 +41,9 @@ static void load_cache(struct bonfire_broker *brk)
     if (brk->cache_file.empty())
         return;
 
+    if (access(brk->cache_file.c_str(), F_OK) != 0)
+        return;
+
     std::ifstream ifs(brk->cache_file);
 
     try {
@@ -125,13 +128,14 @@ static void at_service_add(struct bmsg *bm)
     if (brk->services.find(bs.header) !=
         brk->services.end()) {
         auto it = brk->services.find(bs.header);
-        fprintf(stderr, "[%s]: old_sockid => %s, new_sockid => %s\n",
+        fprintf(stderr, "[%s]: service sockid changed, old => %s, new => %s\n",
                 __func__, it->second.sockid.c_str(), bs.sockid.c_str());
         brk->services.erase(it);
         //pack(bm, BONFIRE_EEXIST, nullptr);
         //return;
     }
 
+    fprintf(stdout, "[%s]: header => %s\n", __func__, bs.header.c_str());
     brk->services.insert(std::make_pair(bs.header, bs));
     save_cache(brk);
     pack(bm, BONFIRE_EOK, nullptr);
@@ -158,6 +162,7 @@ static void at_service_del(struct bmsg *bm)
         return;
     }
 
+    fprintf(stdout, "[%s]: header => %s\n", __func__, header.c_str());
     brk->services.erase(it);
     save_cache(brk);
     pack(bm, BONFIRE_EOK, nullptr);
@@ -206,6 +211,7 @@ static void at_service_call(struct bmsg *bm)
         return;
     }
 
+    fprintf(stdout, "[%s]: %s\n", __func__, header.c_str());
     struct spdnet_node *snode = spdnet_node_new(brk->ctx, SPDNET_DEALER);
     assert(spdnet_connect(snode, brk->router_addr.c_str()) == 0);
     struct spdnet_msg tmp;
