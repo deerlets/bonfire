@@ -12,14 +12,13 @@ static int exit_flag;
 
 static void signal_handler(int sig)
 {
-    if (sig == SIGINT || sig == SIGQUIT)
+    if (sig == SIGINT)
         exit_flag = 1;
 }
 
 int main()
 {
     signal(SIGINT, signal_handler);
-    signal(SIGQUIT, signal_handler);
 
     char cache_file[PATH_MAX] = "";
     struct bonfire_broker *bbrk = bonfire_broker_new(BROKER_ADDRESS);
