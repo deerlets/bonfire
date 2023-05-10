@@ -94,8 +94,8 @@ void spdnet_builtin_router_recvmsg_cb(struct spdnet_node *snode,
     sprintf(usec_buf, ".%04d", (int)tmnow.tv_usec / 100);
     strcat(buf, usec_buf);
 
-    fprintf(stderr, "[%s] - srcid=%s, dstid=%s, header=%s\n",
-            buf, __srcid, __dstid, __header);
+    fprintf(stderr, "[%s] - srcid=%s, dstid=%s, header=%s, content=%s\n",
+            buf, __srcid, __dstid, __header, __content);
     fflush(stderr);
 
     free(__srcid);

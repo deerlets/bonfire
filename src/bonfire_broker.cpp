@@ -135,7 +135,7 @@ static void at_service_add(struct bmsg *bm)
         //return;
     }
 
-    fprintf(stdout, "[%s]: header => %s\n", __func__, bs.header.c_str());
+    //fprintf(stdout, "[%s]: header => %s\n", __func__, bs.header.c_str());
     brk->services.insert(std::make_pair(bs.header, bs));
     save_cache(brk);
     pack(bm, BONFIRE_EOK, nullptr);
@@ -162,7 +162,7 @@ static void at_service_del(struct bmsg *bm)
         return;
     }
 
-    fprintf(stdout, "[%s]: header => %s\n", __func__, header.c_str());
+    //fprintf(stdout, "[%s]: header => %s\n", __func__, header.c_str());
     brk->services.erase(it);
     save_cache(brk);
     pack(bm, BONFIRE_EOK, nullptr);
@@ -211,7 +211,7 @@ static void at_service_call(struct bmsg *bm)
         return;
     }
 
-    fprintf(stdout, "[%s]: %s\n", __func__, header.c_str());
+    //fprintf(stdout, "[%s]: %s\n", __func__, header.c_str());
     struct spdnet_node *snode = spdnet_node_new(brk->ctx, SPDNET_DEALER);
     assert(spdnet_connect(snode, brk->router_addr.c_str()) == 0);
     struct spdnet_msg tmp;
